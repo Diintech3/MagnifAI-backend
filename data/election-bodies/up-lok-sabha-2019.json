@@ -1,0 +1,987 @@
+{
+  "stateCode": "UP",
+  "bodyType": "LOK_SABHA",
+  "role": "MP",
+  "year": 2019,
+  "totalSeats": 80,
+  "source": "Wikipedia / ECI — 2019 general election",
+  "partyStats": [
+    {
+      "party": "BJP",
+      "seats": 62,
+      "votes": 35692031,
+      "voteShare": 78.08
+    },
+    {
+      "party": "BSP",
+      "seats": 10,
+      "votes": 5430392,
+      "voteShare": 11.88
+    },
+    {
+      "party": "SP",
+      "seats": 5,
+      "votes": 3013103,
+      "voteShare": 6.59
+    },
+    {
+      "party": "Others",
+      "seats": 2,
+      "votes": 1039478,
+      "voteShare": 2.27
+    },
+    {
+      "party": "INC",
+      "seats": 1,
+      "votes": 534918,
+      "voteShare": 1.17
+    }
+  ],
+  "seats": [
+    {
+      "seatNo": 1,
+      "seatName": "Saharanpur",
+      "party": "BSP",
+      "candidate": "Haji Fazlur Rehman",
+      "votes": 514139,
+      "votePercent": 41.72,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Raghav Lakhanpal",
+        "party": "BJP",
+        "votes": 491722,
+        "votePercent": 39.9
+      }
+    },
+    {
+      "seatNo": 2,
+      "seatName": "Kairana",
+      "party": "BJP",
+      "candidate": "Pradeep Choudhary",
+      "votes": 566961,
+      "votePercent": 50.43,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Tabassum Begum",
+        "party": "SP",
+        "votes": 474801,
+        "votePercent": 42.23
+      }
+    },
+    {
+      "seatNo": 3,
+      "seatName": "Muzaffarnagar",
+      "party": "BJP",
+      "candidate": "Sanjeev Balyan",
+      "votes": 573780,
+      "votePercent": 49.39,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Ajit Singh",
+        "party": "RLD",
+        "votes": 567254,
+        "votePercent": 48.83
+      }
+    },
+    {
+      "seatNo": 4,
+      "seatName": "Bijnor",
+      "party": "BSP",
+      "candidate": "Malook Nagar",
+      "votes": 561045,
+      "votePercent": 50.91,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Bharatendra Singh",
+        "party": "BJP",
+        "votes": 491104,
+        "votePercent": 44.57
+      }
+    },
+    {
+      "seatNo": 5,
+      "seatName": "Nagina",
+      "party": "BSP",
+      "candidate": "Girish Chandra",
+      "votes": 568378,
+      "votePercent": 56.29,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Yashwant Singh",
+        "party": "BJP",
+        "votes": 401546,
+        "votePercent": 39.77
+      }
+    },
+    {
+      "seatNo": 6,
+      "seatName": "Moradabad",
+      "party": "SP",
+      "candidate": "S. T. Hasan",
+      "votes": 649416,
+      "votePercent": 50.65,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Sarvesh Singh",
+        "party": "BJP",
+        "votes": 551538,
+        "votePercent": 43.01
+      }
+    },
+    {
+      "seatNo": 7,
+      "seatName": "Rampur",
+      "party": "SP",
+      "candidate": "Azam Khan",
+      "votes": 559177,
+      "votePercent": 52.69,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Jaya Prada",
+        "party": "BJP",
+        "votes": 449180,
+        "votePercent": 42.33
+      }
+    },
+    {
+      "seatNo": 8,
+      "seatName": "Sambhal",
+      "party": "SP",
+      "candidate": "Shafiqur Rahman Barq",
+      "votes": 658006,
+      "votePercent": 55.58,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 9,
+      "seatName": "Amroha",
+      "party": "BSP",
+      "candidate": "Danish Ali",
+      "votes": 601082,
+      "votePercent": 51.39,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Kn. Singh Tanwar",
+        "party": "BJP",
+        "votes": 537834,
+        "votePercent": 45.98
+      }
+    },
+    {
+      "seatNo": 10,
+      "seatName": "Meerut",
+      "party": "BJP",
+      "candidate": "Rajendra Agrawal",
+      "votes": 586184,
+      "votePercent": 48.17,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Yaqub Qureishi",
+        "party": "BSP",
+        "votes": 581455,
+        "votePercent": 47.78
+      }
+    },
+    {
+      "seatNo": 11,
+      "seatName": "Baghpat",
+      "party": "BJP",
+      "candidate": "Satya Pal Singh",
+      "votes": 525789,
+      "votePercent": 50.29,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Jayant Chaudhary",
+        "party": "RLD",
+        "votes": 502287,
+        "votePercent": 48.04
+      }
+    },
+    {
+      "seatNo": 12,
+      "seatName": "Ghaziabad",
+      "party": "BJP",
+      "candidate": "V. K. Singh",
+      "votes": 944503,
+      "votePercent": 61.93,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Suresh Bansal",
+        "party": "SP",
+        "votes": 443003,
+        "votePercent": 29.05
+      }
+    },
+    {
+      "seatNo": 13,
+      "seatName": "Gautam Buddha Nagar",
+      "party": "BJP",
+      "candidate": "Mahesh Sharma",
+      "votes": 830812,
+      "votePercent": 59.64,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 14,
+      "seatName": "Bulandshahr",
+      "party": "BJP",
+      "candidate": "Bhola Singh",
+      "votes": 681321,
+      "votePercent": 60.56,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 15,
+      "seatName": "Aligarh",
+      "party": "BJP",
+      "candidate": "Satish Kumar Gautam",
+      "votes": 656215,
+      "votePercent": 56.38,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 16,
+      "seatName": "Hathras",
+      "party": "BJP",
+      "candidate": "Rajvir Singh Diler",
+      "votes": 684299,
+      "votePercent": 59.43,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Ramji Lal Suman",
+        "party": "SP",
+        "votes": 424091,
+        "votePercent": 36.83
+      }
+    },
+    {
+      "seatNo": 17,
+      "seatName": "Mathura",
+      "party": "BJP",
+      "candidate": "Hema Malini",
+      "votes": 671293,
+      "votePercent": 60.79,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 18,
+      "seatName": "Agra",
+      "party": "BJP",
+      "candidate": "Satyapal Singh Baghel",
+      "votes": 646875,
+      "votePercent": 56.46,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 19,
+      "seatName": "Fatehpur Sikri",
+      "party": "BJP",
+      "candidate": "Rajkumar Chahar",
+      "votes": 667147,
+      "votePercent": 64.24,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 20,
+      "seatName": "Firozabad",
+      "party": "BJP",
+      "candidate": "Dr. Chandra Sen Jadon",
+      "votes": 495819,
+      "votePercent": 46.06,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 21,
+      "seatName": "Mainpuri",
+      "party": "SP",
+      "candidate": "Mulayam Singh Yadav",
+      "votes": 524926,
+      "votePercent": 53.66,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 22,
+      "seatName": "Etah",
+      "party": "BJP",
+      "candidate": "Rajveer Singh",
+      "votes": 545348,
+      "votePercent": 54.52,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 23,
+      "seatName": "Badaun",
+      "party": "BJP",
+      "candidate": "Dr. Sanghmitra Maurya",
+      "votes": 511352,
+      "votePercent": 47.28,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 24,
+      "seatName": "Aonla",
+      "party": "BJP",
+      "candidate": "Dharmendra Kashyap",
+      "votes": 537675,
+      "votePercent": 51.07,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 25,
+      "seatName": "Bareilly",
+      "party": "BJP",
+      "candidate": "Santosh Kumar Gangwar",
+      "votes": 565270,
+      "votePercent": 52.88,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Bhagwat Gangwar",
+        "party": "SP",
+        "votes": 397988,
+        "votePercent": 37.23
+      }
+    },
+    {
+      "seatNo": 26,
+      "seatName": "Pilibhit",
+      "party": "BJP",
+      "candidate": "Feroze Varun Gandhi",
+      "votes": 704549,
+      "votePercent": 59.34,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 27,
+      "seatName": "Shahjahanpur",
+      "party": "BJP",
+      "candidate": "Arun Kumar Sagar",
+      "votes": 688990,
+      "votePercent": 58.04,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 28,
+      "seatName": "Kheri",
+      "party": "BJP",
+      "candidate": "Ajay Kumar",
+      "votes": 609589,
+      "votePercent": 53.62,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 29,
+      "seatName": "Dhaurahra",
+      "party": "BJP",
+      "candidate": "Rekha Verma",
+      "votes": 512905,
+      "votePercent": 48.21,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 30,
+      "seatName": "Sitapur",
+      "party": "BJP",
+      "candidate": "Rajesh Verma",
+      "votes": 514528,
+      "votePercent": 48.3,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 31,
+      "seatName": "Hardoi",
+      "party": "BJP",
+      "candidate": "Jai Prakash",
+      "votes": 568143,
+      "votePercent": 53.71,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 32,
+      "seatName": "Misrikh",
+      "party": "BJP",
+      "candidate": "Ashok Kumar Rawat",
+      "votes": 534429,
+      "votePercent": 52.02,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 33,
+      "seatName": "Unnao",
+      "party": "BJP",
+      "candidate": "Sakshi Maharaj",
+      "votes": 703507,
+      "votePercent": 56.85,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 34,
+      "seatName": "Mohanlalganj",
+      "party": "BJP",
+      "candidate": "Kaushal Kishore",
+      "votes": 629999,
+      "votePercent": 49.58,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 35,
+      "seatName": "Lucknow",
+      "party": "BJP",
+      "candidate": "Rajnath Singh",
+      "votes": 633026,
+      "votePercent": 56.64,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Poonam Sinha",
+        "party": "SP",
+        "votes": 285724,
+        "votePercent": 25.57
+      }
+    },
+    {
+      "seatNo": 36,
+      "seatName": "Rae Bareli",
+      "party": "INC",
+      "candidate": "Sonia Gandhi",
+      "votes": 534918,
+      "votePercent": 55.78,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 37,
+      "seatName": "Amethi",
+      "party": "BJP",
+      "candidate": "Smriti Irani",
+      "votes": 468514,
+      "votePercent": 49.69,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 38,
+      "seatName": "Sultanpur",
+      "party": "BJP",
+      "candidate": "Maneka Gandhi",
+      "votes": 459196,
+      "votePercent": 45.88,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 39,
+      "seatName": "Pratapgarh",
+      "party": "BJP",
+      "candidate": "Sangam Lal Gupta",
+      "votes": 436291,
+      "votePercent": 47.67,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 40,
+      "seatName": "Farrukhabad",
+      "party": "BJP",
+      "candidate": "Mukesh Rajput",
+      "votes": 569880,
+      "votePercent": 56.8,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 41,
+      "seatName": "Etawah",
+      "party": "BJP",
+      "candidate": "Ram Katheria",
+      "votes": 522119,
+      "votePercent": 50.75,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 42,
+      "seatName": "Kannauj",
+      "party": "BJP",
+      "candidate": "Subrat Pathak",
+      "votes": 563087,
+      "votePercent": 49.35,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 43,
+      "seatName": "Kanpur",
+      "party": "BJP",
+      "candidate": "Satyadev Pachauri",
+      "votes": 468937,
+      "votePercent": 55.6,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 44,
+      "seatName": "Akbarpur",
+      "party": "BJP",
+      "candidate": "Devendra Singh",
+      "votes": 581282,
+      "votePercent": 56.62,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 45,
+      "seatName": "Jalaun",
+      "party": "BJP",
+      "candidate": "Bhanu Pratap Singh",
+      "votes": 581763,
+      "votePercent": 51.45,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 46,
+      "seatName": "Jhansi",
+      "party": "BJP",
+      "candidate": "Anurag Sharma",
+      "votes": 809272,
+      "votePercent": 58.59,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 47,
+      "seatName": "Hamirpur",
+      "party": "BJP",
+      "candidate": "Pushpendra Chandel",
+      "votes": 575122,
+      "votePercent": 52.76,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 48,
+      "seatName": "Banda",
+      "party": "BJP",
+      "candidate": "R. K. Singh Patel",
+      "votes": 477926,
+      "votePercent": 46.18,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 49,
+      "seatName": "Fatehpur",
+      "party": "BJP",
+      "candidate": "Niranjan Jyoti",
+      "votes": 566040,
+      "votePercent": 54.19,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 50,
+      "seatName": "Kaushambi",
+      "party": "BJP",
+      "candidate": "Vinod Kumar Sonkar",
+      "votes": 383009,
+      "votePercent": 39.28,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 51,
+      "seatName": "Phulpur",
+      "party": "BJP",
+      "candidate": "Keshari Devi Patel",
+      "votes": 544701,
+      "votePercent": 55.63,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 52,
+      "seatName": "Allahabad",
+      "party": "BJP",
+      "candidate": "Rita Bahuguna Joshi",
+      "votes": 494454,
+      "votePercent": 55.58,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 53,
+      "seatName": "Barabanki",
+      "party": "BJP",
+      "candidate": "Upendra Singh Rawat",
+      "votes": 535917,
+      "votePercent": 46.37,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 54,
+      "seatName": "Faizabad",
+      "party": "BJP",
+      "candidate": "Lallu Singh",
+      "votes": 529021,
+      "votePercent": 48.65,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 55,
+      "seatName": "Ambedkar Nagar",
+      "party": "BSP",
+      "candidate": "Ritesh Pandey",
+      "votes": 564118,
+      "votePercent": 51.72,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 56,
+      "seatName": "Bahraich",
+      "party": "BJP",
+      "candidate": "Akshaibar Lal",
+      "votes": 525982,
+      "votePercent": 53.12,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 57,
+      "seatName": "Kaiserganj",
+      "party": "BJP",
+      "candidate": "Brij Bhushan Singh",
+      "votes": 581358,
+      "votePercent": 59.18,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 58,
+      "seatName": "Shrawasti",
+      "party": "BSP",
+      "candidate": "Ram Shiromani",
+      "votes": 441771,
+      "votePercent": 44.3,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 59,
+      "seatName": "Gonda",
+      "party": "BJP",
+      "candidate": "Kirti Vardhan Singh",
+      "votes": 508190,
+      "votePercent": 54.99,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Vinod Singh",
+        "party": "SP",
+        "votes": 341830,
+        "votePercent": 36.99
+      }
+    },
+    {
+      "seatNo": 60,
+      "seatName": "Domariyaganj",
+      "party": "BJP",
+      "candidate": "Jagdambika Pal",
+      "votes": 492253,
+      "votePercent": 49.96,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 61,
+      "seatName": "Basti",
+      "party": "BJP",
+      "candidate": "Harish Dwivedi",
+      "votes": 471162,
+      "votePercent": 44.65,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Ram Prasad Chaudhary",
+        "party": "BSP",
+        "votes": 440808,
+        "votePercent": 41.77
+      }
+    },
+    {
+      "seatNo": 62,
+      "seatName": "Sant Kabir Nagar",
+      "party": "BJP",
+      "candidate": "Praveen Nishad",
+      "votes": 467543,
+      "votePercent": 43.95,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Bhishma Shankar",
+        "party": "BSP",
+        "votes": 431794,
+        "votePercent": 40.59
+      }
+    },
+    {
+      "seatNo": 63,
+      "seatName": "Maharajganj",
+      "party": "BJP",
+      "candidate": "Pankaj Chaudhary",
+      "votes": 726349,
+      "votePercent": 59.19,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 64,
+      "seatName": "Gorakhpur",
+      "party": "BJP",
+      "candidate": "Ravi Kishan",
+      "votes": 717122,
+      "votePercent": 60.52,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 65,
+      "seatName": "Kushi Nagar",
+      "party": "BJP",
+      "candidate": "Vijay Kumar Dubey",
+      "votes": 597039,
+      "votePercent": 56.68,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 66,
+      "seatName": "Deoria",
+      "party": "BJP",
+      "candidate": "Ramapati Ram Tripathi",
+      "votes": 580644,
+      "votePercent": 57.17,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 67,
+      "seatName": "Bansgaon",
+      "party": "BJP",
+      "candidate": "Kamlesh Paswan",
+      "votes": 546673,
+      "votePercent": 56.37,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Sadal Prasad",
+        "party": "BSP",
+        "votes": 393205,
+        "votePercent": 40.55
+      }
+    },
+    {
+      "seatNo": 68,
+      "seatName": "Lalganj",
+      "party": "BSP",
+      "candidate": "Sangeeta Azad",
+      "votes": 518820,
+      "votePercent": 53.98,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Neelam Sonkar",
+        "party": "BJP",
+        "votes": 357223,
+        "votePercent": 37.17
+      }
+    },
+    {
+      "seatNo": 69,
+      "seatName": "Azamgarh",
+      "party": "SP",
+      "candidate": "Akhilesh Yadav",
+      "votes": 621578,
+      "votePercent": 60.36,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Dinesh Lal Yadav",
+        "party": "BJP",
+        "votes": 361704,
+        "votePercent": 35.12
+      }
+    },
+    {
+      "seatNo": 70,
+      "seatName": "Ghosi",
+      "party": "BSP",
+      "candidate": "Atul Rai",
+      "votes": 573829,
+      "votePercent": 50.27,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Harinarayan Rajbhar",
+        "party": "BJP",
+        "votes": 451261,
+        "votePercent": 39.53
+      }
+    },
+    {
+      "seatNo": 71,
+      "seatName": "Salempur",
+      "party": "BJP",
+      "candidate": "Ravindra Kushawaha",
+      "votes": 467940,
+      "votePercent": 50.64,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "R. S. Kushwaha",
+        "party": "BSP",
+        "votes": 355325,
+        "votePercent": 38.45
+      }
+    },
+    {
+      "seatNo": 72,
+      "seatName": "Ballia",
+      "party": "BJP",
+      "candidate": "Virendra Singh",
+      "votes": 469114,
+      "votePercent": 47.36,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Sanatan Pandey",
+        "party": "SP",
+        "votes": 453595,
+        "votePercent": 45.79
+      }
+    },
+    {
+      "seatNo": 73,
+      "seatName": "Jaunpur",
+      "party": "BSP",
+      "candidate": "Shyam Singh Yadav",
+      "votes": 521128,
+      "votePercent": 50.02,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Krishna Pratap",
+        "party": "BJP",
+        "votes": 440192,
+        "votePercent": 42.25
+      }
+    },
+    {
+      "seatNo": 74,
+      "seatName": "Machhlishahr",
+      "party": "BJP",
+      "candidate": "B. P. Saroj",
+      "votes": 488397,
+      "votePercent": 47.17,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Tribhuvan Ram",
+        "party": "BSP",
+        "votes": 488216,
+        "votePercent": 47.15
+      }
+    },
+    {
+      "seatNo": 75,
+      "seatName": "Ghazipur",
+      "party": "BSP",
+      "candidate": "Afzal Ansari",
+      "votes": 566082,
+      "votePercent": 51.11,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Manoj Sinha",
+        "party": "BJP",
+        "votes": 446690,
+        "votePercent": 40.33
+      }
+    },
+    {
+      "seatNo": 76,
+      "seatName": "Chandauli",
+      "party": "BJP",
+      "candidate": "Mahendra Nath Pandey",
+      "votes": 510733,
+      "votePercent": 47.02,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 77,
+      "seatName": "Varanasi",
+      "party": "BJP",
+      "candidate": "Narendra Modi",
+      "votes": 674664,
+      "votePercent": 63.6,
+      "turnout": null,
+      "runnerUp": null
+    },
+    {
+      "seatNo": 78,
+      "seatName": "Bhadohi",
+      "party": "BJP",
+      "candidate": "Ramesh Chand Bind",
+      "votes": 510029,
+      "votePercent": 49.05,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Rangnath Mishra",
+        "party": "BSP",
+        "votes": 466414,
+        "votePercent": 44.85
+      }
+    },
+    {
+      "seatNo": 79,
+      "seatName": "Mirzapur",
+      "party": "Others",
+      "candidate": "Anupriya Patel",
+      "votes": 591564,
+      "votePercent": 53.34,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Ram Charitra Nishad",
+        "party": "SP",
+        "votes": 359556,
+        "votePercent": 32.42
+      }
+    },
+    {
+      "seatNo": 80,
+      "seatName": "Robertsganj",
+      "party": "Others",
+      "candidate": "Pakaudi Lal Kol",
+      "votes": 447914,
+      "votePercent": 45.3,
+      "turnout": null,
+      "runnerUp": {
+        "candidate": "Bhai Lal",
+        "party": "SP",
+        "votes": 393578,
+        "votePercent": 39.8
+      }
+    }
+  ]
+}

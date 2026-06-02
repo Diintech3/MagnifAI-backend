@@ -1,0 +1,61 @@
+{
+  "bySeat": {
+    "8": {
+      "nahid hasan": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        }
+      },
+      "mriganka singh": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        }
+      }
+    }
+  }
+}
+

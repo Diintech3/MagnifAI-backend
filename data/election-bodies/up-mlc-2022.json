@@ -1,0 +1,276 @@
+{
+  "stateCode": "UP",
+  "bodyType": "MLC",
+  "role": "MLC",
+  "year": 2022,
+  "totalSeats": 36,
+  "source": "ECI local authorities biennial election 2022 (33 BJP, 3 IND, 0 SP)",
+  "partyStats": [
+    {
+      "party": "BJP",
+      "seats": 33,
+      "votes": 0,
+      "voteShare": 0
+    },
+    {
+      "party": "IND",
+      "seats": 3,
+      "votes": 4234,
+      "voteShare": 100
+    }
+  ],
+  "seats": [
+    {
+      "seatNo": 1,
+      "seatName": "Budaun",
+      "party": "BJP",
+      "candidate": "Unopposed",
+      "votes": 0
+    },
+    {
+      "seatNo": 2,
+      "seatName": "Hardoi",
+      "party": "BJP",
+      "candidate": "Unopposed",
+      "votes": 0
+    },
+    {
+      "seatNo": 3,
+      "seatName": "Kheri",
+      "party": "BJP",
+      "candidate": "Unopposed",
+      "votes": 0
+    },
+    {
+      "seatNo": 4,
+      "seatName": "Mirzapur-Sonbhadra",
+      "party": "BJP",
+      "candidate": "Unopposed",
+      "votes": 0
+    },
+    {
+      "seatNo": 5,
+      "seatName": "Banda-Hamirpur",
+      "party": "BJP",
+      "candidate": "Unopposed",
+      "votes": 0
+    },
+    {
+      "seatNo": 6,
+      "seatName": "Aligarh",
+      "party": "BJP",
+      "candidate": "Unopposed",
+      "votes": 0
+    },
+    {
+      "seatNo": 7,
+      "seatName": "Bulandshahr",
+      "party": "BJP",
+      "candidate": "Unopposed",
+      "votes": 0
+    },
+    {
+      "seatNo": 8,
+      "seatName": "Mathura-Etah-Mainpuri",
+      "party": "BJP",
+      "candidate": "Unopposed",
+      "votes": 0
+    },
+    {
+      "seatNo": 9,
+      "seatName": "Moradabad-Bijnor",
+      "party": "BJP",
+      "candidate": "Satyapal Saini",
+      "votes": 0
+    },
+    {
+      "seatNo": 10,
+      "seatName": "Jhansi-Jalaun-Lalitpur",
+      "party": "BJP",
+      "candidate": "Rama Niranjan",
+      "votes": 0
+    },
+    {
+      "seatNo": 11,
+      "seatName": "Meerut-Ghaziabad",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 12,
+      "seatName": "Muzaffarnagar-Saharanpur",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 13,
+      "seatName": "Rampur-Bareilly",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 14,
+      "seatName": "Pilibhit-Shahjahanpur",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 15,
+      "seatName": "Sitapur",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 16,
+      "seatName": "Lucknow-Unnao",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 17,
+      "seatName": "Rae Bareli",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 18,
+      "seatName": "Allahabad-Jaunpur",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 19,
+      "seatName": "Varanasi",
+      "party": "IND",
+      "candidate": "Annapurna Singh",
+      "votes": 4234
+    },
+    {
+      "seatNo": 20,
+      "seatName": "Ghazipur-Mau",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 21,
+      "seatName": "Azamgarh-Mau",
+      "party": "IND",
+      "candidate": "Independent",
+      "votes": 0
+    },
+    {
+      "seatNo": 22,
+      "seatName": "Pratapgarh",
+      "party": "IND",
+      "candidate": "Independent",
+      "votes": 0
+    },
+    {
+      "seatNo": 23,
+      "seatName": "Faizabad-Ambedkar Nagar",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 24,
+      "seatName": "Sultanpur-Amethi",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 25,
+      "seatName": "Bahraich-Shravasti",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 26,
+      "seatName": "Gonda-Balrampur",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 27,
+      "seatName": "Basti-Siddharthnagar",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 28,
+      "seatName": "Gorakhpur-Maharajganj",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 29,
+      "seatName": "Deoria-Kushinagar",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 30,
+      "seatName": "Ballia",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 31,
+      "seatName": "Bijnor",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 32,
+      "seatName": "Agra-Firozabad",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 33,
+      "seatName": "Kanpur-Fatehpur",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 34,
+      "seatName": "Etawah-Farrukhabad",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 35,
+      "seatName": "Bareilly-Pilibhit",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    },
+    {
+      "seatNo": 36,
+      "seatName": "Saharanpur-Muzaffarnagar",
+      "party": "BJP",
+      "candidate": "BJP candidate",
+      "votes": 0
+    }
+  ]
+}

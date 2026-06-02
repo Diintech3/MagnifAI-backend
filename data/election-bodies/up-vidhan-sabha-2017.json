@@ -1,0 +1,3693 @@
+{
+  "stateCode": "UP",
+  "bodyType": "VIDHAN_SABHA",
+  "role": "MLA",
+  "year": 2017,
+  "totalSeats": 403,
+  "source": "ECI / data-analytics Uttar_Pradesh.csv",
+  "partyStats": [
+    {
+      "party": "BJP",
+      "seats": 312,
+      "votes": 29880287,
+      "voteShare": 79.86
+    },
+    {
+      "party": "SP",
+      "seats": 47,
+      "votes": 3930207,
+      "voteShare": 10.5
+    },
+    {
+      "party": "BSP",
+      "seats": 19,
+      "votes": 1488730,
+      "voteShare": 3.98
+    },
+    {
+      "party": "ADS",
+      "seats": 9,
+      "votes": 723265,
+      "voteShare": 1.93
+    },
+    {
+      "party": "INC",
+      "seats": 7,
+      "votes": 601990,
+      "voteShare": 1.61
+    },
+    {
+      "party": "SBSP",
+      "seats": 4,
+      "votes": 357301,
+      "voteShare": 0.95
+    },
+    {
+      "party": "IND",
+      "seats": 3,
+      "votes": 304041,
+      "voteShare": 0.81
+    },
+    {
+      "party": "Others",
+      "seats": 1,
+      "votes": 66448,
+      "voteShare": 0.18
+    },
+    {
+      "party": "RLD",
+      "seats": 1,
+      "votes": 65124,
+      "voteShare": 0.17
+    }
+  ],
+  "seats": [
+    {
+      "seatNo": 1,
+      "seatName": "Behat",
+      "party": "INC",
+      "candidate": "Naresh Saini",
+      "votes": 97035,
+      "votePercent": 38.42,
+      "polledVotes": 252559
+    },
+    {
+      "seatNo": 2,
+      "seatName": "Nakur",
+      "party": "BJP",
+      "candidate": "Dr.Dharam Singh Saini",
+      "votes": 94375,
+      "votePercent": 36.93,
+      "polledVotes": 255532
+    },
+    {
+      "seatNo": 3,
+      "seatName": "Saharanpur Nagar",
+      "party": "SP",
+      "candidate": "Sanjay Garg",
+      "votes": 127210,
+      "votePercent": 46.68,
+      "polledVotes": 272509
+    },
+    {
+      "seatNo": 4,
+      "seatName": "Saharanpur  ",
+      "party": "INC",
+      "candidate": "Masood Akhtar",
+      "votes": 87689,
+      "votePercent": 36.93,
+      "polledVotes": 237468
+    },
+    {
+      "seatNo": 5,
+      "seatName": "Deoband",
+      "party": "BJP",
+      "candidate": "Brijesh",
+      "votes": 102244,
+      "votePercent": 43.64,
+      "polledVotes": 234306
+    },
+    {
+      "seatNo": 6,
+      "seatName": "Rampur Maniharan ",
+      "party": "BJP",
+      "candidate": "Devender Kumar Nim",
+      "votes": 76465,
+      "votePercent": 34.94,
+      "polledVotes": 218831
+    },
+    {
+      "seatNo": 7,
+      "seatName": "Gangoh",
+      "party": "BJP",
+      "candidate": "Pradeep Kumar",
+      "votes": 99446,
+      "votePercent": 38.64,
+      "polledVotes": 257378
+    },
+    {
+      "seatNo": 8,
+      "seatName": "Kairana",
+      "party": "SP",
+      "candidate": "Nahid Hasan",
+      "votes": 98830,
+      "votePercent": 47.26,
+      "polledVotes": 209134
+    },
+    {
+      "seatNo": 9,
+      "seatName": "Thana Bhawan",
+      "party": "BJP",
+      "candidate": "Suresh Kumar",
+      "votes": 90995,
+      "votePercent": 42.78,
+      "polledVotes": 212691
+    },
+    {
+      "seatNo": 10,
+      "seatName": "Shamli",
+      "party": "BJP",
+      "candidate": "Tejendra Nirwal",
+      "votes": 70085,
+      "votePercent": 35.69,
+      "polledVotes": 196347
+    },
+    {
+      "seatNo": 11,
+      "seatName": "Budhana",
+      "party": "BJP",
+      "candidate": "Umesh Malik",
+      "votes": 97781,
+      "votePercent": 40.55,
+      "polledVotes": 241116
+    },
+    {
+      "seatNo": 12,
+      "seatName": "Charthawal",
+      "party": "BJP",
+      "candidate": "Vijay Kumar Kashyap",
+      "votes": 82046,
+      "votePercent": 39.64,
+      "polledVotes": 206964
+    },
+    {
+      "seatNo": 13,
+      "seatName": "Purqazi ",
+      "party": "BJP",
+      "candidate": "Pramod Utwal",
+      "votes": 77491,
+      "votePercent": 37.93,
+      "polledVotes": 204319
+    },
+    {
+      "seatNo": 14,
+      "seatName": "Muzaffar Nagar",
+      "party": "BJP",
+      "candidate": "Kapil Dev Agarwal",
+      "votes": 97838,
+      "votePercent": 45.38,
+      "polledVotes": 215602
+    },
+    {
+      "seatNo": 15,
+      "seatName": "Khatauli",
+      "party": "BJP",
+      "candidate": "Vikram Singh",
+      "votes": 94771,
+      "votePercent": 44.47,
+      "polledVotes": 213096
+    },
+    {
+      "seatNo": 16,
+      "seatName": "Meerapur",
+      "party": "BJP",
+      "candidate": "Avtar Singh Bhadana",
+      "votes": 69035,
+      "votePercent": 33.77,
+      "polledVotes": 204405
+    },
+    {
+      "seatNo": 17,
+      "seatName": "Najibabad",
+      "party": "SP",
+      "candidate": "Tasleem Ahmad",
+      "votes": 81082,
+      "votePercent": 37.55,
+      "polledVotes": 215936
+    },
+    {
+      "seatNo": 18,
+      "seatName": "Nagina ",
+      "party": "SP",
+      "candidate": "Manoj Kumar Paras",
+      "votes": 77145,
+      "votePercent": 36.75,
+      "polledVotes": 209903
+    },
+    {
+      "seatNo": 19,
+      "seatName": "Barhapur",
+      "party": "BJP",
+      "candidate": "Sushant Kumar",
+      "votes": 78744,
+      "votePercent": 35.45,
+      "polledVotes": 222149
+    },
+    {
+      "seatNo": 20,
+      "seatName": "Dhampur",
+      "party": "BJP",
+      "candidate": "Ashok Kumar Rana",
+      "votes": 82169,
+      "votePercent": 42.58,
+      "polledVotes": 192961
+    },
+    {
+      "seatNo": 21,
+      "seatName": "Nehtaur",
+      "party": "BJP",
+      "candidate": "Omkumar",
+      "votes": 76644,
+      "votePercent": 40.72,
+      "polledVotes": 188207
+    },
+    {
+      "seatNo": 22,
+      "seatName": "Bijnor",
+      "party": "BJP",
+      "candidate": "Suchi",
+      "votes": 105548,
+      "votePercent": 42.95,
+      "polledVotes": 245771
+    },
+    {
+      "seatNo": 23,
+      "seatName": "Chandpur",
+      "party": "BJP",
+      "candidate": "Kamlesh Saini",
+      "votes": 92345,
+      "votePercent": 42.27,
+      "polledVotes": 218484
+    },
+    {
+      "seatNo": 24,
+      "seatName": "Noorpur",
+      "party": "BJP",
+      "candidate": "Lokendra Singh",
+      "votes": 79172,
+      "votePercent": 38.98,
+      "polledVotes": 203108
+    },
+    {
+      "seatNo": 25,
+      "seatName": "Kanth",
+      "party": "BJP",
+      "candidate": "Rajesh Kumar Singh (Chunnu)",
+      "votes": 76307,
+      "votePercent": 30.15,
+      "polledVotes": 253108
+    },
+    {
+      "seatNo": 26,
+      "seatName": "Thakurdwara",
+      "party": "SP",
+      "candidate": "Navab Jan",
+      "votes": 107865,
+      "votePercent": 42.07,
+      "polledVotes": 256420
+    },
+    {
+      "seatNo": 27,
+      "seatName": "Moradabad Rural",
+      "party": "SP",
+      "candidate": "Haji Ikram Qureshi",
+      "votes": 97916,
+      "votePercent": 44.23,
+      "polledVotes": 221367
+    },
+    {
+      "seatNo": 28,
+      "seatName": "Moradabad Nagar",
+      "party": "BJP",
+      "candidate": "Ritesh Kumar Gupta",
+      "votes": 123467,
+      "votePercent": 44.6,
+      "polledVotes": 276805
+    },
+    {
+      "seatNo": 29,
+      "seatName": "Kundarki",
+      "party": "SP",
+      "candidate": "Mohammad Rizwan",
+      "votes": 110561,
+      "votePercent": 41.83,
+      "polledVotes": 264330
+    },
+    {
+      "seatNo": 30,
+      "seatName": "Bilari",
+      "party": "SP",
+      "candidate": "Mohd. Faeem",
+      "votes": 85682,
+      "votePercent": 37.4,
+      "polledVotes": 229116
+    },
+    {
+      "seatNo": 31,
+      "seatName": "Chandausi ",
+      "party": "BJP",
+      "candidate": "Gulab Devi",
+      "votes": 104806,
+      "votePercent": 46.77,
+      "polledVotes": 224074
+    },
+    {
+      "seatNo": 32,
+      "seatName": "Asmoli",
+      "party": "SP",
+      "candidate": "Pinki Yadav",
+      "votes": 97610,
+      "votePercent": 39.04,
+      "polledVotes": 250045
+    },
+    {
+      "seatNo": 33,
+      "seatName": "Sambhal",
+      "party": "SP",
+      "candidate": "Iqbal Mehmood",
+      "votes": 79248,
+      "votePercent": 32.7,
+      "polledVotes": 242384
+    },
+    {
+      "seatNo": 34,
+      "seatName": "Suar",
+      "party": "SP",
+      "candidate": "Mohammad Abdullah Azam Khan",
+      "votes": 106443,
+      "votePercent": 51.68,
+      "polledVotes": 205962
+    },
+    {
+      "seatNo": 35,
+      "seatName": "Chamraua",
+      "party": "SP",
+      "candidate": "Naseer Ahmad Khan",
+      "votes": 87400,
+      "votePercent": 44.99,
+      "polledVotes": 194285
+    },
+    {
+      "seatNo": 36,
+      "seatName": "Bilaspur",
+      "party": "BJP",
+      "candidate": "Baldev Singh Aulakh",
+      "votes": 99100,
+      "votePercent": 44.3,
+      "polledVotes": 223694
+    },
+    {
+      "seatNo": 37,
+      "seatName": "Rampur  ",
+      "party": "SP",
+      "candidate": "Mohammad Azam Khan",
+      "votes": 102100,
+      "votePercent": 47.47,
+      "polledVotes": 215073
+    },
+    {
+      "seatNo": 38,
+      "seatName": "Milak ",
+      "party": "BJP",
+      "candidate": "Rajbala",
+      "votes": 89861,
+      "votePercent": 41.54,
+      "polledVotes": 216334
+    },
+    {
+      "seatNo": 39,
+      "seatName": "Dhanaura ",
+      "party": "BJP",
+      "candidate": "Rajeev Kumar",
+      "votes": 102943,
+      "votePercent": 45.72,
+      "polledVotes": 225180
+    },
+    {
+      "seatNo": 40,
+      "seatName": "Naugawan Sadat",
+      "party": "BJP",
+      "candidate": "Chetan Chauhan",
+      "votes": 97030,
+      "votePercent": 41.43,
+      "polledVotes": 234190
+    },
+    {
+      "seatNo": 41,
+      "seatName": "Amroha",
+      "party": "SP",
+      "candidate": "Mehboob Ali",
+      "votes": 74713,
+      "votePercent": 37.1,
+      "polledVotes": 201377
+    },
+    {
+      "seatNo": 42,
+      "seatName": "Hasanpur",
+      "party": "BJP",
+      "candidate": "Mahendra Singh Khargvanshi",
+      "votes": 111269,
+      "votePercent": 43.65,
+      "polledVotes": 254919
+    },
+    {
+      "seatNo": 43,
+      "seatName": "Siwalkhas",
+      "party": "BJP",
+      "candidate": "Jitendra Pal Singh (Billu)",
+      "votes": 72842,
+      "votePercent": 32.32,
+      "polledVotes": 225365
+    },
+    {
+      "seatNo": 44,
+      "seatName": "Sardhana",
+      "party": "BJP",
+      "candidate": "Sangeet Singh Som",
+      "votes": 97921,
+      "votePercent": 40.93,
+      "polledVotes": 239251
+    },
+    {
+      "seatNo": 45,
+      "seatName": "Hastinapur ",
+      "party": "BJP",
+      "candidate": "Dinesh Khatik",
+      "votes": 99436,
+      "votePercent": 44.92,
+      "polledVotes": 221371
+    },
+    {
+      "seatNo": 46,
+      "seatName": "Kithore",
+      "party": "BJP",
+      "candidate": "Satyavir Tyagi",
+      "votes": 90622,
+      "votePercent": 37.31,
+      "polledVotes": 242879
+    },
+    {
+      "seatNo": 47,
+      "seatName": "Meerut Cantt.",
+      "party": "BJP",
+      "candidate": "Satya Prakash Agarwal",
+      "votes": 132518,
+      "votePercent": 55.93,
+      "polledVotes": 236926
+    },
+    {
+      "seatNo": 48,
+      "seatName": "Meerut  ",
+      "party": "SP",
+      "candidate": "Rafiq Ansari",
+      "votes": 103217,
+      "votePercent": 52.79,
+      "polledVotes": 195516
+    },
+    {
+      "seatNo": 49,
+      "seatName": "Meerut South",
+      "party": "BJP",
+      "candidate": "Dr. Somendra Tomar",
+      "votes": 113225,
+      "votePercent": 41.81,
+      "polledVotes": 270796
+    },
+    {
+      "seatNo": 50,
+      "seatName": "Chhaprauli",
+      "party": "RLD",
+      "candidate": "Sahender Singh Ramala",
+      "votes": 65124,
+      "votePercent": 32.54,
+      "polledVotes": 200152
+    },
+    {
+      "seatNo": 51,
+      "seatName": "Baraut",
+      "party": "BJP",
+      "candidate": "Krishanpal Malik Urf Krishanpal Malik",
+      "votes": 79427,
+      "votePercent": 42.89,
+      "polledVotes": 185178
+    },
+    {
+      "seatNo": 52,
+      "seatName": "Baghpat",
+      "party": "BJP",
+      "candidate": "Yogesh Dhama",
+      "votes": 92566,
+      "votePercent": 46.61,
+      "polledVotes": 198613
+    },
+    {
+      "seatNo": 53,
+      "seatName": "Loni",
+      "party": "BJP",
+      "candidate": "Nandkishor",
+      "votes": 113088,
+      "votePercent": 41.19,
+      "polledVotes": 274555
+    },
+    {
+      "seatNo": 54,
+      "seatName": "Muradnagar",
+      "party": "BJP",
+      "candidate": "Ajit Pal Tyagi",
+      "votes": 140759,
+      "votePercent": 55.52,
+      "polledVotes": 253532
+    },
+    {
+      "seatNo": 55,
+      "seatName": "Sahibabad",
+      "party": "BJP",
+      "candidate": "Sunil Kumar Sharma",
+      "votes": 262741,
+      "votePercent": 61.7,
+      "polledVotes": 425868
+    },
+    {
+      "seatNo": 56,
+      "seatName": "Ghaziabad",
+      "party": "BJP",
+      "candidate": "Atul Garg",
+      "votes": 124201,
+      "votePercent": 54.99,
+      "polledVotes": 225856
+    },
+    {
+      "seatNo": 57,
+      "seatName": "Modi Nagar",
+      "party": "BJP",
+      "candidate": "Dr. Manju Shiwach",
+      "votes": 108631,
+      "votePercent": 50.32,
+      "polledVotes": 215867
+    },
+    {
+      "seatNo": 58,
+      "seatName": "Dholana",
+      "party": "BSP",
+      "candidate": "Aaaslam Choudhary",
+      "votes": 88580,
+      "votePercent": 34.9,
+      "polledVotes": 253827
+    },
+    {
+      "seatNo": 59,
+      "seatName": "Hapur ",
+      "party": "BJP",
+      "candidate": "Vijay Pal (Aadhti)",
+      "votes": 84532,
+      "votePercent": 37.97,
+      "polledVotes": 222655
+    },
+    {
+      "seatNo": 60,
+      "seatName": "Garhmukteshwar",
+      "party": "BJP",
+      "candidate": "Kamal Singh Malik",
+      "votes": 91086,
+      "votePercent": 41.08,
+      "polledVotes": 221755
+    },
+    {
+      "seatNo": 61,
+      "seatName": "Noida",
+      "party": "BJP",
+      "candidate": "Pankaj Singh",
+      "votes": 162417,
+      "votePercent": 63.84,
+      "polledVotes": 254408
+    },
+    {
+      "seatNo": 62,
+      "seatName": "Dadri",
+      "party": "BJP",
+      "candidate": "Tejpal Singh Nagar",
+      "votes": 141226,
+      "votePercent": 53.24,
+      "polledVotes": 265281
+    },
+    {
+      "seatNo": 63,
+      "seatName": "Jewar",
+      "party": "BJP",
+      "candidate": "Dhirendra Singh",
+      "votes": 102979,
+      "votePercent": 48.71,
+      "polledVotes": 211414
+    },
+    {
+      "seatNo": 64,
+      "seatName": "Sikandrabad",
+      "party": "BJP",
+      "candidate": "Bimla Singh Solanki",
+      "votes": 104956,
+      "votePercent": 41.66,
+      "polledVotes": 251950
+    },
+    {
+      "seatNo": 65,
+      "seatName": "Bulandshahr",
+      "party": "BJP",
+      "candidate": "Virendra Singh Sirohi",
+      "votes": 111538,
+      "votePercent": 45.51,
+      "polledVotes": 245082
+    },
+    {
+      "seatNo": 66,
+      "seatName": "Syana",
+      "party": "BJP",
+      "candidate": "Devendra",
+      "votes": 125854,
+      "votePercent": 54.15,
+      "polledVotes": 232430
+    },
+    {
+      "seatNo": 67,
+      "seatName": "Anupshahr",
+      "party": "BJP",
+      "candidate": "Sanjay",
+      "votes": 112431,
+      "votePercent": 48.93,
+      "polledVotes": 229765
+    },
+    {
+      "seatNo": 68,
+      "seatName": "Debai",
+      "party": "BJP",
+      "candidate": "Dr. Anita Lodhi Rajput",
+      "votes": 111807,
+      "votePercent": 53.29,
+      "polledVotes": 209809
+    },
+    {
+      "seatNo": 69,
+      "seatName": "Shikarpur",
+      "party": "BJP",
+      "candidate": "Anil Kumar",
+      "votes": 101912,
+      "votePercent": 50.26,
+      "polledVotes": 202785
+    },
+    {
+      "seatNo": 70,
+      "seatName": "Khurja ",
+      "party": "BJP",
+      "candidate": "Vijendra Singh",
+      "votes": 119493,
+      "votePercent": 50.43,
+      "polledVotes": 236970
+    },
+    {
+      "seatNo": 71,
+      "seatName": "Khair ",
+      "party": "BJP",
+      "candidate": "Anoop",
+      "votes": 124198,
+      "votePercent": 53.51,
+      "polledVotes": 232118
+    },
+    {
+      "seatNo": 72,
+      "seatName": "Barauli",
+      "party": "BJP",
+      "candidate": "Shri Dalveer Singh",
+      "votes": 125545,
+      "votePercent": 53.4,
+      "polledVotes": 235107
+    },
+    {
+      "seatNo": 73,
+      "seatName": "Atrauli",
+      "party": "BJP",
+      "candidate": "Sandeep Kumar Singh",
+      "votes": 115397,
+      "votePercent": 49.61,
+      "polledVotes": 232591
+    },
+    {
+      "seatNo": 74,
+      "seatName": "Chharra",
+      "party": "BJP",
+      "candidate": "Ravendra Pal Singh",
+      "votes": 110738,
+      "votePercent": 48.36,
+      "polledVotes": 229000
+    },
+    {
+      "seatNo": 75,
+      "seatName": "Koil",
+      "party": "BJP",
+      "candidate": "Anil Parashar",
+      "votes": 93814,
+      "votePercent": 41.04,
+      "polledVotes": 228587
+    },
+    {
+      "seatNo": 76,
+      "seatName": "Aligarh",
+      "party": "BJP",
+      "candidate": "Sanjeev Raja",
+      "votes": 113752,
+      "votePercent": 46.22,
+      "polledVotes": 246114
+    },
+    {
+      "seatNo": 77,
+      "seatName": "Iglas ",
+      "party": "BJP",
+      "candidate": "Rajveer Diler",
+      "votes": 128000,
+      "votePercent": 54.79,
+      "polledVotes": 233621
+    },
+    {
+      "seatNo": 78,
+      "seatName": "Hathras ",
+      "party": "BJP",
+      "candidate": "Hari Shankar Mahor",
+      "votes": 133840,
+      "votePercent": 56.1,
+      "polledVotes": 238554
+    },
+    {
+      "seatNo": 79,
+      "seatName": "Sadabad",
+      "party": "BSP",
+      "candidate": "Ramveer Upadhyay",
+      "votes": 91385,
+      "votePercent": 40.33,
+      "polledVotes": 226583
+    },
+    {
+      "seatNo": 80,
+      "seatName": "Sikandra Rao",
+      "party": "BJP",
+      "candidate": "Birendra Singh Rana",
+      "votes": 76129,
+      "votePercent": 35.21,
+      "polledVotes": 216244
+    },
+    {
+      "seatNo": 81,
+      "seatName": "Chhata",
+      "party": "BJP",
+      "candidate": "Laxmi Narayan",
+      "votes": 117537,
+      "votePercent": 51.71,
+      "polledVotes": 227322
+    },
+    {
+      "seatNo": 82,
+      "seatName": "Mant",
+      "party": "BSP",
+      "candidate": "Shyam Sunder Sharma",
+      "votes": 65862,
+      "votePercent": 31.27,
+      "polledVotes": 210597
+    },
+    {
+      "seatNo": 83,
+      "seatName": "Goverdhan",
+      "party": "BJP",
+      "candidate": "Karinda Singh",
+      "votes": 93538,
+      "votePercent": 45.17,
+      "polledVotes": 207072
+    },
+    {
+      "seatNo": 84,
+      "seatName": "Mathura",
+      "party": "BJP",
+      "candidate": "Shrikant Sharma",
+      "votes": 143361,
+      "votePercent": 56.65,
+      "polledVotes": 253071
+    },
+    {
+      "seatNo": 85,
+      "seatName": "Baldev ",
+      "party": "BJP",
+      "candidate": "Pooran Prakash",
+      "votes": 88411,
+      "votePercent": 38.15,
+      "polledVotes": 231770
+    },
+    {
+      "seatNo": 86,
+      "seatName": "Etmadpur",
+      "party": "BJP",
+      "candidate": "Ram Pratap Singh",
+      "votes": 137381,
+      "votePercent": 48.34,
+      "polledVotes": 284202
+    },
+    {
+      "seatNo": 87,
+      "seatName": "Agra Cantt. ",
+      "party": "BJP",
+      "candidate": "Dr. Girraj Singh Dharmesh",
+      "votes": 113178,
+      "votePercent": 44.77,
+      "polledVotes": 252816
+    },
+    {
+      "seatNo": 88,
+      "seatName": "Agra South",
+      "party": "BJP",
+      "candidate": "Yogendra Upadhyaya",
+      "votes": 111882,
+      "votePercent": 51.51,
+      "polledVotes": 217225
+    },
+    {
+      "seatNo": 89,
+      "seatName": "Agra North",
+      "party": "BJP",
+      "candidate": "Jagan Prasad Garg",
+      "votes": 135120,
+      "votePercent": 58.55,
+      "polledVotes": 230769
+    },
+    {
+      "seatNo": 90,
+      "seatName": "Agra Rural ",
+      "party": "BJP",
+      "candidate": "Hemlata Diwakar",
+      "votes": 129887,
+      "votePercent": 51.97,
+      "polledVotes": 249926
+    },
+    {
+      "seatNo": 91,
+      "seatName": "Fatehpur Sikri",
+      "party": "BJP",
+      "candidate": "Chau. Udaybhan Singh",
+      "votes": 108586,
+      "votePercent": 47.34,
+      "polledVotes": 229371
+    },
+    {
+      "seatNo": 92,
+      "seatName": "Kheragarh",
+      "party": "BJP",
+      "candidate": "Mahesh Kumar Goyal",
+      "votes": 93510,
+      "votePercent": 47.04,
+      "polledVotes": 198781
+    },
+    {
+      "seatNo": 93,
+      "seatName": "Fatehabad",
+      "party": "BJP",
+      "candidate": "Jitendra Verma",
+      "votes": 101960,
+      "votePercent": 48.6,
+      "polledVotes": 209793
+    },
+    {
+      "seatNo": 94,
+      "seatName": "Bah",
+      "party": "BJP",
+      "candidate": "Rani Pakshalika Singh",
+      "votes": 80567,
+      "votePercent": 41.79,
+      "polledVotes": 192786
+    },
+    {
+      "seatNo": 95,
+      "seatName": "Tundla ",
+      "party": "BJP",
+      "candidate": "Satya Pal Singh Baghel",
+      "votes": 118584,
+      "votePercent": 48.68,
+      "polledVotes": 243591
+    },
+    {
+      "seatNo": 96,
+      "seatName": "Jasrana",
+      "party": "BJP",
+      "candidate": "Ramgopal Pappu Lodhi",
+      "votes": 103426,
+      "votePercent": 44.89,
+      "polledVotes": 230392
+    },
+    {
+      "seatNo": 97,
+      "seatName": "Firozabad",
+      "party": "BJP",
+      "candidate": "Manish Asija",
+      "votes": 102654,
+      "votePercent": 44.19,
+      "polledVotes": 232278
+    },
+    {
+      "seatNo": 98,
+      "seatName": "Shikohabad",
+      "party": "BJP",
+      "candidate": "Mukesh Verma",
+      "votes": 87851,
+      "votePercent": 40.91,
+      "polledVotes": 214721
+    },
+    {
+      "seatNo": 99,
+      "seatName": "Sirsaganj",
+      "party": "SP",
+      "candidate": "Hariom Yadav",
+      "votes": 90281,
+      "votePercent": 44.46,
+      "polledVotes": 203075
+    },
+    {
+      "seatNo": 100,
+      "seatName": "Kasganj",
+      "party": "BJP",
+      "candidate": "Devendra Singh Rajput",
+      "votes": 101908,
+      "votePercent": 46.3,
+      "polledVotes": 220120
+    },
+    {
+      "seatNo": 101,
+      "seatName": "Amanpur",
+      "party": "BJP",
+      "candidate": "Devendra Pratap",
+      "votes": 85199,
+      "votePercent": 46.36,
+      "polledVotes": 183778
+    },
+    {
+      "seatNo": 102,
+      "seatName": "Patiyali",
+      "party": "BJP",
+      "candidate": "Mamtesh",
+      "votes": 72414,
+      "votePercent": 35.7,
+      "polledVotes": 202823
+    },
+    {
+      "seatNo": 103,
+      "seatName": "Aliganj",
+      "party": "BJP",
+      "candidate": "Satyapal Singh Rathaur",
+      "votes": 88695,
+      "votePercent": 40.95,
+      "polledVotes": 216594
+    },
+    {
+      "seatNo": 104,
+      "seatName": "Etah",
+      "party": "BJP",
+      "candidate": "Vipin Kumar David",
+      "votes": 82516,
+      "votePercent": 40.92,
+      "polledVotes": 201649
+    },
+    {
+      "seatNo": 105,
+      "seatName": "Marhara",
+      "party": "BJP",
+      "candidate": "Virendra",
+      "votes": 92507,
+      "votePercent": 48.35,
+      "polledVotes": 191339
+    },
+    {
+      "seatNo": 106,
+      "seatName": "Jalesar ",
+      "party": "BJP",
+      "candidate": "Sanjeev Kumar Diwakar",
+      "votes": 81502,
+      "votePercent": 44.14,
+      "polledVotes": 184640
+    },
+    {
+      "seatNo": 107,
+      "seatName": "Mainpuri",
+      "party": "SP",
+      "candidate": "Rajkumar Alias Raju Yadav",
+      "votes": 75787,
+      "votePercent": 38.51,
+      "polledVotes": 196813
+    },
+    {
+      "seatNo": 108,
+      "seatName": "Bhongaon",
+      "party": "BJP",
+      "candidate": "Ram Naresh Agnihotri",
+      "votes": 92697,
+      "votePercent": 47.36,
+      "polledVotes": 195746
+    },
+    {
+      "seatNo": 109,
+      "seatName": "Kishani",
+      "party": "SP",
+      "candidate": "Brajesh Kumar",
+      "votes": 80475,
+      "votePercent": 44.83,
+      "polledVotes": 179515
+    },
+    {
+      "seatNo": 110,
+      "seatName": "Karhal",
+      "party": "SP",
+      "candidate": "Sobaran Singh Yadav",
+      "votes": 104221,
+      "votePercent": 49.57,
+      "polledVotes": 210268
+    },
+    {
+      "seatNo": 111,
+      "seatName": "Gunnaur",
+      "party": "BJP",
+      "candidate": "Ajeet Kumar Urf Raju Yadav",
+      "votes": 107344,
+      "votePercent": 47.14,
+      "polledVotes": 227731
+    },
+    {
+      "seatNo": 112,
+      "seatName": "Bisauli ",
+      "party": "BJP",
+      "candidate": "Kushagra Sagar",
+      "votes": 100287,
+      "votePercent": 43.79,
+      "polledVotes": 228995
+    },
+    {
+      "seatNo": 113,
+      "seatName": "Sahaswan",
+      "party": "SP",
+      "candidate": "Omkar Singh",
+      "votes": 77543,
+      "votePercent": 32.2,
+      "polledVotes": 240800
+    },
+    {
+      "seatNo": 114,
+      "seatName": "Bilsi",
+      "party": "BJP",
+      "candidate": "Pt. Radha Krishan Sharma",
+      "votes": 82070,
+      "votePercent": 41.87,
+      "polledVotes": 196030
+    },
+    {
+      "seatNo": 115,
+      "seatName": "Badaun",
+      "party": "BJP",
+      "candidate": "Mahesh Chandra Gupta",
+      "votes": 87314,
+      "votePercent": 41.04,
+      "polledVotes": 212745
+    },
+    {
+      "seatNo": 116,
+      "seatName": "Shekhupur",
+      "party": "BJP",
+      "candidate": "Dharmendra Kumar Singh Shakya",
+      "votes": 93702,
+      "votePercent": 39.72,
+      "polledVotes": 235906
+    },
+    {
+      "seatNo": 117,
+      "seatName": "Dataganj",
+      "party": "BJP",
+      "candidate": "Rajeev Kumar Singh Urf Babbu Bhaiya",
+      "votes": 79110,
+      "votePercent": 35.19,
+      "polledVotes": 224822
+    },
+    {
+      "seatNo": 118,
+      "seatName": "Baheri",
+      "party": "BJP",
+      "candidate": "Chhatra Pal Singh",
+      "votes": 108846,
+      "votePercent": 43.93,
+      "polledVotes": 247785
+    },
+    {
+      "seatNo": 119,
+      "seatName": "Meerganj",
+      "party": "BJP",
+      "candidate": "Dr. D.C. Verma",
+      "votes": 108789,
+      "votePercent": 51.74,
+      "polledVotes": 210276
+    },
+    {
+      "seatNo": 120,
+      "seatName": "Bhojipura",
+      "party": "BJP",
+      "candidate": "Bahoran Lal Maurya",
+      "votes": 100381,
+      "votePercent": 42.07,
+      "polledVotes": 238631
+    },
+    {
+      "seatNo": 121,
+      "seatName": "Nawabganj",
+      "party": "BJP",
+      "candidate": "Kesar Singh",
+      "votes": 93711,
+      "votePercent": 43.52,
+      "polledVotes": 215339
+    },
+    {
+      "seatNo": 122,
+      "seatName": "Faridpur",
+      "party": "BJP",
+      "candidate": "Dr. Shyam Bihari Lal",
+      "votes": 83656,
+      "votePercent": 43.98,
+      "polledVotes": 190209
+    },
+    {
+      "seatNo": 123,
+      "seatName": "Bithari Chainpur",
+      "party": "BJP",
+      "candidate": "Rajesh Kumar Mishra",
+      "votes": 96397,
+      "votePercent": 41.03,
+      "polledVotes": 234958
+    },
+    {
+      "seatNo": 124,
+      "seatName": "Bareilly",
+      "party": "BJP",
+      "candidate": "Dr. Arun Kumar",
+      "votes": 115010,
+      "votePercent": 51.37,
+      "polledVotes": 223873
+    },
+    {
+      "seatNo": 125,
+      "seatName": "Bareilly Cantt.",
+      "party": "BJP",
+      "candidate": "Rajesh Agarwal",
+      "votes": 88441,
+      "votePercent": 48.22,
+      "polledVotes": 183430
+    },
+    {
+      "seatNo": 126,
+      "seatName": "Aonla",
+      "party": "BJP",
+      "candidate": "Dharam Pal Singh",
+      "votes": 63165,
+      "votePercent": 34.76,
+      "polledVotes": 181709
+    },
+    {
+      "seatNo": 127,
+      "seatName": "Pilibhit",
+      "party": "BJP",
+      "candidate": "Sanjay Singh Gangwar",
+      "votes": 136486,
+      "votePercent": 54.2,
+      "polledVotes": 251819
+    },
+    {
+      "seatNo": 128,
+      "seatName": "Barkhera",
+      "party": "BJP",
+      "candidate": "Kishan Lal Rajpoot",
+      "votes": 104595,
+      "votePercent": 49.37,
+      "polledVotes": 211878
+    },
+    {
+      "seatNo": 129,
+      "seatName": "Puranpur",
+      "party": "BJP",
+      "candidate": "Babu Ram Paswan",
+      "votes": 128493,
+      "votePercent": 52.06,
+      "polledVotes": 246819
+    },
+    {
+      "seatNo": 130,
+      "seatName": "Bisalpur",
+      "party": "BJP",
+      "candidate": "Agyash Ram Saran Verma",
+      "votes": 103498,
+      "votePercent": 46.43,
+      "polledVotes": 222924
+    },
+    {
+      "seatNo": 131,
+      "seatName": "Katra",
+      "party": "BJP",
+      "candidate": "Veer Vikram Singh Prince",
+      "votes": 76509,
+      "votePercent": 39.64,
+      "polledVotes": 192992
+    },
+    {
+      "seatNo": 132,
+      "seatName": "Jalalabad",
+      "party": "SP",
+      "candidate": "Sharadvir Singh",
+      "votes": 75326,
+      "votePercent": 36.16,
+      "polledVotes": 208332
+    },
+    {
+      "seatNo": 133,
+      "seatName": "Tilhar",
+      "party": "BJP",
+      "candidate": "Roshan Lal Verma",
+      "votes": 81770,
+      "votePercent": 40.03,
+      "polledVotes": 204249
+    },
+    {
+      "seatNo": 134,
+      "seatName": "Powayan",
+      "party": "BJP",
+      "candidate": "Chetram",
+      "votes": 126635,
+      "votePercent": 55.25,
+      "polledVotes": 229205
+    },
+    {
+      "seatNo": 135,
+      "seatName": "Shahjahanpur",
+      "party": "BJP",
+      "candidate": "Suresh Kumar Khanna",
+      "votes": 100734,
+      "votePercent": 48.89,
+      "polledVotes": 206025
+    },
+    {
+      "seatNo": 136,
+      "seatName": "Dadraul",
+      "party": "BJP",
+      "candidate": "Manvendra Singh",
+      "votes": 86435,
+      "votePercent": 39.91,
+      "polledVotes": 216563
+    },
+    {
+      "seatNo": 137,
+      "seatName": "Palia",
+      "party": "BJP",
+      "candidate": "Harvinder Kumar Sahani",
+      "votes": 118069,
+      "votePercent": 50.94,
+      "polledVotes": 231799
+    },
+    {
+      "seatNo": 138,
+      "seatName": "Nighasan",
+      "party": "BJP",
+      "candidate": "Patel Ramkumar Verma",
+      "votes": 107487,
+      "votePercent": 48.39,
+      "polledVotes": 222147
+    },
+    {
+      "seatNo": 139,
+      "seatName": "Gola Gokrannath",
+      "party": "BJP",
+      "candidate": "Arvind Giri",
+      "votes": 122497,
+      "votePercent": 48.83,
+      "polledVotes": 250840
+    },
+    {
+      "seatNo": 140,
+      "seatName": "Sri Nagar",
+      "party": "BJP",
+      "candidate": "Manju Tyagi",
+      "votes": 112941,
+      "votePercent": 50.68,
+      "polledVotes": 222865
+    },
+    {
+      "seatNo": 141,
+      "seatName": "Dhaurahra",
+      "party": "BJP",
+      "candidate": "Awasthi Bala Prasad",
+      "votes": 79809,
+      "votePercent": 36.06,
+      "polledVotes": 221323
+    },
+    {
+      "seatNo": 142,
+      "seatName": "Lakhimpur",
+      "party": "BJP",
+      "candidate": "Yogesh Verma",
+      "votes": 122677,
+      "votePercent": 47.99,
+      "polledVotes": 255622
+    },
+    {
+      "seatNo": 143,
+      "seatName": "Kasta",
+      "party": "BJP",
+      "candidate": "Saurabh Singh",
+      "votes": 92824,
+      "votePercent": 44.2,
+      "polledVotes": 209987
+    },
+    {
+      "seatNo": 144,
+      "seatName": "Mohammdi",
+      "party": "BJP",
+      "candidate": "Lokendra Pratap Singh",
+      "votes": 93000,
+      "votePercent": 42.44,
+      "polledVotes": 219146
+    },
+    {
+      "seatNo": 145,
+      "seatName": "Maholi",
+      "party": "BJP",
+      "candidate": "Shashank Trivedi",
+      "votes": 80938,
+      "votePercent": 33.49,
+      "polledVotes": 241699
+    },
+    {
+      "seatNo": 146,
+      "seatName": "Sitapur",
+      "party": "BJP",
+      "candidate": "Rakesh Rathore",
+      "votes": 98850,
+      "votePercent": 42.21,
+      "polledVotes": 234198
+    },
+    {
+      "seatNo": 147,
+      "seatName": "Hargaon ",
+      "party": "BJP",
+      "candidate": "Suresh Rahi",
+      "votes": 101680,
+      "votePercent": 45.95,
+      "polledVotes": 221261
+    },
+    {
+      "seatNo": 148,
+      "seatName": "Laharpur",
+      "party": "BJP",
+      "candidate": "Suneel Verma",
+      "votes": 79467,
+      "votePercent": 34.62,
+      "polledVotes": 229555
+    },
+    {
+      "seatNo": 149,
+      "seatName": "Biswan",
+      "party": "BJP",
+      "candidate": "Mahendra Singh",
+      "votes": 81907,
+      "votePercent": 35.92,
+      "polledVotes": 228054
+    },
+    {
+      "seatNo": 150,
+      "seatName": "Sevata",
+      "party": "BJP",
+      "candidate": "Gyan Tiwari",
+      "votes": 94697,
+      "votePercent": 44.23,
+      "polledVotes": 214086
+    },
+    {
+      "seatNo": 151,
+      "seatName": "Mahmoodabad",
+      "party": "SP",
+      "candidate": "Narendra Singh Verma",
+      "votes": 81469,
+      "votePercent": 38.67,
+      "polledVotes": 210662
+    },
+    {
+      "seatNo": 152,
+      "seatName": "Sidhauli ",
+      "party": "BSP",
+      "candidate": "Hargovind Bhargava",
+      "votes": 78506,
+      "votePercent": 33.73,
+      "polledVotes": 232737
+    },
+    {
+      "seatNo": 153,
+      "seatName": "Misrikh ",
+      "party": "BJP",
+      "candidate": "Ram Krishna Bhargava",
+      "votes": 86403,
+      "votePercent": 39.33,
+      "polledVotes": 219695
+    },
+    {
+      "seatNo": 154,
+      "seatName": "Sawaijpur",
+      "party": "BJP",
+      "candidate": "Kunvar Madhvendra Pratap",
+      "votes": 92601,
+      "votePercent": 39.94,
+      "polledVotes": 231842
+    },
+    {
+      "seatNo": 155,
+      "seatName": "Shahabad",
+      "party": "BJP",
+      "candidate": "Rajani Tiwari",
+      "votes": 99624,
+      "votePercent": 45.3,
+      "polledVotes": 219939
+    },
+    {
+      "seatNo": 156,
+      "seatName": "Hardoi",
+      "party": "SP",
+      "candidate": "Nitin Agarwal",
+      "votes": 97735,
+      "votePercent": 42.43,
+      "polledVotes": 230361
+    },
+    {
+      "seatNo": 157,
+      "seatName": "Gopamau ",
+      "party": "BJP",
+      "candidate": "Shyam Prakash",
+      "votes": 87871,
+      "votePercent": 43.28,
+      "polledVotes": 203032
+    },
+    {
+      "seatNo": 158,
+      "seatName": "Sandi ",
+      "party": "BJP",
+      "candidate": "Prabhash Kumar",
+      "votes": 72044,
+      "votePercent": 38.79,
+      "polledVotes": 185712
+    },
+    {
+      "seatNo": 159,
+      "seatName": "Bilgram-Mallanwan",
+      "party": "BJP",
+      "candidate": "Ashish Kumar Singh Ashu",
+      "votes": 83405,
+      "votePercent": 37.61,
+      "polledVotes": 221791
+    },
+    {
+      "seatNo": 160,
+      "seatName": "Balamau ",
+      "party": "BJP",
+      "candidate": "Ram Pal Verma",
+      "votes": 74917,
+      "votePercent": 39.85,
+      "polledVotes": 187997
+    },
+    {
+      "seatNo": 161,
+      "seatName": "Sandila",
+      "party": "BJP",
+      "candidate": "Raj Kumar Agrawal Urf Rajia",
+      "votes": 90362,
+      "votePercent": 45.49,
+      "polledVotes": 198649
+    },
+    {
+      "seatNo": 162,
+      "seatName": "Bangermau",
+      "party": "BJP",
+      "candidate": "Kuldeep Singh Sengar",
+      "votes": 87657,
+      "votePercent": 43.38,
+      "polledVotes": 202064
+    },
+    {
+      "seatNo": 163,
+      "seatName": "Safipur ",
+      "party": "BJP",
+      "candidate": "Bamba Lal",
+      "votes": 84068,
+      "votePercent": 42.63,
+      "polledVotes": 197225
+    },
+    {
+      "seatNo": 164,
+      "seatName": "Mohan ",
+      "party": "BJP",
+      "candidate": "Brijesh Kumar",
+      "votes": 104884,
+      "votePercent": 51.78,
+      "polledVotes": 202538
+    },
+    {
+      "seatNo": 165,
+      "seatName": "Unnao",
+      "party": "BJP",
+      "candidate": "Pankaj Gupta",
+      "votes": 119669,
+      "votePercent": 51.7,
+      "polledVotes": 231457
+    },
+    {
+      "seatNo": 166,
+      "seatName": "Bhagwantnagar",
+      "party": "BJP",
+      "candidate": "Hriday Narayan Dikshit",
+      "votes": 103698,
+      "votePercent": 44.25,
+      "polledVotes": 234335
+    },
+    {
+      "seatNo": 167,
+      "seatName": "Purwa",
+      "party": "BSP",
+      "candidate": "Anil Singh",
+      "votes": 97567,
+      "votePercent": 39.83,
+      "polledVotes": 244933
+    },
+    {
+      "seatNo": 168,
+      "seatName": "Malihabad",
+      "party": "BJP",
+      "candidate": "Jai Devi",
+      "votes": 94677,
+      "votePercent": 41.58,
+      "polledVotes": 227724
+    },
+    {
+      "seatNo": 169,
+      "seatName": "Bakshi Kaa Talab",
+      "party": "BJP",
+      "candidate": "Avinash Trivedi",
+      "votes": 96482,
+      "votePercent": 36.44,
+      "polledVotes": 264762
+    },
+    {
+      "seatNo": 170,
+      "seatName": "Sarojini Nagar",
+      "party": "BJP",
+      "candidate": "Swati Singh",
+      "votes": 108506,
+      "votePercent": 37.31,
+      "polledVotes": 290847
+    },
+    {
+      "seatNo": 171,
+      "seatName": "Lucknow West",
+      "party": "BJP",
+      "candidate": "Suresh Kumar Shrivastav",
+      "votes": 93022,
+      "votePercent": 42.76,
+      "polledVotes": 217554
+    },
+    {
+      "seatNo": 172,
+      "seatName": "Lucknow North",
+      "party": "BJP",
+      "candidate": "Dr.Neeraj Bora",
+      "votes": 109315,
+      "votePercent": 48.27,
+      "polledVotes": 226447
+    },
+    {
+      "seatNo": 173,
+      "seatName": "Lucknow East",
+      "party": "BJP",
+      "candidate": "\"Ashutosh Tandan \"\"Gopal Ji\"\"\"",
+      "votes": 135167,
+      "votePercent": 59.25,
+      "polledVotes": 228115
+    },
+    {
+      "seatNo": 174,
+      "seatName": "Lucknow Central",
+      "party": "BJP",
+      "candidate": "Brijesh Pathak",
+      "votes": 78400,
+      "votePercent": 40.2,
+      "polledVotes": 195025
+    },
+    {
+      "seatNo": 175,
+      "seatName": "Lucknow Cantt",
+      "party": "BJP",
+      "candidate": "Dr. Reeta Joshi",
+      "votes": 95402,
+      "votePercent": 50.9,
+      "polledVotes": 187433
+    },
+    {
+      "seatNo": 176,
+      "seatName": "Mohanlalganj ",
+      "party": "SP",
+      "candidate": "Ambrish Singh Pushkar",
+      "votes": 71574,
+      "votePercent": 32.16,
+      "polledVotes": 222570
+    },
+    {
+      "seatNo": 177,
+      "seatName": "Bachhrawan ",
+      "party": "BJP",
+      "candidate": "Ram Naresh Rawat",
+      "votes": 65324,
+      "votePercent": 32.97,
+      "polledVotes": 198147
+    },
+    {
+      "seatNo": 178,
+      "seatName": "Tiloi",
+      "party": "BJP",
+      "candidate": "Mayankeshwar Sharan Singh",
+      "votes": 96119,
+      "votePercent": 49.1,
+      "polledVotes": 195746
+    },
+    {
+      "seatNo": 179,
+      "seatName": "Harchandpur",
+      "party": "INC",
+      "candidate": "Rakesh Singh",
+      "votes": 65104,
+      "votePercent": 35.1,
+      "polledVotes": 185489
+    },
+    {
+      "seatNo": 180,
+      "seatName": "Rae Bareli",
+      "party": "INC",
+      "candidate": "Aditi Singh",
+      "votes": 128319,
+      "votePercent": 61.89,
+      "polledVotes": 207329
+    },
+    {
+      "seatNo": 181,
+      "seatName": "Salon ",
+      "party": "BJP",
+      "candidate": "Dal Bahadur",
+      "votes": 78028,
+      "votePercent": 40.44,
+      "polledVotes": 192964
+    },
+    {
+      "seatNo": 182,
+      "seatName": "Sareni",
+      "party": "BJP",
+      "candidate": "Dhirendra Bahadur Singh",
+      "votes": 65873,
+      "votePercent": 32.16,
+      "polledVotes": 204858
+    },
+    {
+      "seatNo": 183,
+      "seatName": "Unchahar",
+      "party": "SP",
+      "candidate": "Manoj Kumar Pandey",
+      "votes": 59103,
+      "votePercent": 28.54,
+      "polledVotes": 207088
+    },
+    {
+      "seatNo": 184,
+      "seatName": "Jagdishpur ",
+      "party": "BJP",
+      "candidate": "Suresh Kumar",
+      "votes": 84219,
+      "votePercent": 43.64,
+      "polledVotes": 192972
+    },
+    {
+      "seatNo": 185,
+      "seatName": "Gauriganj",
+      "party": "SP",
+      "candidate": "Rakesh Pratap Singh",
+      "votes": 77915,
+      "votePercent": 38.75,
+      "polledVotes": 201048
+    },
+    {
+      "seatNo": 186,
+      "seatName": "Amethi",
+      "party": "BJP",
+      "candidate": "Garima Singh",
+      "votes": 64226,
+      "votePercent": 34.21,
+      "polledVotes": 187717
+    },
+    {
+      "seatNo": 187,
+      "seatName": "Isauli",
+      "party": "SP",
+      "candidate": "Abrar Ahmad",
+      "votes": 51583,
+      "votePercent": 26.94,
+      "polledVotes": 191509
+    },
+    {
+      "seatNo": 188,
+      "seatName": "Sultanpur",
+      "party": "BJP",
+      "candidate": "Surya Bhan Singh",
+      "votes": 86786,
+      "votePercent": 42.36,
+      "polledVotes": 204858
+    },
+    {
+      "seatNo": 189,
+      "seatName": "Sadar",
+      "party": "BJP",
+      "candidate": "Sitaram",
+      "votes": 68950,
+      "votePercent": 36.43,
+      "polledVotes": 189249
+    },
+    {
+      "seatNo": 190,
+      "seatName": "Lambhua",
+      "party": "BJP",
+      "candidate": "Deomani Dwivedi",
+      "votes": 78627,
+      "votePercent": 38.98,
+      "polledVotes": 201692
+    },
+    {
+      "seatNo": 191,
+      "seatName": "Kadipur ",
+      "party": "BJP",
+      "candidate": "Rajesh Gautam",
+      "votes": 87353,
+      "votePercent": 41.49,
+      "polledVotes": 210538
+    },
+    {
+      "seatNo": 192,
+      "seatName": "Kaimganj ",
+      "party": "BJP",
+      "candidate": "Amar Singh",
+      "votes": 116304,
+      "votePercent": 49.77,
+      "polledVotes": 233683
+    },
+    {
+      "seatNo": 193,
+      "seatName": "Amritpur",
+      "party": "BJP",
+      "candidate": "Sushil Kumar Shakya",
+      "votes": 93502,
+      "votePercent": 53.54,
+      "polledVotes": 174640
+    },
+    {
+      "seatNo": 194,
+      "seatName": "Farrukhabad",
+      "party": "BJP",
+      "candidate": "Mejor Sunil Dutt Dwivedi",
+      "votes": 93626,
+      "votePercent": 45.02,
+      "polledVotes": 207982
+    },
+    {
+      "seatNo": 195,
+      "seatName": "Bhojpur",
+      "party": "BJP",
+      "candidate": "Nagendra Singh Rathore",
+      "votes": 93673,
+      "votePercent": 49.9,
+      "polledVotes": 187708
+    },
+    {
+      "seatNo": 196,
+      "seatName": "Chhibramau",
+      "party": "BJP",
+      "candidate": "Archana Pandey",
+      "votes": 112209,
+      "votePercent": 41.75,
+      "polledVotes": 268754
+    },
+    {
+      "seatNo": 197,
+      "seatName": "Tirwa",
+      "party": "BJP",
+      "candidate": "Kailash Singh Rajput",
+      "votes": 100426,
+      "votePercent": 46.71,
+      "polledVotes": 215019
+    },
+    {
+      "seatNo": 198,
+      "seatName": "Kannauj ",
+      "party": "SP",
+      "candidate": "Anil Kumar Dohare",
+      "votes": 99635,
+      "votePercent": 40.17,
+      "polledVotes": 248056
+    },
+    {
+      "seatNo": 199,
+      "seatName": "Jaswantnagar",
+      "party": "SP",
+      "candidate": "Shivpal Singh Yadav",
+      "votes": 126834,
+      "votePercent": 54.42,
+      "polledVotes": 233057
+    },
+    {
+      "seatNo": 200,
+      "seatName": "Etawah",
+      "party": "BJP",
+      "candidate": "Sarita Bhadauriya",
+      "votes": 91234,
+      "votePercent": 41.28,
+      "polledVotes": 220994
+    },
+    {
+      "seatNo": 201,
+      "seatName": "Bharthana ",
+      "party": "BJP",
+      "candidate": "Savitri Katheria",
+      "votes": 82005,
+      "votePercent": 35.63,
+      "polledVotes": 230140
+    },
+    {
+      "seatNo": 202,
+      "seatName": "Bidhuna",
+      "party": "BJP",
+      "candidate": "Vinay Shakya",
+      "votes": 81905,
+      "votePercent": 37.51,
+      "polledVotes": 218376
+    },
+    {
+      "seatNo": 203,
+      "seatName": "Dibiyapur",
+      "party": "BJP",
+      "candidate": "Lakhan Singh",
+      "votes": 71480,
+      "votePercent": 37.3,
+      "polledVotes": 191614
+    },
+    {
+      "seatNo": 204,
+      "seatName": "Auraiya ",
+      "party": "BJP",
+      "candidate": "Ramesh Chandra",
+      "votes": 83580,
+      "votePercent": 45.22,
+      "polledVotes": 184820
+    },
+    {
+      "seatNo": 205,
+      "seatName": "Rasulabad ",
+      "party": "BJP",
+      "candidate": "Nirmala Sankhwar",
+      "votes": 88390,
+      "votePercent": 46.67,
+      "polledVotes": 189385
+    },
+    {
+      "seatNo": 206,
+      "seatName": "Akbarpur - Raniya",
+      "party": "BJP",
+      "candidate": "Pratibha Shukla",
+      "votes": 87430,
+      "votePercent": 43.03,
+      "polledVotes": 203207
+    },
+    {
+      "seatNo": 207,
+      "seatName": "Sikandra",
+      "party": "BJP",
+      "candidate": "Mathura Prasad Pal",
+      "votes": 87879,
+      "votePercent": 45.36,
+      "polledVotes": 193753
+    },
+    {
+      "seatNo": 208,
+      "seatName": "Bhognipur",
+      "party": "BJP",
+      "candidate": "Vinod Kumar Katiyar",
+      "votes": 71466,
+      "votePercent": 33.6,
+      "polledVotes": 212667
+    },
+    {
+      "seatNo": 209,
+      "seatName": "Bilhaur",
+      "party": "BJP",
+      "candidate": "Bhagwati Prasad Sagar",
+      "votes": 102326,
+      "votePercent": 42.51,
+      "polledVotes": 240684
+    },
+    {
+      "seatNo": 210,
+      "seatName": "Bithoor",
+      "party": "BJP",
+      "candidate": "Abhijeet Singh Sanga",
+      "votes": 113289,
+      "votePercent": 49.14,
+      "polledVotes": 230544
+    },
+    {
+      "seatNo": 211,
+      "seatName": "Kalyanpur",
+      "party": "BJP",
+      "candidate": "Nilima Katiyar",
+      "votes": 86620,
+      "votePercent": 48.69,
+      "polledVotes": 177912
+    },
+    {
+      "seatNo": 212,
+      "seatName": "Govindnagar",
+      "party": "BJP",
+      "candidate": "Satya Dev Pachauri",
+      "votes": 112029,
+      "votePercent": 60.47,
+      "polledVotes": 185258
+    },
+    {
+      "seatNo": 213,
+      "seatName": "Sishamau",
+      "party": "SP",
+      "candidate": "Hazi Irfan Solanki",
+      "votes": 73030,
+      "votePercent": 47.35,
+      "polledVotes": 154222
+    },
+    {
+      "seatNo": 214,
+      "seatName": "Arya Nagar",
+      "party": "SP",
+      "candidate": "Amitabh Bajpai",
+      "votes": 70993,
+      "votePercent": 48.14,
+      "polledVotes": 147465
+    },
+    {
+      "seatNo": 215,
+      "seatName": "Kidwai Nagar",
+      "party": "BJP",
+      "candidate": "Mahesh Chandra",
+      "votes": 111407,
+      "votePercent": 54.31,
+      "polledVotes": 205134
+    },
+    {
+      "seatNo": 216,
+      "seatName": "Kanpur Cantt.",
+      "party": "INC",
+      "candidate": "Sohil Akhtar Ansari",
+      "votes": 81169,
+      "votePercent": 46,
+      "polledVotes": 176462
+    },
+    {
+      "seatNo": 217,
+      "seatName": "Maharajpur",
+      "party": "BJP",
+      "candidate": "Satish Mahana",
+      "votes": 132394,
+      "votePercent": 55.93,
+      "polledVotes": 236731
+    },
+    {
+      "seatNo": 218,
+      "seatName": "Ghatampur ",
+      "party": "BJP",
+      "candidate": "Kamal Rani",
+      "votes": 92776,
+      "votePercent": 48.52,
+      "polledVotes": 191219
+    },
+    {
+      "seatNo": 219,
+      "seatName": "Madhaugarh",
+      "party": "BJP",
+      "candidate": "Moolchandra Singh",
+      "votes": 108737,
+      "votePercent": 43.04,
+      "polledVotes": 252621
+    },
+    {
+      "seatNo": 220,
+      "seatName": "Kalpi",
+      "party": "BJP",
+      "candidate": "Ku. Narendra Pal Singh",
+      "votes": 105988,
+      "votePercent": 46.22,
+      "polledVotes": 229331
+    },
+    {
+      "seatNo": 221,
+      "seatName": "Orai ",
+      "party": "BJP",
+      "candidate": "Gauri Shankar",
+      "votes": 140485,
+      "votePercent": 52.98,
+      "polledVotes": 265142
+    },
+    {
+      "seatNo": 222,
+      "seatName": "Babina",
+      "party": "BJP",
+      "candidate": "\"Rajeev Singh \"\"Parichha\"\"\"",
+      "votes": 96713,
+      "votePercent": 42.02,
+      "polledVotes": 230162
+    },
+    {
+      "seatNo": 223,
+      "seatName": "Jhansi Nagar",
+      "party": "BJP",
+      "candidate": "Ravi Sharma",
+      "votes": 117873,
+      "votePercent": 48.68,
+      "polledVotes": 242146
+    },
+    {
+      "seatNo": 224,
+      "seatName": "Mauranipur ",
+      "party": "BJP",
+      "candidate": "Biharilal Arya",
+      "votes": 98905,
+      "votePercent": 36.8,
+      "polledVotes": 268783
+    },
+    {
+      "seatNo": 225,
+      "seatName": "Garautha",
+      "party": "BJP",
+      "candidate": "Jawahar Lal Rajpoot",
+      "votes": 93378,
+      "votePercent": 40.81,
+      "polledVotes": 228787
+    },
+    {
+      "seatNo": 226,
+      "seatName": "Lalitpur",
+      "party": "BJP",
+      "candidate": "Ramratan Kushwaha",
+      "votes": 156942,
+      "votePercent": 49.38,
+      "polledVotes": 317850
+    },
+    {
+      "seatNo": 227,
+      "seatName": "Mehroni ",
+      "party": "BJP",
+      "candidate": "Manohar Lal",
+      "votes": 159291,
+      "votePercent": 51.76,
+      "polledVotes": 307753
+    },
+    {
+      "seatNo": 228,
+      "seatName": "Hamirpur",
+      "party": "BJP",
+      "candidate": "Ashok Kumar Singh Chandel",
+      "votes": 110888,
+      "votePercent": 43.9,
+      "polledVotes": 252606
+    },
+    {
+      "seatNo": 229,
+      "seatName": "Rath ",
+      "party": "BJP",
+      "candidate": "Manisha Anuragi",
+      "votes": 147526,
+      "votePercent": 60.96,
+      "polledVotes": 242011
+    },
+    {
+      "seatNo": 230,
+      "seatName": "Mahoba",
+      "party": "BJP",
+      "candidate": "Rakesh Kumar Goswami",
+      "votes": 88291,
+      "votePercent": 44.76,
+      "polledVotes": 197273
+    },
+    {
+      "seatNo": 231,
+      "seatName": "Charkhari",
+      "party": "BJP",
+      "candidate": "Brijbhushan Rajpoot Alias Guddu Bhaiya",
+      "votes": 98360,
+      "votePercent": 46.03,
+      "polledVotes": 213705
+    },
+    {
+      "seatNo": 232,
+      "seatName": "Tindwari",
+      "party": "BJP",
+      "candidate": "Brajesh Kumar Prajapati",
+      "votes": 82197,
+      "votePercent": 44.47,
+      "polledVotes": 184823
+    },
+    {
+      "seatNo": 233,
+      "seatName": "Baberu",
+      "party": "BJP",
+      "candidate": "Chandrapal Kushwaha",
+      "votes": 76187,
+      "votePercent": 39.29,
+      "polledVotes": 193900
+    },
+    {
+      "seatNo": 234,
+      "seatName": "Naraini ",
+      "party": "BJP",
+      "candidate": "Raj Karan Kabir",
+      "votes": 92412,
+      "votePercent": 45.3,
+      "polledVotes": 204001
+    },
+    {
+      "seatNo": 235,
+      "seatName": "Banda",
+      "party": "BJP",
+      "candidate": "Prakash Dwivedi",
+      "votes": 83169,
+      "votePercent": 45.61,
+      "polledVotes": 182334
+    },
+    {
+      "seatNo": 236,
+      "seatName": "Chitrakoot",
+      "party": "BJP",
+      "candidate": "Chandrika Prasad Upadhyay",
+      "votes": 90366,
+      "votePercent": 40.85,
+      "polledVotes": 221199
+    },
+    {
+      "seatNo": 237,
+      "seatName": "Manikpur",
+      "party": "BJP",
+      "candidate": "R.K. Singh Patel",
+      "votes": 84988,
+      "votePercent": 43.68,
+      "polledVotes": 194557
+    },
+    {
+      "seatNo": 238,
+      "seatName": "Jahanabad",
+      "party": "ADS",
+      "candidate": "Jai Kumar Singh Jaiki",
+      "votes": 81438,
+      "votePercent": 44.87,
+      "polledVotes": 181500
+    },
+    {
+      "seatNo": 239,
+      "seatName": "Bindki",
+      "party": "BJP",
+      "candidate": "Karan Singh Patel",
+      "votes": 97996,
+      "votePercent": 53.27,
+      "polledVotes": 183971
+    },
+    {
+      "seatNo": 240,
+      "seatName": "Fatehpur   ",
+      "party": "BJP",
+      "candidate": "Vikram Singh",
+      "votes": 89481,
+      "votePercent": 45.85,
+      "polledVotes": 195168
+    },
+    {
+      "seatNo": 241,
+      "seatName": "Ayah Shah",
+      "party": "BJP",
+      "candidate": "Vikas Gupta",
+      "votes": 81203,
+      "votePercent": 53.8,
+      "polledVotes": 150934
+    },
+    {
+      "seatNo": 242,
+      "seatName": "Husainganj",
+      "party": "BJP",
+      "candidate": "Ranvendra Pratap Singh Urf Dhunni Bhaiya",
+      "votes": 73595,
+      "votePercent": 41.9,
+      "polledVotes": 175664
+    },
+    {
+      "seatNo": 243,
+      "seatName": "Khaga",
+      "party": "BJP",
+      "candidate": "Krishna Paswan",
+      "votes": 94954,
+      "votePercent": 51.45,
+      "polledVotes": 184571
+    },
+    {
+      "seatNo": 244,
+      "seatName": "Rampur Khas",
+      "party": "INC",
+      "candidate": "Aradhana Mishra \\'Mona\\'",
+      "votes": 81463,
+      "votePercent": 47.74,
+      "polledVotes": 170655
+    },
+    {
+      "seatNo": 245,
+      "seatName": "Babaganj",
+      "party": "IND",
+      "candidate": "Vinod Kumar",
+      "votes": 87778,
+      "votePercent": 52.26,
+      "polledVotes": 167975
+    },
+    {
+      "seatNo": 246,
+      "seatName": "Kunda",
+      "party": "IND",
+      "candidate": "Raghuraj Pratap Singh",
+      "votes": 136597,
+      "votePercent": 67.95,
+      "polledVotes": 201038
+    },
+    {
+      "seatNo": 247,
+      "seatName": "Vishwanathganj",
+      "party": "ADS",
+      "candidate": "Rakesh Kumar Verma Alias Dr.R.K.Verma",
+      "votes": 81899,
+      "votePercent": 41.65,
+      "polledVotes": 196623
+    },
+    {
+      "seatNo": 248,
+      "seatName": "Pratapgarh",
+      "party": "ADS",
+      "candidate": "Sangam Lal Gupta",
+      "votes": 80828,
+      "votePercent": 43.65,
+      "polledVotes": 185179
+    },
+    {
+      "seatNo": 249,
+      "seatName": "Patti",
+      "party": "BJP",
+      "candidate": "Rajendra Pratap Singh Alias Moti",
+      "votes": 75011,
+      "votePercent": 36.08,
+      "polledVotes": 207923
+    },
+    {
+      "seatNo": 250,
+      "seatName": "Raniganj",
+      "party": "BJP",
+      "candidate": "Abhay Kumar Alias Dhiraj Ojha",
+      "votes": 67031,
+      "votePercent": 37.83,
+      "polledVotes": 177190
+    },
+    {
+      "seatNo": 251,
+      "seatName": "Sirathu",
+      "party": "BJP",
+      "candidate": "Sheetla Prasad",
+      "votes": 78621,
+      "votePercent": 40.07,
+      "polledVotes": 196186
+    },
+    {
+      "seatNo": 252,
+      "seatName": "Manjhanpur ",
+      "party": "BJP",
+      "candidate": "Lal Bahadur",
+      "votes": 92818,
+      "votePercent": 41.5,
+      "polledVotes": 223633
+    },
+    {
+      "seatNo": 253,
+      "seatName": "Chail",
+      "party": "BJP",
+      "candidate": "Sanjay Kumar",
+      "votes": 85713,
+      "votePercent": 42.15,
+      "polledVotes": 203355
+    },
+    {
+      "seatNo": 254,
+      "seatName": "Phaphamau",
+      "party": "BJP",
+      "candidate": "Vikramajeet",
+      "votes": 83239,
+      "votePercent": 40.55,
+      "polledVotes": 205266
+    },
+    {
+      "seatNo": 255,
+      "seatName": "Soraon ",
+      "party": "ADS",
+      "candidate": "Jamuna Prasad",
+      "votes": 77814,
+      "votePercent": 36.59,
+      "polledVotes": 212679
+    },
+    {
+      "seatNo": 256,
+      "seatName": "Phulpur",
+      "party": "BJP",
+      "candidate": "Praveen Kumar Singh",
+      "votes": 93912,
+      "votePercent": 41.94,
+      "polledVotes": 223933
+    },
+    {
+      "seatNo": 257,
+      "seatName": "Pratappur",
+      "party": "BSP",
+      "candidate": "Mohd Mujtaba Siddqui",
+      "votes": 66805,
+      "votePercent": 32.17,
+      "polledVotes": 207673
+    },
+    {
+      "seatNo": 258,
+      "seatName": "Handia",
+      "party": "BSP",
+      "candidate": "Hakim Lal",
+      "votes": 72446,
+      "votePercent": 35.84,
+      "polledVotes": 202123
+    },
+    {
+      "seatNo": 259,
+      "seatName": "Meja",
+      "party": "BJP",
+      "candidate": "Neelam Karwariya",
+      "votes": 67807,
+      "votePercent": 37.42,
+      "polledVotes": 181184
+    },
+    {
+      "seatNo": 260,
+      "seatName": "Karachhana",
+      "party": "SP",
+      "candidate": "Ujjwal Raman Singh",
+      "votes": 80806,
+      "votePercent": 40.66,
+      "polledVotes": 198734
+    },
+    {
+      "seatNo": 261,
+      "seatName": "Allahabad West",
+      "party": "BJP",
+      "candidate": "Sidharth Nath Singh",
+      "votes": 85518,
+      "votePercent": 43.04,
+      "polledVotes": 198692
+    },
+    {
+      "seatNo": 262,
+      "seatName": "Allahabad North",
+      "party": "BJP",
+      "candidate": "Harshvardhan Bajpai",
+      "votes": 89191,
+      "votePercent": 51.48,
+      "polledVotes": 173242
+    },
+    {
+      "seatNo": 263,
+      "seatName": "Allahabad South",
+      "party": "BJP",
+      "candidate": "Nand Gopal Gupta Nandi",
+      "votes": 93011,
+      "votePercent": 52.53,
+      "polledVotes": 177063
+    },
+    {
+      "seatNo": 264,
+      "seatName": "Bara ",
+      "party": "BJP",
+      "candidate": "Dr. Ajai Kumar",
+      "votes": 79209,
+      "votePercent": 41.69,
+      "polledVotes": 189974
+    },
+    {
+      "seatNo": 265,
+      "seatName": "Koraon ",
+      "party": "BJP",
+      "candidate": "Rajmani",
+      "votes": 100427,
+      "votePercent": 51.18,
+      "polledVotes": 196227
+    },
+    {
+      "seatNo": 266,
+      "seatName": "Kursi",
+      "party": "BJP",
+      "candidate": "Sakendra Pratap Verma",
+      "votes": 108403,
+      "votePercent": 41.26,
+      "polledVotes": 262731
+    },
+    {
+      "seatNo": 267,
+      "seatName": "Ram Nagar",
+      "party": "BJP",
+      "candidate": "Sharad Kumar Awasthi",
+      "votes": 88937,
+      "votePercent": 39.87,
+      "polledVotes": 223077
+    },
+    {
+      "seatNo": 268,
+      "seatName": "Barabanki",
+      "party": "SP",
+      "candidate": "Dharmraj Singh Yadav Urf Suresh Yadav",
+      "votes": 99453,
+      "votePercent": 40.54,
+      "polledVotes": 245295
+    },
+    {
+      "seatNo": 269,
+      "seatName": "Zaidpur ",
+      "party": "BJP",
+      "candidate": "Upendra Singh",
+      "votes": 111064,
+      "votePercent": 43.34,
+      "polledVotes": 256287
+    },
+    {
+      "seatNo": 270,
+      "seatName": "Dariyabad",
+      "party": "BJP",
+      "candidate": "Satish Chandra Sharma",
+      "votes": 119173,
+      "votePercent": 46.81,
+      "polledVotes": 254570
+    },
+    {
+      "seatNo": 271,
+      "seatName": "Rudauli",
+      "party": "BJP",
+      "candidate": "Ram Chandra Yadav",
+      "votes": 90311,
+      "votePercent": 42.96,
+      "polledVotes": 210239
+    },
+    {
+      "seatNo": 272,
+      "seatName": "Haidergarh ",
+      "party": "BJP",
+      "candidate": "Baijnath Rawat",
+      "votes": 97497,
+      "votePercent": 45.52,
+      "polledVotes": 214170
+    },
+    {
+      "seatNo": 273,
+      "seatName": "Milkipur ",
+      "party": "BJP",
+      "candidate": "Gorakh Nath",
+      "votes": 86960,
+      "votePercent": 43.51,
+      "polledVotes": 199866
+    },
+    {
+      "seatNo": 274,
+      "seatName": "Bikapur",
+      "party": "BJP",
+      "candidate": "Shobha Singh Chauhan",
+      "votes": 94074,
+      "votePercent": 42.2,
+      "polledVotes": 222916
+    },
+    {
+      "seatNo": 275,
+      "seatName": "Ayodhya",
+      "party": "BJP",
+      "candidate": "Ved Prakash Gupta",
+      "votes": 107014,
+      "votePercent": 49.2,
+      "polledVotes": 217488
+    },
+    {
+      "seatNo": 276,
+      "seatName": "Goshainganj",
+      "party": "BJP",
+      "candidate": "Indra Pratap Alias Khabbu Tiwari",
+      "votes": 89586,
+      "votePercent": 39.41,
+      "polledVotes": 227339
+    },
+    {
+      "seatNo": 277,
+      "seatName": "Katehari",
+      "party": "BSP",
+      "candidate": "Lal Ji Verma",
+      "votes": 84358,
+      "votePercent": 35.99,
+      "polledVotes": 234407
+    },
+    {
+      "seatNo": 278,
+      "seatName": "Tanda",
+      "party": "BJP",
+      "candidate": "Sanju Devi",
+      "votes": 74768,
+      "votePercent": 36.35,
+      "polledVotes": 205700
+    },
+    {
+      "seatNo": 279,
+      "seatName": "Alapur ",
+      "party": "BJP",
+      "candidate": "Aneeta",
+      "votes": 72366,
+      "votePercent": 36.59,
+      "polledVotes": 197802
+    },
+    {
+      "seatNo": 280,
+      "seatName": "Jalalpur",
+      "party": "BSP",
+      "candidate": "Ritesh Pandey",
+      "votes": 90309,
+      "votePercent": 37.51,
+      "polledVotes": 240787
+    },
+    {
+      "seatNo": 281,
+      "seatName": "Akbarpur  ",
+      "party": "BSP",
+      "candidate": "Ram Achal Rajbhar",
+      "votes": 72325,
+      "votePercent": 35.4,
+      "polledVotes": 204316
+    },
+    {
+      "seatNo": 282,
+      "seatName": "Balha",
+      "party": "BJP",
+      "candidate": "Akshayvaralal",
+      "votes": 104135,
+      "votePercent": 51.46,
+      "polledVotes": 202367
+    },
+    {
+      "seatNo": 283,
+      "seatName": "Nanpara",
+      "party": "BJP",
+      "candidate": "Madhuri Verma",
+      "votes": 86312,
+      "votePercent": 44.71,
+      "polledVotes": 193040
+    },
+    {
+      "seatNo": 284,
+      "seatName": "Matera",
+      "party": "SP",
+      "candidate": "Yasar Shah",
+      "votes": 79188,
+      "votePercent": 39.45,
+      "polledVotes": 200725
+    },
+    {
+      "seatNo": 285,
+      "seatName": "Mahasi",
+      "party": "BJP",
+      "candidate": "Sureshwar Singh",
+      "votes": 104654,
+      "votePercent": 53.09,
+      "polledVotes": 197137
+    },
+    {
+      "seatNo": 286,
+      "seatName": "Bahraich",
+      "party": "BJP",
+      "candidate": "Anupma Jaiswal",
+      "votes": 87479,
+      "votePercent": 41,
+      "polledVotes": 213375
+    },
+    {
+      "seatNo": 287,
+      "seatName": "Payagpur",
+      "party": "BJP",
+      "candidate": "Subhash Tripathi",
+      "votes": 102254,
+      "votePercent": 49.59,
+      "polledVotes": 206193
+    },
+    {
+      "seatNo": 288,
+      "seatName": "Kaiserganj",
+      "party": "BJP",
+      "candidate": "Mukut Bihari",
+      "votes": 85212,
+      "votePercent": 40.67,
+      "polledVotes": 209536
+    },
+    {
+      "seatNo": 289,
+      "seatName": "Bhinga",
+      "party": "BSP",
+      "candidate": "Mohammad Aslam",
+      "votes": 76040,
+      "votePercent": 33.71,
+      "polledVotes": 225590
+    },
+    {
+      "seatNo": 290,
+      "seatName": "Shrawasti",
+      "party": "BJP",
+      "candidate": "Ram Feran",
+      "votes": 79437,
+      "votePercent": 32.86,
+      "polledVotes": 241733
+    },
+    {
+      "seatNo": 291,
+      "seatName": "Tulsipur",
+      "party": "BJP",
+      "candidate": "Kailash Nath Shukla",
+      "votes": 62296,
+      "votePercent": 31.55,
+      "polledVotes": 197479
+    },
+    {
+      "seatNo": 292,
+      "seatName": "Gainsari",
+      "party": "BJP",
+      "candidate": "Shailesh Kumar Singh",
+      "votes": 55716,
+      "votePercent": 28.41,
+      "polledVotes": 196103
+    },
+    {
+      "seatNo": 293,
+      "seatName": "Utraula",
+      "party": "BJP",
+      "candidate": "Ram Pratap Alias Shashikant Verma",
+      "votes": 85240,
+      "votePercent": 42.94,
+      "polledVotes": 198526
+    },
+    {
+      "seatNo": 294,
+      "seatName": "Balrampur ",
+      "party": "BJP",
+      "candidate": "Palturam",
+      "votes": 89401,
+      "votePercent": 46.25,
+      "polledVotes": 193307
+    },
+    {
+      "seatNo": 295,
+      "seatName": "Mehnaun",
+      "party": "BJP",
+      "candidate": "Vinay Kumar",
+      "votes": 84304,
+      "votePercent": 40.73,
+      "polledVotes": 206971
+    },
+    {
+      "seatNo": 296,
+      "seatName": "Gonda",
+      "party": "BJP",
+      "candidate": "Prateek Bhushan Singh",
+      "votes": 58254,
+      "votePercent": 30.1,
+      "polledVotes": 193555
+    },
+    {
+      "seatNo": 297,
+      "seatName": "Katra Bazar",
+      "party": "BJP",
+      "candidate": "Bawan Singh",
+      "votes": 92095,
+      "votePercent": 41.57,
+      "polledVotes": 221535
+    },
+    {
+      "seatNo": 298,
+      "seatName": "Colonelganj",
+      "party": "BJP",
+      "candidate": "Ajay Pratap Singh",
+      "votes": 82867,
+      "votePercent": 45.41,
+      "polledVotes": 182468
+    },
+    {
+      "seatNo": 299,
+      "seatName": "Tarabganj",
+      "party": "BJP",
+      "candidate": "Prem Narayan Pandey",
+      "votes": 100294,
+      "votePercent": 49.34,
+      "polledVotes": 203268
+    },
+    {
+      "seatNo": 300,
+      "seatName": "Mankapur ",
+      "party": "BJP",
+      "candidate": "Ramapati  Shastri",
+      "votes": 102862,
+      "votePercent": 57.3,
+      "polledVotes": 179521
+    },
+    {
+      "seatNo": 301,
+      "seatName": "Gaura",
+      "party": "BJP",
+      "candidate": "Prabhat Kumar Verma",
+      "votes": 72455,
+      "votePercent": 41.79,
+      "polledVotes": 173380
+    },
+    {
+      "seatNo": 302,
+      "seatName": "Shohratgarh",
+      "party": "ADS",
+      "candidate": "Amar Singh Chaudhary",
+      "votes": 67653,
+      "votePercent": 36.23,
+      "polledVotes": 186719
+    },
+    {
+      "seatNo": 303,
+      "seatName": "Kapilvastu ",
+      "party": "BJP",
+      "candidate": "Shyam Dhani",
+      "votes": 114082,
+      "votePercent": 48.52,
+      "polledVotes": 235129
+    },
+    {
+      "seatNo": 304,
+      "seatName": "Bansi",
+      "party": "BJP",
+      "candidate": "Jai Pratap Singh",
+      "votes": 77548,
+      "votePercent": 42.03,
+      "polledVotes": 184514
+    },
+    {
+      "seatNo": 305,
+      "seatName": "Itwa",
+      "party": "BJP",
+      "candidate": "Dr. Satish Chandra Dwivedi",
+      "votes": 59524,
+      "votePercent": 36.99,
+      "polledVotes": 160935
+    },
+    {
+      "seatNo": 306,
+      "seatName": "Doomariyaganj",
+      "party": "BJP",
+      "candidate": "Raghvendra Pratap Singh",
+      "votes": 67227,
+      "votePercent": 33.35,
+      "polledVotes": 201595
+    },
+    {
+      "seatNo": 307,
+      "seatName": "Harraiya",
+      "party": "BJP",
+      "candidate": "Ajay Kumar Singh \\'\\'Ajay Singh\\'\\'",
+      "votes": 97014,
+      "votePercent": 45.2,
+      "polledVotes": 214632
+    },
+    {
+      "seatNo": 308,
+      "seatName": "Kaptanganj",
+      "party": "BJP",
+      "candidate": "Chandra Prakash Alias Ca Chandra Prakash Shukl",
+      "votes": 70527,
+      "votePercent": 35.07,
+      "polledVotes": 201124
+    },
+    {
+      "seatNo": 309,
+      "seatName": "Rudhauli",
+      "party": "BJP",
+      "candidate": "Sanjay Pratap Jaiswal",
+      "votes": 90228,
+      "votePercent": 40.53,
+      "polledVotes": 222611
+    },
+    {
+      "seatNo": 310,
+      "seatName": "Basti Sadar",
+      "party": "BJP",
+      "candidate": "Dayaram Chaudhary",
+      "votes": 92697,
+      "votePercent": 44.86,
+      "polledVotes": 206622
+    },
+    {
+      "seatNo": 311,
+      "seatName": "Mahadewa S.C",
+      "party": "BJP",
+      "candidate": "Ravi Kumar Sonkar",
+      "votes": 82429,
+      "votePercent": 41.36,
+      "polledVotes": 199317
+    },
+    {
+      "seatNo": 312,
+      "seatName": "Menhdawal",
+      "party": "BJP",
+      "candidate": "Rakesh Singh Baghel",
+      "votes": 86976,
+      "votePercent": 38.69,
+      "polledVotes": 224820
+    },
+    {
+      "seatNo": 313,
+      "seatName": "Khalilabad",
+      "party": "BJP",
+      "candidate": "Digvijay Narayan Alis Jay Chaubey",
+      "votes": 72061,
+      "votePercent": 32.17,
+      "polledVotes": 224008
+    },
+    {
+      "seatNo": 314,
+      "seatName": "Dhanghata ",
+      "party": "BJP",
+      "candidate": "Shri Ram Chauhan",
+      "votes": 79572,
+      "votePercent": 39.73,
+      "polledVotes": 200275
+    },
+    {
+      "seatNo": 315,
+      "seatName": "Pharenda",
+      "party": "BJP",
+      "candidate": "Bajrang Bahadur Singh",
+      "votes": 76312,
+      "votePercent": 38.36,
+      "polledVotes": 198945
+    },
+    {
+      "seatNo": 316,
+      "seatName": "Nautanwa",
+      "party": "IND",
+      "candidate": "Aman Mani Tripathi",
+      "votes": 79666,
+      "votePercent": 37.07,
+      "polledVotes": 214927
+    },
+    {
+      "seatNo": 317,
+      "seatName": "Siswa",
+      "party": "BJP",
+      "candidate": "Premsagar Patel",
+      "votes": 122884,
+      "votePercent": 51.34,
+      "polledVotes": 239366
+    },
+    {
+      "seatNo": 318,
+      "seatName": "Maharajganj ",
+      "party": "BJP",
+      "candidate": "Jaimangal",
+      "votes": 125154,
+      "votePercent": 50.63,
+      "polledVotes": 247216
+    },
+    {
+      "seatNo": 319,
+      "seatName": "Paniyara",
+      "party": "BJP",
+      "candidate": "Gyanendra",
+      "votes": 119308,
+      "votePercent": 48.92,
+      "polledVotes": 243886
+    },
+    {
+      "seatNo": 320,
+      "seatName": "Caimpiyarganj",
+      "party": "BJP",
+      "candidate": "Fateh Bahadur",
+      "votes": 91636,
+      "votePercent": 42.29,
+      "polledVotes": 216710
+    },
+    {
+      "seatNo": 321,
+      "seatName": "Pipraich",
+      "party": "BJP",
+      "candidate": "Mahendra Pal Singh",
+      "votes": 82739,
+      "votePercent": 33.63,
+      "polledVotes": 246015
+    },
+    {
+      "seatNo": 322,
+      "seatName": "Gorakhpur Urban",
+      "party": "BJP",
+      "candidate": "Dr. Radha Mohan Das Agrawal",
+      "votes": 122221,
+      "votePercent": 55.85,
+      "polledVotes": 218831
+    },
+    {
+      "seatNo": 323,
+      "seatName": "Gorakhpur Rural",
+      "party": "BJP",
+      "candidate": "Bipin Singh",
+      "votes": 83686,
+      "votePercent": 35.47,
+      "polledVotes": 235963
+    },
+    {
+      "seatNo": 324,
+      "seatName": "Sahajanwa",
+      "party": "BJP",
+      "candidate": "Sheetal Pandey",
+      "votes": 72213,
+      "votePercent": 34.49,
+      "polledVotes": 209383
+    },
+    {
+      "seatNo": 325,
+      "seatName": "Khajani ",
+      "party": "BJP",
+      "candidate": "Sant Prasad",
+      "votes": 71492,
+      "votePercent": 38.07,
+      "polledVotes": 187798
+    },
+    {
+      "seatNo": 326,
+      "seatName": "Chauri-Chaura",
+      "party": "BJP",
+      "candidate": "Sangeeta Yadav",
+      "votes": 87863,
+      "votePercent": 45.35,
+      "polledVotes": 193724
+    },
+    {
+      "seatNo": 327,
+      "seatName": "Bansgaon",
+      "party": "BJP",
+      "candidate": "Vimlesh Paswan",
+      "votes": 71966,
+      "votePercent": 40.25,
+      "polledVotes": 178818
+    },
+    {
+      "seatNo": 328,
+      "seatName": "Chillupar",
+      "party": "BSP",
+      "candidate": "Vinay Shankar Tiwari",
+      "votes": 78177,
+      "votePercent": 35.48,
+      "polledVotes": 220317
+    },
+    {
+      "seatNo": 329,
+      "seatName": "Khadda",
+      "party": "BJP",
+      "candidate": "Jatashanker Tripathi",
+      "votes": 82537,
+      "votePercent": 42.26,
+      "polledVotes": 195328
+    },
+    {
+      "seatNo": 330,
+      "seatName": "Padrauna",
+      "party": "BJP",
+      "candidate": "Swami Prasad Maurya",
+      "votes": 93649,
+      "votePercent": 44.44,
+      "polledVotes": 210742
+    },
+    {
+      "seatNo": 331,
+      "seatName": "Tamkuhi Raj",
+      "party": "INC",
+      "candidate": "Ajay Kumar Lallu",
+      "votes": 61211,
+      "votePercent": 28.43,
+      "polledVotes": 215288
+    },
+    {
+      "seatNo": 332,
+      "seatName": "Fazilnagar",
+      "party": "BJP",
+      "candidate": "Ganga",
+      "votes": 102778,
+      "votePercent": 47.94,
+      "polledVotes": 214409
+    },
+    {
+      "seatNo": 333,
+      "seatName": "Kushinagar",
+      "party": "BJP",
+      "candidate": "Rajnikant Mani Tripathi",
+      "votes": 97132,
+      "votePercent": 47.72,
+      "polledVotes": 203549
+    },
+    {
+      "seatNo": 334,
+      "seatName": "Hata",
+      "party": "BJP",
+      "candidate": "Pawan Kumar",
+      "votes": 103864,
+      "votePercent": 49.87,
+      "polledVotes": 208257
+    },
+    {
+      "seatNo": 335,
+      "seatName": "Ramkola",
+      "party": "SBSP",
+      "candidate": "Ramanand Baudh",
+      "votes": 102782,
+      "votePercent": 52.1,
+      "polledVotes": 197263
+    },
+    {
+      "seatNo": 336,
+      "seatName": "Rudrapur",
+      "party": "BJP",
+      "candidate": "Jai Prakash Nishad",
+      "votes": 77754,
+      "votePercent": 47.31,
+      "polledVotes": 164353
+    },
+    {
+      "seatNo": 337,
+      "seatName": "Deoria",
+      "party": "BJP",
+      "candidate": "Janmejai Singh",
+      "votes": 88030,
+      "votePercent": 48.03,
+      "polledVotes": 183289
+    },
+    {
+      "seatNo": 338,
+      "seatName": "Pathardeva",
+      "party": "BJP",
+      "candidate": "Surya Pratap Shahi",
+      "votes": 99812,
+      "votePercent": 52.09,
+      "polledVotes": 191614
+    },
+    {
+      "seatNo": 339,
+      "seatName": "Rampur Karkhana",
+      "party": "BJP",
+      "candidate": "Kamlesh Shukla",
+      "votes": 62886,
+      "votePercent": 32.69,
+      "polledVotes": 192377
+    },
+    {
+      "seatNo": 340,
+      "seatName": "Bhatpar Rani",
+      "party": "SP",
+      "candidate": "Ashutosh",
+      "votes": 61862,
+      "votePercent": 34.09,
+      "polledVotes": 181465
+    },
+    {
+      "seatNo": 341,
+      "seatName": "Salempur",
+      "party": "BJP",
+      "candidate": "Kali Prasad",
+      "votes": 76175,
+      "votePercent": 46.9,
+      "polledVotes": 162421
+    },
+    {
+      "seatNo": 342,
+      "seatName": "Barhaj",
+      "party": "BJP",
+      "candidate": "Suresh Tiwari",
+      "votes": 61996,
+      "votePercent": 36.76,
+      "polledVotes": 168628
+    },
+    {
+      "seatNo": 343,
+      "seatName": "Atrauliya",
+      "party": "SP",
+      "candidate": "Dr.Sangram Yadav",
+      "votes": 74276,
+      "votePercent": 35.17,
+      "polledVotes": 211210
+    },
+    {
+      "seatNo": 344,
+      "seatName": "Gopalpur",
+      "party": "SP",
+      "candidate": "Nafees Ahmad",
+      "votes": 70980,
+      "votePercent": 37.5,
+      "polledVotes": 189300
+    },
+    {
+      "seatNo": 345,
+      "seatName": "Sagri",
+      "party": "BSP",
+      "candidate": "Bandana Singh",
+      "votes": 62203,
+      "votePercent": 34.73,
+      "polledVotes": 179125
+    },
+    {
+      "seatNo": 346,
+      "seatName": "Mubarakpur",
+      "party": "BSP",
+      "candidate": "Shah Alam Urf Guddu Jamali",
+      "votes": 70705,
+      "votePercent": 36.64,
+      "polledVotes": 192991
+    },
+    {
+      "seatNo": 347,
+      "seatName": "Azamgarh",
+      "party": "SP",
+      "candidate": "Durga Prasad",
+      "votes": 88087,
+      "votePercent": 41.17,
+      "polledVotes": 213948
+    },
+    {
+      "seatNo": 348,
+      "seatName": "Nizamabad",
+      "party": "SP",
+      "candidate": "Alambadi",
+      "votes": 67274,
+      "votePercent": 40.17,
+      "polledVotes": 167475
+    },
+    {
+      "seatNo": 349,
+      "seatName": "Phoolpur Pawai",
+      "party": "BJP",
+      "candidate": "Arun Kumar Yadav",
+      "votes": 68435,
+      "votePercent": 38.35,
+      "polledVotes": 178455
+    },
+    {
+      "seatNo": 350,
+      "seatName": "Didarganj",
+      "party": "BSP",
+      "candidate": "Sukhdev Rajbhar",
+      "votes": 62125,
+      "votePercent": 33.15,
+      "polledVotes": 187419
+    },
+    {
+      "seatNo": 351,
+      "seatName": "Lalganj",
+      "party": "BSP",
+      "candidate": "Azad Ari Mardan",
+      "votes": 72715,
+      "votePercent": 35.71,
+      "polledVotes": 203646
+    },
+    {
+      "seatNo": 352,
+      "seatName": "Mehnagar ",
+      "party": "SP",
+      "candidate": "Kalpnath Paswan",
+      "votes": 69037,
+      "votePercent": 34.15,
+      "polledVotes": 202135
+    },
+    {
+      "seatNo": 353,
+      "seatName": "Madhuban",
+      "party": "BJP",
+      "candidate": "Dara Singh Chauhan",
+      "votes": 86238,
+      "votePercent": 40.26,
+      "polledVotes": 214219
+    },
+    {
+      "seatNo": 354,
+      "seatName": "Ghosi",
+      "party": "BJP",
+      "candidate": "Fagu Chauhan",
+      "votes": 88298,
+      "votePercent": 36.54,
+      "polledVotes": 241634
+    },
+    {
+      "seatNo": 355,
+      "seatName": "Muhammadabad- Gohna",
+      "party": "BJP",
+      "candidate": "Shriram Sonkar",
+      "votes": 73493,
+      "votePercent": 34.7,
+      "polledVotes": 211785
+    },
+    {
+      "seatNo": 356,
+      "seatName": "Mau",
+      "party": "BSP",
+      "candidate": "Mukhtar Anshari",
+      "votes": 96793,
+      "votePercent": 36.39,
+      "polledVotes": 266015
+    },
+    {
+      "seatNo": 357,
+      "seatName": "Belthara Road ",
+      "party": "BJP",
+      "candidate": "Dhananjay Kannoujia",
+      "votes": 77504,
+      "votePercent": 40.82,
+      "polledVotes": 189878
+    },
+    {
+      "seatNo": 358,
+      "seatName": "Rasara",
+      "party": "BSP",
+      "candidate": "Uma Shanker Singh",
+      "votes": 92272,
+      "votePercent": 47.77,
+      "polledVotes": 193151
+    },
+    {
+      "seatNo": 359,
+      "seatName": "Sikanderpur",
+      "party": "BJP",
+      "candidate": "Sanjay Yadav",
+      "votes": 69536,
+      "votePercent": 42.24,
+      "polledVotes": 164615
+    },
+    {
+      "seatNo": 360,
+      "seatName": "Phephana",
+      "party": "BJP",
+      "candidate": "Upendra Tiwari",
+      "votes": 70588,
+      "votePercent": 39.51,
+      "polledVotes": 178647
+    },
+    {
+      "seatNo": 361,
+      "seatName": "Ballia Nagar",
+      "party": "BJP",
+      "candidate": "Anand",
+      "votes": 92889,
+      "votePercent": 49.96,
+      "polledVotes": 185942
+    },
+    {
+      "seatNo": 362,
+      "seatName": "Bansdih",
+      "party": "SP",
+      "candidate": "Ram Govind Chaudheri",
+      "votes": 51201,
+      "votePercent": 24.39,
+      "polledVotes": 209933
+    },
+    {
+      "seatNo": 363,
+      "seatName": "Bairia",
+      "party": "BJP",
+      "candidate": "Surendra",
+      "votes": 64868,
+      "votePercent": 40.02,
+      "polledVotes": 162100
+    },
+    {
+      "seatNo": 364,
+      "seatName": "Badlapur",
+      "party": "BJP",
+      "candidate": "Ramesh Chandra Mishra",
+      "votes": 60237,
+      "votePercent": 31.61,
+      "polledVotes": 190590
+    },
+    {
+      "seatNo": 365,
+      "seatName": "Shahganj",
+      "party": "SP",
+      "candidate": "Shailendra Yadav Lalai",
+      "votes": 67818,
+      "votePercent": 31.65,
+      "polledVotes": 214243
+    },
+    {
+      "seatNo": 366,
+      "seatName": "Jaunpur",
+      "party": "BJP",
+      "candidate": "Girish Chandra Yadav",
+      "votes": 90324,
+      "votePercent": 40.04,
+      "polledVotes": 225577
+    },
+    {
+      "seatNo": 367,
+      "seatName": "Malhani",
+      "party": "SP",
+      "candidate": "Parasnath Yadav",
+      "votes": 69351,
+      "votePercent": 33.4,
+      "polledVotes": 207665
+    },
+    {
+      "seatNo": 368,
+      "seatName": "Mungra Badshahpur",
+      "party": "BSP",
+      "candidate": "Sushma Patel",
+      "votes": 69557,
+      "votePercent": 34.04,
+      "polledVotes": 204332
+    },
+    {
+      "seatNo": 369,
+      "seatName": "Machhlishahr S.C.",
+      "party": "SP",
+      "candidate": "Jagdish Sonkar",
+      "votes": 72368,
+      "votePercent": 34.73,
+      "polledVotes": 208344
+    },
+    {
+      "seatNo": 370,
+      "seatName": "Mariyahu",
+      "party": "ADS",
+      "candidate": "Leena Tiwari",
+      "votes": 58804,
+      "votePercent": 32.66,
+      "polledVotes": 180043
+    },
+    {
+      "seatNo": 371,
+      "seatName": "Zafrabad",
+      "party": "BJP",
+      "candidate": "Dr Harendra Prasad Singh",
+      "votes": 85989,
+      "votePercent": 41.65,
+      "polledVotes": 206451
+    },
+    {
+      "seatNo": 372,
+      "seatName": "Kerakat S.C.",
+      "party": "BJP",
+      "candidate": "Dinesh Chaudhary",
+      "votes": 84078,
+      "votePercent": 37.02,
+      "polledVotes": 227142
+    },
+    {
+      "seatNo": 373,
+      "seatName": "Jakhanian ",
+      "party": "SBSP",
+      "candidate": "Triveni Ram",
+      "votes": 84158,
+      "votePercent": 34.99,
+      "polledVotes": 240534
+    },
+    {
+      "seatNo": 374,
+      "seatName": "Saidpur ",
+      "party": "SP",
+      "candidate": "Subhash Passi",
+      "votes": 76664,
+      "votePercent": 35.96,
+      "polledVotes": 213188
+    },
+    {
+      "seatNo": 375,
+      "seatName": "Ghazipur",
+      "party": "BJP",
+      "candidate": "Sangeeta",
+      "votes": 92090,
+      "votePercent": 43.12,
+      "polledVotes": 213558
+    },
+    {
+      "seatNo": 376,
+      "seatName": "Jangipur",
+      "party": "SP",
+      "candidate": "Virendra Kumar Yadav",
+      "votes": 71441,
+      "votePercent": 33.29,
+      "polledVotes": 214622
+    },
+    {
+      "seatNo": 377,
+      "seatName": "Zahoorabad",
+      "party": "SBSP",
+      "candidate": "Om Prakash Rajbhar",
+      "votes": 86583,
+      "votePercent": 37.56,
+      "polledVotes": 230520
+    },
+    {
+      "seatNo": 378,
+      "seatName": "Mohammadabad",
+      "party": "BJP",
+      "candidate": "Alka Rai",
+      "votes": 122156,
+      "votePercent": 53.08,
+      "polledVotes": 230144
+    },
+    {
+      "seatNo": 379,
+      "seatName": "Zamania",
+      "party": "BJP",
+      "candidate": "Sunita",
+      "votes": 76823,
+      "votePercent": 35.36,
+      "polledVotes": 217230
+    },
+    {
+      "seatNo": 380,
+      "seatName": "Mughalsarai",
+      "party": "BJP",
+      "candidate": "Sadhana Singh",
+      "votes": 87401,
+      "votePercent": 37.57,
+      "polledVotes": 232617
+    },
+    {
+      "seatNo": 381,
+      "seatName": "Sakaldiha",
+      "party": "SP",
+      "candidate": "Prabhunarayan Yadav",
+      "votes": 79875,
+      "votePercent": 39.47,
+      "polledVotes": 202392
+    },
+    {
+      "seatNo": 382,
+      "seatName": "Saiyadraja",
+      "party": "BJP",
+      "candidate": "Sushil Singh",
+      "votes": 78869,
+      "votePercent": 39.89,
+      "polledVotes": 197724
+    },
+    {
+      "seatNo": 383,
+      "seatName": "Chakia ",
+      "party": "BJP",
+      "candidate": "Sharada Prasad",
+      "votes": 96890,
+      "votePercent": 41.3,
+      "polledVotes": 234587
+    },
+    {
+      "seatNo": 384,
+      "seatName": "Pindra",
+      "party": "BJP",
+      "candidate": "Avadhesh Singh",
+      "votes": 90614,
+      "votePercent": 44.34,
+      "polledVotes": 204375
+    },
+    {
+      "seatNo": 385,
+      "seatName": "Ajagara ",
+      "party": "SBSP",
+      "candidate": "Kailash Nath Sonkar",
+      "votes": 83778,
+      "votePercent": 38.11,
+      "polledVotes": 219858
+    },
+    {
+      "seatNo": 386,
+      "seatName": "Shivpur",
+      "party": "BJP",
+      "candidate": "Anil Rajbhar",
+      "votes": 110453,
+      "votePercent": 48.47,
+      "polledVotes": 227886
+    },
+    {
+      "seatNo": 387,
+      "seatName": "Rohaniya",
+      "party": "BJP",
+      "candidate": "Surendra Narayan Singh",
+      "votes": 119885,
+      "votePercent": 51.28,
+      "polledVotes": 233782
+    },
+    {
+      "seatNo": 388,
+      "seatName": "Varanasi North",
+      "party": "BJP",
+      "candidate": "Ravindra Jaiswal",
+      "votes": 116017,
+      "votePercent": 50.95,
+      "polledVotes": 227695
+    },
+    {
+      "seatNo": 389,
+      "seatName": "Varanasi South",
+      "party": "BJP",
+      "candidate": "Dr. Neelkanth Tiwari",
+      "votes": 92560,
+      "votePercent": 51.76,
+      "polledVotes": 178837
+    },
+    {
+      "seatNo": 390,
+      "seatName": "Varanasi Cantt.",
+      "party": "BJP",
+      "candidate": "Saurabh Srivastava",
+      "votes": 132609,
+      "votePercent": 58.26,
+      "polledVotes": 227600
+    },
+    {
+      "seatNo": 391,
+      "seatName": "Sevapuri",
+      "party": "ADS",
+      "candidate": "\"Neel Ratan Singh Patel \"\"Neelu\"\"\"",
+      "votes": 103423,
+      "votePercent": 50.08,
+      "polledVotes": 206507
+    },
+    {
+      "seatNo": 392,
+      "seatName": "Bhadohi",
+      "party": "BJP",
+      "candidate": "Ravindra Nath Tripathi",
+      "votes": 79519,
+      "votePercent": 33.2,
+      "polledVotes": 239518
+    },
+    {
+      "seatNo": 393,
+      "seatName": "Gyanpur",
+      "party": "Others",
+      "candidate": "Vijay Mishra",
+      "votes": 66448,
+      "votePercent": 31.81,
+      "polledVotes": 208900
+    },
+    {
+      "seatNo": 394,
+      "seatName": "Aurai ",
+      "party": "BJP",
+      "candidate": "Dinanath Bhaskar",
+      "votes": 83325,
+      "votePercent": 40.44,
+      "polledVotes": 206026
+    },
+    {
+      "seatNo": 395,
+      "seatName": "Chhanbey ",
+      "party": "ADS",
+      "candidate": "Rahul Prakash",
+      "votes": 107007,
+      "votePercent": 49.59,
+      "polledVotes": 215798
+    },
+    {
+      "seatNo": 396,
+      "seatName": "Mirzapur",
+      "party": "BJP",
+      "candidate": "Ratnakar Mishr",
+      "votes": 109196,
+      "votePercent": 48.48,
+      "polledVotes": 225234
+    },
+    {
+      "seatNo": 397,
+      "seatName": "Majhawan",
+      "party": "BJP",
+      "candidate": "Shuchismita Maurya",
+      "votes": 107839,
+      "votePercent": 44.9,
+      "polledVotes": 240169
+    },
+    {
+      "seatNo": 398,
+      "seatName": "Chunar",
+      "party": "BJP",
+      "candidate": "Anurag Singh",
+      "votes": 105608,
+      "votePercent": 48.76,
+      "polledVotes": 216603
+    },
+    {
+      "seatNo": 399,
+      "seatName": "Marihan",
+      "party": "BJP",
+      "candidate": "Rama Shankar Singh",
+      "votes": 106517,
+      "votePercent": 44.7,
+      "polledVotes": 238300
+    },
+    {
+      "seatNo": 400,
+      "seatName": "Ghorawal",
+      "party": "BJP",
+      "candidate": "Anil Kumar Maurya",
+      "votes": 114305,
+      "votePercent": 47.82,
+      "polledVotes": 239030
+    },
+    {
+      "seatNo": 401,
+      "seatName": "Robertsganj",
+      "party": "BJP",
+      "candidate": "Bhupesh Chaubey",
+      "votes": 89932,
+      "votePercent": 44.21,
+      "polledVotes": 203438
+    },
+    {
+      "seatNo": 402,
+      "seatName": "Obra",
+      "party": "BJP",
+      "candidate": "Sanjiv Kumar",
+      "votes": 78058,
+      "votePercent": 47.93,
+      "polledVotes": 162843
+    },
+    {
+      "seatNo": 403,
+      "seatName": "Duddhi ",
+      "party": "ADS",
+      "candidate": "Har Iram",
+      "votes": 64399,
+      "votePercent": 32.76,
+      "polledVotes": 196600
+    }
+  ]
+}

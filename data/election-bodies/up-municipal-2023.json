@@ -1,0 +1,347 @@
+{
+  "stateCode": "UP",
+  "bodyType": "MUNICIPAL",
+  "role": "Mayor",
+  "year": 2023,
+  "totalSeats": 17,
+  "totalUrbanBodies": 760,
+  "source": "Wikipedia / SEC UP — Nagar Nigam elections May 2023",
+  "partyStats": [
+    {
+      "party": "BJP",
+      "seats": 17,
+      "votes": 0,
+      "voteShare": 0
+    }
+  ],
+  "summary": {
+    "nagarNigamMayor": {
+      "BJP": 17,
+      "SP": 0,
+      "BSP": 0,
+      "INC": 0
+    },
+    "nagarPalikaChairman": {
+      "BJP": 89,
+      "SP": 35,
+      "BSP": 16,
+      "INC": 4,
+      "Others": 55
+    },
+    "nagarPanchayatChairman": {
+      "BJP": 191,
+      "SP": 79,
+      "BSP": 37,
+      "INC": 14,
+      "Others": 223
+    }
+  },
+  "seats": [
+    {
+      "seatNo": 1,
+      "seatName": "Agra",
+      "district": "Agra",
+      "party": "BJP",
+      "candidate": "Hemalata Diwakar",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 58,
+      "wardBreakdown": {
+        "BJP": 3,
+        "SP": 27,
+        "BSP": 1,
+        "INC": 11,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 2,
+      "seatName": "Aligarh",
+      "district": "Aligarh",
+      "party": "BJP",
+      "candidate": "Prashant Singhal",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 45,
+      "wardBreakdown": {
+        "BJP": 33,
+        "SP": 7,
+        "BSP": 1,
+        "INC": 4,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 3,
+      "seatName": "Ayodhya",
+      "district": "Ayodhya",
+      "party": "BJP",
+      "candidate": "Girishpati Tripathi",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 27,
+      "wardBreakdown": {
+        "BJP": 17,
+        "SP": 3,
+        "BSP": 0,
+        "INC": 13,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 4,
+      "seatName": "Bareilly",
+      "district": "Bareilly",
+      "party": "BJP",
+      "candidate": "Umesh Gautam",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 51,
+      "wardBreakdown": {
+        "BJP": 13,
+        "SP": 0,
+        "BSP": 3,
+        "INC": 13,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 5,
+      "seatName": "Firozabad",
+      "district": "Firozabad",
+      "party": "BJP",
+      "candidate": "Kamini Rathore",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 32,
+      "wardBreakdown": {
+        "BJP": 15,
+        "SP": 7,
+        "BSP": 1,
+        "INC": 15,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 6,
+      "seatName": "Ghaziabad",
+      "district": "Ghaziabad",
+      "party": "BJP",
+      "candidate": "Sunita Dayal",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 66,
+      "wardBreakdown": {
+        "BJP": 5,
+        "SP": 5,
+        "BSP": 3,
+        "INC": 21,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 7,
+      "seatName": "Gorakhpur",
+      "district": "Gorakhpur",
+      "party": "BJP",
+      "candidate": "Dr. Manglesh Srivastava",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 42,
+      "wardBreakdown": {
+        "BJP": 15,
+        "SP": 5,
+        "BSP": 1,
+        "INC": 17,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 8,
+      "seatName": "Jhansi",
+      "district": "Jhansi",
+      "party": "BJP",
+      "candidate": "Biharilal Verma",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 38,
+      "wardBreakdown": {
+        "BJP": 0,
+        "SP": 7,
+        "BSP": 4,
+        "INC": 11,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 9,
+      "seatName": "Kanpur",
+      "district": "Kanpur Nagar",
+      "party": "BJP",
+      "candidate": "Pramila Pandey",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 73,
+      "wardBreakdown": {
+        "BJP": 17,
+        "SP": 0,
+        "BSP": 5,
+        "INC": 15,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 10,
+      "seatName": "Lucknow",
+      "district": "Lucknow",
+      "party": "BJP",
+      "candidate": "Sushma Kharkwal",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 80,
+      "wardBreakdown": {
+        "BJP": 21,
+        "SP": 1,
+        "BSP": 4,
+        "INC": 4,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 11,
+      "seatName": "Meerut",
+      "district": "Meerut",
+      "party": "BJP",
+      "candidate": "Harikant Ahluwalia",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 42,
+      "wardBreakdown": {
+        "BJP": 13,
+        "SP": 6,
+        "BSP": 3,
+        "INC": 26,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 12,
+      "seatName": "Moradabad",
+      "district": "Moradabad",
+      "party": "BJP",
+      "candidate": "Vinod Agrawal",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 35,
+      "wardBreakdown": {
+        "BJP": 3,
+        "SP": 2,
+        "BSP": 22,
+        "INC": 8,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 13,
+      "seatName": "Prayagraj",
+      "district": "Prayagraj",
+      "party": "BJP",
+      "candidate": "Ganesh Kesarwani",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 56,
+      "wardBreakdown": {
+        "BJP": 16,
+        "SP": 2,
+        "BSP": 4,
+        "INC": 22,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 14,
+      "seatName": "Saharanpur",
+      "district": "Saharanpur",
+      "party": "BJP",
+      "candidate": "Dr. Ajay Kumar",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 38,
+      "wardBreakdown": {
+        "BJP": 3,
+        "SP": 7,
+        "BSP": 0,
+        "INC": 22,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 15,
+      "seatName": "Shahjahanpur",
+      "district": "Shahjahanpur",
+      "party": "BJP",
+      "candidate": "Archana Verma",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 41,
+      "wardBreakdown": {
+        "BJP": 0,
+        "SP": 1,
+        "BSP": 3,
+        "INC": 15,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 16,
+      "seatName": "Varanasi",
+      "district": "Varanasi",
+      "party": "BJP",
+      "candidate": "Ashok Tiwari",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 62,
+      "wardBreakdown": {
+        "BJP": 13,
+        "SP": 0,
+        "BSP": 8,
+        "INC": 17,
+        "Others": 0
+      }
+    },
+    {
+      "seatNo": 17,
+      "seatName": "Mathura Vrindavan",
+      "district": "Mathura",
+      "party": "BJP",
+      "candidate": "Vinod Sharma",
+      "votes": 0,
+      "votePercent": 0,
+      "note": "Mayor — BJP won all 17 Nagar Nigam seats (2023)",
+      "totalWards": 36,
+      "wardBreakdown": {
+        "BJP": 2,
+        "SP": 5,
+        "BSP": 6,
+        "INC": 21,
+        "Others": 0
+      }
+    }
+  ]
+}
