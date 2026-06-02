@@ -1,5 +1,453 @@
 {
   "bySeat": {
+    "1": {
+      "umar ali khan": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": "https://www.abplive.com/elections/behat-election-2022-results-live-updates-constituency-vote-counting-winner-loser-tally-who-will-win-bjp-congress-sp-bsp-aap-uttar-pradesh-assembly-election-2022-latest-news-2078067"
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "Politician",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "Umar Ali Khan is an Indian politician and a member of Uttar Pradesh Legislative Assembly from Behat representing Samajwadi Party since March 2022. He previously served as a member of Uttar Pradesh Legislative Council.",
+        "wikipedia": "https://en.wikipedia.org/wiki/Umar_Ali_Khan",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:10.825Z"
+      },
+      "naresh saini": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": "https://www.jstor.org/action/doBasicSearch?Query=%22Naresh+Saini%22&acc=on&wc=on"
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "Politician",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "Naresh Saini  is an Indian politician and was a member of the 17th Legislative Assembly of Uttar Pradesh of India. Saini represented the Behat constituency of Uttar Pradesh. He won over Indian National Congress ticket.",
+        "wikipedia": "https://en.wikipedia.org/wiki/Naresh_Saini",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:12.303Z"
+      }
+    },
+    "2": {
+      "mukesh choudhary": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "https://www.facebook.com/MUKESHCHAUDHARYSRE",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": "https://www.news18.com/assembly-elections-2022/uttar-pradesh/mukesh-choudhary-nakur-candidate-s24a002c01/"
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "Politician",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "Mukesh Choudhary is an Indian politician and a member of the 18th Legislative Assembly of Uttar Pradesh, representing the Nakur Assembly constituency of Uttar Pradesh. He is a member of the Bharatiya Janata Party.",
+        "wikipedia": "https://en.wikipedia.org/wiki/Mukesh_Choudhary_(politician)",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:13.437Z"
+      },
+      "dr. dharam singh saini": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": "http://uplegisassembly.gov.in/ENGLISH/pdfs/VSMembers/17vs_Eng.pdf"
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "Politician",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "Dharam Singh Saini  is an Indian politician and is a member of the 14th, 15th, 16th and the Seventeenth Legislative Assembly of Uttar Pradesh of India. Saini represents the Nakur constituency of Uttar Pradesh and is a member of the Samajwadi Party political party.",
+        "wikipedia": "https://en.wikipedia.org/wiki/Dharam_Singh_Saini",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:14.674Z"
+      }
+    },
+    "3": {
+      "rajeev gumber": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": "http://docs2.myneta.info/affidavits/ews3up2013bye/176/S24_003_10_RAJEEV%20GUMBER.pdf"
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "Politician",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "Rajiv Gumber is an Indian politician and a member of the Eighteenth Legislative Assembly of Uttar Pradesh. He was also member of Sixteenth Legislative Assembly of Uttar Pradesh. Gumber represented the Saharanpur Nagar constituency of Uttar Pradesh and is a member of the Bharatiya Janata Party political party.",
+        "wikipedia": "https://en.wikipedia.org/wiki/Rajiv_Gumber",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:16.285Z"
+      },
+      "sanjay garg": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:16.479Z"
+      }
+    },
+    "4": {
+      "ashu malik": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:17.021Z"
+      },
+      "jagpal singh": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:17.564Z"
+      }
+    },
+    "5": {
+      "brijesh": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:18.108Z"
+      },
+      "kartikey rana": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:18.650Z"
+      }
+    },
+    "6": {
+      "devender kumar nim": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:19.198Z"
+      },
+      "ravindra kumar": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:19.725Z"
+      }
+    },
+    "7": {
+      "kirat singh": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:20.287Z"
+      },
+      "inder sain": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:20.813Z"
+      }
+    },
     "8": {
       "nahid hasan": {
         "phone": "",
@@ -26,7 +474,11 @@
           "profession": "",
           "assets": "",
           "liabilities": ""
-        }
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:21.693Z"
       },
       "mriganka singh": {
         "phone": "",
@@ -53,9 +505,140 @@
           "profession": "",
           "assets": "",
           "liabilities": ""
-        }
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:22.230Z"
+      }
+    },
+    "9": {
+      "ashraf ali khan": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:22.415Z"
+      },
+      "suresh kumar": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:22.971Z"
+      }
+    },
+    "10": {
+      "persann kumar": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:23.511Z"
+      },
+      "tejendra singh": {
+        "phone": "",
+        "email": "",
+        "address": {
+          "line1": "",
+          "line2": "",
+          "city": "",
+          "district": "",
+          "state": "Uttar Pradesh",
+          "pincode": ""
+        },
+        "social": {
+          "facebook": "",
+          "instagram": "",
+          "twitter": "",
+          "youtube": "",
+          "website": ""
+        },
+        "personal": {
+          "age": null,
+          "gender": "",
+          "education": "",
+          "profession": "",
+          "assets": "",
+          "liabilities": ""
+        },
+        "bio": "",
+        "wikipedia": "",
+        "source": "Wikipedia (auto-enriched)",
+        "lastUpdatedAt": "2026-06-02T08:33:24.052Z"
       }
     }
   }
 }
-

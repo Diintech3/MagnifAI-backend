@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "node --watch index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "profiles:enrich": "node scripts/enrichCandidateProfiles.js"
   },
   "license": "ISC",
   "dependencies": {
