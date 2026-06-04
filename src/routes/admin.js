@@ -6,6 +6,7 @@ const { geoJsonRouter } = require("./geojson");
 const { electionAnalyticsRouter } = require("./electionAnalytics");
 const { electionDefeatsRouter } = require("./electionDefeats");
 const { constituencyRouter } = require("./constituency");
+const { socialDataRouter } = require("./socialData");
 
 const router = express.Router();
 
@@ -32,5 +33,6 @@ router.use("/geojson", geoJsonRouter);
 router.use("/election-analytics", electionAnalyticsRouter);
 router.use("/election-defeats", electionDefeatsRouter);
 router.use("/constituency", constituencyRouter);
+router.use("/social-data", socialDataRouter);
 
 module.exports = { adminRouter: router };

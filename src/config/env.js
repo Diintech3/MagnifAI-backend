@@ -25,6 +25,10 @@ const EnvSchema = z.object({
   R2_SECRET_KEY: z.string().optional(),
   R2_BUCKET: z.string().optional(),
   R2_PUBLIC_BASE_URL: z.string().url().optional(),
+  NEWS_API_KEY: z.string().optional(),
+  INSTAGRAM_ACCESS_TOKEN: z.string().optional(),
+  INSTAGRAM_USER_ID: z.string().optional(),
+  INSTAGRAM_APP_ID: z.string().optional(),
 });
 
 function loadEnv() {
