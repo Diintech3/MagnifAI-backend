@@ -24,6 +24,7 @@ const appSchema = new mongoose.Schema(
     source: { type: String, default: "Direct", trim: true },
     agentsCount: { type: Number, default: 0, min: 0 },
     isActive: { type: Boolean, default: true },
+    showCandidates: { type: Boolean, default: false },
 
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
   },
@@ -56,6 +57,7 @@ function toPublicApp(doc) {
     source: doc.source,
     agentsCount: doc.agentsCount,
     isActive: doc.isActive,
+    showCandidates: doc.showCandidates ?? false,
     createdBy: doc.createdBy?.toString?.() || doc.createdBy,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,

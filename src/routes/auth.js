@@ -84,6 +84,11 @@ router.post("/login", async (req, res) => {
   }
 });
 
+router.get("/app/list", async (req, res) => {
+  const apps = await App.find({ isActive: true }).select("businessName email").sort({ businessName: 1 });
+  return res.json({ apps: apps.map((a) => ({ id: a._id.toString(), businessName: a.businessName, email: a.email })) });
+});
+
 router.post("/app/login", async (req, res) => {
   try {
     const body = loginSchema.safeParse(req.body);
@@ -109,6 +114,7 @@ router.post("/app/login", async (req, res) => {
         role: "APP",
         name: populated.businessName,
         businessName: populated.businessName,
+        showCandidates: populated.showCandidates ?? false,
       },
       app: toPublicApp(populated),
     });
@@ -177,6 +183,7 @@ router.get("/app/me", requireAuth, requireRole("APP"), async (req, res) => {
     role: "APP",
     name: publicApp.businessName,
     businessName: publicApp.businessName,
+    showCandidates: app.showCandidates ?? false,
     app: publicApp,
   });
 });

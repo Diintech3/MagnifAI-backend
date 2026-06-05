@@ -165,6 +165,7 @@ router.patch("/:id", logoUpload.single("logo"), async (req, res) => {
       password: optionalPassword,
       confirmPassword: optionalPassword,
       isActive: z.coerce.boolean().optional(),
+      showCandidates: z.coerce.boolean().optional(),
     })
     .safeParse(req.body);
 
@@ -192,6 +193,7 @@ router.patch("/:id", logoUpload.single("logo"), async (req, res) => {
     "address",
     "pincode",
     "isActive",
+    "showCandidates",
   ];
   for (const f of fields) {
     if (body.data[f] !== undefined) app[f] = body.data[f];
