@@ -24,7 +24,8 @@ function buildPublicUrl(key) {
   if (env.R2_PUBLIC_BASE_URL) {
     return `${env.R2_PUBLIC_BASE_URL.replace(/\/$/, "")}/${key}`;
   }
-  return `${env.R2_ENDPOINT.replace(/\/$/, "")}/${env.R2_BUCKET}/${key}`;
+  // Use query param route — confirmed working with Express 5
+  return `/api/public/logo?key=${encodeURIComponent(key)}`;
 }
 
 async function uploadToR2(file, folder = "apps/logos") {

@@ -2,9 +2,9 @@ const multer = require("multer");
 
 const logoUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter(_req, file, cb) {
-    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp", "image/gif", "video/mp4", "video/webm"];
     if (!allowed.includes(file.mimetype)) {
       return cb(new Error("INVALID_FILE_TYPE"));
     }

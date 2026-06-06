@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.888.0",
+    "@aws-sdk/s3-request-presigner": "^3.1063.0",
     "@turf/helpers": "^7.3.5",
     "@turf/simplify": "^7.3.5",
     "bcryptjs": "^3.0.2",

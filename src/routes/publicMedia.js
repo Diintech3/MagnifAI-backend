@@ -7,7 +7,11 @@ function normalizeKey(raw) {
   if (!raw) return null;
   const key = Array.isArray(raw) ? raw.join("/") : String(raw);
   const decoded = decodeURIComponent(key).replace(/^\/+/, "");
-  if (!decoded.startsWith("apps/logos/") && !decoded.startsWith("candidates/")) return null;
+  if (
+    !decoded.startsWith("apps/logos/") &&
+    !decoded.startsWith("candidates/") &&
+    !decoded.startsWith("posts/media/")
+  ) return null;
   return decoded;
 }
 
@@ -34,6 +38,8 @@ async function serveLogo(req, res, key) {
 
 router.get("/logo", (req, res) => serveLogo(req, res, normalizeKey(req.query.key)));
 
-router.get("/logos/{*key}", (req, res) => serveLogo(req, res, normalizeKey(req.params.key)));
+router.get("/logos/{*key}", (req, res) => serveLogo(req, res, normalizeKey(`apps/logos/${req.params.key}`)));
+
+router.get("/posts/{*key}", (req, res) => serveLogo(req, res, normalizeKey(`posts/media/${req.params.key}`)));
 
 module.exports = { publicMediaRouter: router };

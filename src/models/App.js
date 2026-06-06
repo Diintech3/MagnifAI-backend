@@ -26,6 +26,25 @@ const appSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     showCandidates: { type: Boolean, default: false },
 
+    // Social media credentials
+    social: {
+      instagram: {
+        userId:   { type: String, trim: true },
+        username: { type: String, trim: true },
+      },
+      twitter: {
+        username: { type: String, trim: true },
+      },
+      facebook: {
+        pageId:   { type: String, trim: true },
+        pageName: { type: String, trim: true },
+      },
+      youtube: {
+        channelId:   { type: String, trim: true },
+        channelName: { type: String, trim: true },
+      },
+    },
+
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
   },
   { timestamps: true },
