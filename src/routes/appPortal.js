@@ -1,6 +1,7 @@
 const express = require("express");
 const { App } = require("../models/App");
 const { Candidate } = require("../models/Candidate");
+const { Campaign } = require("../models/Campaign");
 const { candidatesRouter } = require("./candidates");
 const { postsRouter } = require("./posts");
 
@@ -233,5 +234,70 @@ router.get("/digital-mentions", async (req, res) => {
 
 router.use("/candidates", candidatesRouter);
 router.use("/posts", postsRouter);
+
+// ── Campaigns ──────────────────────────────────────────────
+router.get("/campaigns", async (req, res) => {
+  const app = await getAppForUser(req);
+  if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+  const campaigns = await Campaign.find({ appId: app._id }).sort({ createdAt: -1 });
+  return res.json({ campaigns });
+});
+
+router.post("/campaigns", async (req, res) => {
+  const app = await getAppForUser(req);
+  if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+  const { name, description, status, goal, startDate, endDate } = req.body || {};
+  if (!name?.trim()) return res.status(400).json({ error: "name is required" });
+  const campaign = await Campaign.create({ appId: app._id, name, description, status, goal, startDate, endDate });
+  return res.status(201).json({ campaign });
+});
+
+router.patch("/campaigns/:id", async (req, res) => {
+  const app = await getAppForUser(req);
+  if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+  const campaign = await Campaign.findOneAndUpdate(
+    { _id: req.params.id, appId: app._id },
+    { $set: req.body },
+    { new: true }
+  );
+  if (!campaign) return res.status(404).json({ error: "NOT_FOUND" });
+  return res.json({ campaign });
+});
+
+router.delete("/campaigns/:id", async (req, res) => {
+  const app = await getAppForUser(req);
+  if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+  await Campaign.findOneAndDelete({ _id: req.params.id, appId: app._id });
+  return res.json({ ok: true });
+});
+
+// ── AI Chat (HelloPaai) ────────────────────────────────────
+router.post("/ai/chat", async (req, res) => {
+  const { message, history = [] } = req.body || {};
+  if (!message) return res.status(400).json({ error: "message required" });
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: "AI not configured" });
+
+  try {
+    const messages = [
+      { role: "system", content: "You are HelloPaai, an AI assistant for political campaign management. Help users write speeches, social media posts, press releases, campaign strategies, and other campaign-related content. Be concise, professional, and helpful." },
+      ...history.slice(-10).map(m => ({ role: m.role, content: m.content })),
+      { role: "user", content: message },
+    ];
+
+    const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages, max_tokens: 1024 }),
+    });
+    const data = await r.json();
+    const reply = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+    return res.json({ reply });
+  } catch (e) {
+    console.error("[ai-chat]", e.message);
+    return res.status(500).json({ error: "AI request failed" });
+  }
+});
 
 module.exports = { appPortalRouter: router };
