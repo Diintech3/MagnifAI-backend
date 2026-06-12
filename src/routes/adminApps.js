@@ -127,6 +127,8 @@ router.post("/", logoUpload.single("logo"), async (req, res) => {
       source: "Direct",
       agentsCount: 0,
       isActive: true,
+      dashboardType: req.body.dashboardType || "default",
+      showCandidates: req.body.showCandidates === "true" || req.body.showCandidates === true,
     });
 
     const populated = await App.findById(created._id).populate("linkedAppId", "businessName");
@@ -166,6 +168,7 @@ router.patch("/:id", logoUpload.single("logo"), async (req, res) => {
       confirmPassword: optionalPassword,
       isActive: z.coerce.boolean().optional(),
       showCandidates: z.coerce.boolean().optional(),
+      dashboardType: z.string().trim().optional(),
     })
     .safeParse(req.body);
 
@@ -194,6 +197,7 @@ router.patch("/:id", logoUpload.single("logo"), async (req, res) => {
     "pincode",
     "isActive",
     "showCandidates",
+    "dashboardType",
   ];
   for (const f of fields) {
     if (body.data[f] !== undefined) app[f] = body.data[f];
@@ -245,6 +249,8 @@ router.post("/:id/login-as", async (req, res) => {
       role: "APP",
       name: publicApp.businessName,
       businessName: publicApp.businessName,
+      showCandidates: app.showCandidates ?? false,
+      dashboardType: app.dashboardType || "default",
     },
     app: publicApp,
   });

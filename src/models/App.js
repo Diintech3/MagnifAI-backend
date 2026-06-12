@@ -25,6 +25,7 @@ const appSchema = new mongoose.Schema(
     agentsCount: { type: Number, default: 0, min: 0 },
     isActive: { type: Boolean, default: true },
     showCandidates: { type: Boolean, default: false },
+    dashboardType: { type: String, default: "default", trim: true }, // e.g. "default", "spiritual", "changemaker"
 
     // Social media credentials
     social: {
@@ -77,6 +78,7 @@ function toPublicApp(doc) {
     agentsCount: doc.agentsCount,
     isActive: doc.isActive,
     showCandidates: doc.showCandidates ?? false,
+    dashboardType: doc.dashboardType || "default",
     createdBy: doc.createdBy?.toString?.() || doc.createdBy,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,

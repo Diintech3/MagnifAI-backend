@@ -10,7 +10,8 @@ function normalizeKey(raw) {
   if (
     !decoded.startsWith("apps/logos/") &&
     !decoded.startsWith("candidates/") &&
-    !decoded.startsWith("posts/media/")
+    !decoded.startsWith("posts/media/") &&
+    !decoded.startsWith("ceos/")
   ) return null;
   return decoded;
 }

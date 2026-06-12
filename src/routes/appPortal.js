@@ -1,13 +1,24 @@
 const express = require("express");
+const { z } = require("zod");
 const { App } = require("../models/App");
 const { Candidate } = require("../models/Candidate");
 const { Campaign } = require("../models/Campaign");
+const { CEO, toPublicCEO } = require("../models/CEO");
+const { hashPassword } = require("../utils/password");
+const { signAccessToken } = require("../utils/jwt");
+const { uploadToR2, isR2Configured } = require("../utils/r2");
+const { candidateUpload } = require("../middleware/upload");
 const { candidatesRouter } = require("./candidates");
 const { postsRouter } = require("./posts");
 
 const router = express.Router();
 
 async function getAppForUser(req) {
+  // Normal App login: sub is App._id
+  if (req.user.appId) {
+    // CEO login-as: sub is CEO._id, appId is parent App._id
+    return App.findById(req.user.appId);
+  }
   return App.findById(req.user.sub);
 }
 
@@ -91,6 +102,16 @@ async function fetchInstagramLive(creds) {
 }
 
 router.patch("/profile", async (req, res) => {
+  const isCEO = Boolean(req.user.appId);
+  if (isCEO) {
+    const ceo = await CEO.findById(req.user.sub);
+    if (!ceo) return res.status(404).json({ error: "NOT_FOUND" });
+    const { fullName, mobile } = req.body || {};
+    if (fullName) ceo.name   = fullName;
+    if (mobile)   ceo.mobile = mobile;
+    await ceo.save();
+    return res.json({ ok: true });
+  }
   const app = await getAppForUser(req);
   if (!app) return res.status(404).json({ error: "NOT_FOUND" });
   const { businessName, fullName, mobile, websiteUrl, city, address, pincode } = req.body || {};
@@ -108,9 +129,25 @@ router.patch("/profile", async (req, res) => {
 router.get("/overview", async (req, res) => {
   const app = await getAppForUser(req);
   if (!app) return res.status(404).json({ error: "NOT_FOUND" });
-
+  const isCEO = Boolean(req.user.appId);
+  if (isCEO) {
+    const ceo = await CEO.findById(req.user.sub);
+    if (!ceo) return res.status(404).json({ error: "NOT_FOUND" });
+    return res.json({
+      businessName: ceo.name,
+      fullName:     ceo.name,
+      email:        ceo.email,
+      mobile:       ceo.mobile,
+      website:      ceo.website || null,
+      city:         ceo.city || null,
+      address:      ceo.address || null,
+      pincode:      ceo.pincode || null,
+      isActive:     ceo.isActive,
+      totalCandidates: 0,
+      agentsCount:  0,
+    });
+  }
   const totalCandidates = await Candidate.countDocuments({ appId: app._id });
-
   return res.json({
     businessName: app.businessName,
     fullName:     app.fullName,
@@ -298,6 +335,161 @@ router.post("/ai/chat", async (req, res) => {
     console.error("[ai-chat]", e.message);
     return res.status(500).json({ error: "AI request failed" });
   }
+});
+
+// ── CEO (Founder Dashboard) ───────────────────────────────────────────────────
+
+const ceoCreateSchema = z.object({
+  name:        z.string().trim().min(1),
+  company:     z.string().trim().optional(),
+  industry:    z.string().trim().optional(),
+  designation: z.string().trim().optional(),
+  website:     z.string().trim().optional(),
+  city:        z.string().trim().optional(),
+  address:     z.string().trim().optional(),
+  pincode:     z.string().trim().optional(),
+  email:       z.string().email(),
+  mobile:      z.string().trim().min(8),
+  password:    z.string().min(10),
+  confirmPassword: z.string().min(10),
+}).refine(d => d.password === d.confirmPassword, { message: "PASSWORD_MISMATCH", path: ["confirmPassword"] });
+
+const ceoUpdateSchema = z.object({
+  name:        z.string().trim().min(1).optional(),
+  company:     z.string().trim().optional(),
+  industry:    z.string().trim().optional(),
+  designation: z.string().trim().optional(),
+  website:     z.string().trim().optional(),
+  city:        z.string().trim().optional(),
+  address:     z.string().trim().optional(),
+  pincode:     z.string().trim().optional(),
+  email:       z.string().email().optional(),
+  mobile:      z.string().trim().min(8).optional(),
+  password:    z.preprocess(v => (v === "" ? undefined : v), z.string().min(10).optional()),
+  confirmPassword: z.preprocess(v => (v === "" ? undefined : v), z.string().min(10).optional()),
+});
+
+const ceoPhotoUpload = require("multer")({
+  storage: require("multer").memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter(_req, file, cb) {
+    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+    cb(allowed.includes(file.mimetype) ? null : new Error("INVALID_FILE_TYPE"), allowed.includes(file.mimetype));
+  },
+}).fields([{ name: "photo", maxCount: 1 }]);
+
+router.get("/ceos", async (req, res) => {
+  const app = await getAppForUser(req);
+  if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  const filter = { appId: app._id };
+  if (q) {
+    const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    filter.$or = [{ name: re }, { company: re }, { email: re }, { mobile: re }, { industry: re }];
+  }
+  const ceos = await CEO.find(filter).sort({ createdAt: -1 });
+  return res.json({ ceos: ceos.map(toPublicCEO) });
+});
+
+router.post("/ceos", ceoPhotoUpload, async (req, res) => {
+  try {
+    const app = await getAppForUser(req);
+    if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+    const parsed = ceoCreateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      return res.status(400).json({ error: issue?.message === "PASSWORD_MISMATCH" ? "PASSWORD_MISMATCH" : "VALIDATION_ERROR" });
+    }
+    const email = parsed.data.email.toLowerCase();
+    if (await CEO.findOne({ email })) return res.status(409).json({ error: "EMAIL_ALREADY_EXISTS" });
+    let photoUrl, photoKey;
+    const photoFile = req.files?.photo?.[0];
+    if (photoFile) {
+      if (!isR2Configured()) return res.status(503).json({ error: "R2_NOT_CONFIGURED" });
+      const up = await uploadToR2(photoFile, "ceos/photos");
+      photoUrl = up.url; photoKey = up.key;
+    }
+    const ceo = await CEO.create({
+      appId: app._id, name: parsed.data.name, company: parsed.data.company,
+      industry: parsed.data.industry, designation: parsed.data.designation,
+      website: parsed.data.website, city: parsed.data.city,
+      address: parsed.data.address, pincode: parsed.data.pincode,
+      email, mobile: parsed.data.mobile,
+      passwordHash: await hashPassword(parsed.data.password),
+      photoUrl, photoKey,
+    });
+    return res.status(201).json({ ceo: toPublicCEO(ceo) });
+  } catch (err) {
+    if (err.message === "INVALID_FILE_TYPE") return res.status(400).json({ error: "INVALID_FILE_TYPE" });
+    throw err;
+  }
+});
+
+router.patch("/ceos/:id", ceoPhotoUpload, async (req, res) => {
+  const app = await getAppForUser(req);
+  if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+  const ceo = await CEO.findOne({ _id: req.params.id, appId: app._id });
+  if (!ceo) return res.status(404).json({ error: "NOT_FOUND" });
+  const parsed = ceoUpdateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "VALIDATION_ERROR" });
+  if (parsed.data.password && parsed.data.password !== parsed.data.confirmPassword)
+    return res.status(400).json({ error: "PASSWORD_MISMATCH" });
+  if (parsed.data.email) {
+    const email = parsed.data.email.toLowerCase();
+    if (await CEO.findOne({ email, _id: { $ne: ceo._id } })) return res.status(409).json({ error: "EMAIL_ALREADY_EXISTS" });
+    ceo.email = email;
+  }
+  for (const f of ["name", "company", "industry", "designation", "website", "city", "address", "pincode", "mobile"]) {
+    if (parsed.data[f] !== undefined) ceo[f] = parsed.data[f];
+  }
+  if (parsed.data.password) ceo.passwordHash = await hashPassword(parsed.data.password);
+  const photoFile = req.files?.photo?.[0];
+  if (photoFile) {
+    if (!isR2Configured()) return res.status(503).json({ error: "R2_NOT_CONFIGURED" });
+    const up = await uploadToR2(photoFile, "ceos/photos");
+    ceo.photoUrl = up.url; ceo.photoKey = up.key;
+  }
+  await ceo.save();
+  return res.json({ ceo: toPublicCEO(ceo) });
+});
+
+router.delete("/ceos/:id", async (req, res) => {
+  const app = await getAppForUser(req);
+  if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+  const deleted = await CEO.findOneAndDelete({ _id: req.params.id, appId: app._id });
+  if (!deleted) return res.status(404).json({ error: "NOT_FOUND" });
+  return res.json({ ok: true });
+});
+
+router.post("/ceos/:id/login-as", async (req, res) => {
+  const app = await getAppForUser(req);
+  if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+  const ceo = await CEO.findOne({ _id: req.params.id, appId: app._id });
+  if (!ceo) return res.status(404).json({ error: "NOT_FOUND" });
+  if (!ceo.isActive) return res.status(403).json({ error: "CEO_DISABLED" });
+  // Embed appId so getAppForUser resolves parent App for all CEO routes
+  const accessToken = signAccessToken({
+    sub: ceo._id.toString(),
+    appId: app._id.toString(),
+    email: ceo.email,
+    role: "APP",
+    name: ceo.name,
+    businessName: ceo.name,
+    dashboardType: "default",
+    showCandidates: false,
+  });
+  return res.json({
+    accessToken,
+    user: {
+      id: ceo._id.toString(),
+      email: ceo.email,
+      role: "APP",
+      name: ceo.name,
+      businessName: ceo.name,
+      dashboardType: "default",
+      showCandidates: false,
+    },
+  });
 });
 
 module.exports = { appPortalRouter: router };

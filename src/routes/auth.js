@@ -3,6 +3,7 @@ const { z } = require("zod");
 const { User, toPublicUser } = require("../models/User");
 const { App, toPublicApp } = require("../models/App");
 const { Candidate, toPublicCandidate } = require("../models/Candidate");
+const { CEO } = require("../models/CEO");
 const { verifyPassword } = require("../utils/password");
 const { signAccessToken } = require("../utils/jwt");
 const { requireAuth, requireRole } = require("../middleware/auth");
@@ -115,6 +116,7 @@ router.post("/app/login", async (req, res) => {
         name: populated.businessName,
         businessName: populated.businessName,
         showCandidates: populated.showCandidates ?? false,
+        dashboardType: populated.dashboardType || "default",
       },
       app: toPublicApp(populated),
     });
@@ -174,6 +176,21 @@ router.get("/me", requireAuth, requireRole("SUPERADMIN", "ADMIN"), async (req, r
 });
 
 router.get("/app/me", requireAuth, requireRole("APP"), async (req, res) => {
+  // CEO login-as: token has appId (parent App) + sub (CEO._id)
+  if (req.user.appId) {
+    const ceo = await CEO.findById(req.user.sub);
+    if (!ceo || !ceo.isActive) return res.status(401).json({ error: "UNAUTHENTICATED" });
+    return res.json({
+      id: ceo._id.toString(),
+      email: ceo.email,
+      role: "APP",
+      name: ceo.name,
+      businessName: ceo.name,
+      showCandidates: false,
+      dashboardType: "default",
+    });
+  }
+  // Normal App login
   const app = await App.findById(req.user.sub).populate("linkedAppId", "businessName");
   if (!app || !app.isActive) return res.status(401).json({ error: "UNAUTHENTICATED" });
   const publicApp = toPublicApp(app);
@@ -184,6 +201,7 @@ router.get("/app/me", requireAuth, requireRole("APP"), async (req, res) => {
     name: publicApp.businessName,
     businessName: publicApp.businessName,
     showCandidates: app.showCandidates ?? false,
+    dashboardType: app.dashboardType || "default",
     app: publicApp,
   });
 });

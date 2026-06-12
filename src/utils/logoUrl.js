@@ -1,4 +1,4 @@
-const ALLOWED_PREFIXES = ["apps/logos/", "candidates/party-logos/", "candidates/photos/"];
+const ALLOWED_PREFIXES = ["apps/logos/", "candidates/party-logos/", "candidates/photos/", "ceos/photos/"];
 
 function extractMediaKey(url) {
   if (!url || typeof url !== "string") return null;

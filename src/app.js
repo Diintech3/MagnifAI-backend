@@ -9,6 +9,8 @@ const { superadminRouter } = require("./routes/superadmin");
 const { adminRouter } = require("./routes/admin");
 const { appPortalRouter } = require("./routes/appPortal");
 const { candidatePortalRouter } = require("./routes/candidatePortal");
+const { contentToolsRouter } = require("./routes/contentTools");
+const { ceoWorkspaceRouter } = require("./routes/ceoWorkspace");
 const { publicMediaRouter } = require("./routes/publicMedia");
 
 function createApp() {
@@ -38,6 +40,8 @@ function createApp() {
 
   app.use("/api/superadmin", requireAuth, requireRole("SUPERADMIN"), superadminRouter);
   app.use("/api/admin", requireAuth, requireRole("ADMIN", "SUPERADMIN"), adminRouter);
+  app.use("/api/app/content", requireAuth, requireRole("APP"), contentToolsRouter);
+  app.use("/api/app/workspace", requireAuth, requireRole("APP"), ceoWorkspaceRouter);
   app.use("/api/app", requireAuth, requireRole("APP"), appPortalRouter);
   app.use("/api/candidate", requireAuth, requireRole("CANDIDATE"), candidatePortalRouter);
 
