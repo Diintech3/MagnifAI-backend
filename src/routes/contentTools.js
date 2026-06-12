@@ -602,6 +602,41 @@ router.get("/:id", async (req, res) => {
   return res.json({ content: doc });
 });
 
+// PATCH /api/app/content/:id  — update output/content fields
+router.patch("/:id", async (req, res) => {
+  const app = await getAppForUser(req);
+  if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+
+  const allowed = [
+    "output", "topic", "status", "priority", "assignedTo", "assignedBy",
+    "deadline", "instructions", "folderId", "language", "tone",
+  ];
+  const update = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) {
+      if (key === "output" && typeof req.body.output === "object") {
+        // Merge output fields individually to avoid overwriting scores etc.
+        for (const [k, v] of Object.entries(req.body.output)) {
+          update[`output.${k}`] = v;
+        }
+      } else {
+        update[key] = req.body[key];
+      }
+    }
+  }
+
+  if (Object.keys(update).length === 0)
+    return res.status(400).json({ error: "No valid fields to update" });
+
+  const doc = await GeneratedContent.findOneAndUpdate(
+    { _id: req.params.id, appId: app._id },
+    { $set: update },
+    { new: true }
+  );
+  if (!doc) return res.status(404).json({ error: "NOT_FOUND" });
+  return res.json({ content: doc });
+});
+
 // PATCH /api/app/content/:id/status
 router.patch("/:id/status", async (req, res) => {
   const app = await getAppForUser(req);
