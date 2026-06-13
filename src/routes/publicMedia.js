@@ -11,7 +11,8 @@ function normalizeKey(raw) {
     !decoded.startsWith("apps/logos/") &&
     !decoded.startsWith("candidates/") &&
     !decoded.startsWith("posts/media/") &&
-    !decoded.startsWith("ceos/")
+    !decoded.startsWith("ceos/") &&
+    !decoded.startsWith("content/images/")
   ) return null;
   return decoded;
 }
@@ -24,6 +25,8 @@ async function serveLogo(req, res, key) {
     const object = await getObjectFromR2(key);
     res.setHeader("Content-Type", object.ContentType || "image/jpeg");
     res.setHeader("Cache-Control", "public, max-age=86400");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     if (object.Body?.pipe) {
       object.Body.pipe(res);
       return;
@@ -31,7 +34,6 @@ async function serveLogo(req, res, key) {
     const bytes = await object.Body.transformToByteArray();
     return res.send(Buffer.from(bytes));
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error("[public/logo]", key, err?.message || err);
     return res.status(404).json({ error: "NOT_FOUND" });
   }

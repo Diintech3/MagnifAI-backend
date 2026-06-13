@@ -1,5 +1,6 @@
 const { randomUUID } = require("crypto");
 const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const { env } = require("../config/env");
 
 function isR2Configured() {
@@ -56,4 +57,17 @@ async function getObjectFromR2(key) {
   return result;
 }
 
-module.exports = { isR2Configured, uploadToR2, getObjectFromR2, buildPublicUrl };
+async function generatePresignedUploadUrl(mimetype, folder = "content/images") {
+  const client = getR2Client();
+  const ext = mimetype.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+  const key = `${folder}/${randomUUID()}.${ext}`;
+  const command = new PutObjectCommand({
+    Bucket: env.R2_BUCKET,
+    Key: key,
+    ContentType: mimetype,
+  });
+  const presignedUrl = await getSignedUrl(client, command, { expiresIn: 300 });
+  return { presignedUrl, key, publicUrl: buildPublicUrl(key) };
+}
+
+module.exports = { isR2Configured, uploadToR2, getObjectFromR2, buildPublicUrl, generatePresignedUploadUrl };

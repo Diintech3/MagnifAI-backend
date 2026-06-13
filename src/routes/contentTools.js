@@ -1,11 +1,21 @@
 const express = require("express");
+const multer = require("multer");
 const { GeneratedContent } = require("../models/GeneratedContent");
 const { ContentFolder } = require("../models/ContentFolder");
 const { App } = require("../models/App");
 const { CeoProfile } = require("../models/CeoProfile");
 const { PromptLibrary } = require("../models/PromptLibrary");
+const { uploadToR2, isR2Configured, generatePresignedUploadUrl } = require("../utils/r2");
 
 const router = express.Router();
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("INVALID_FILE_TYPE"));
+  },
+});
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -203,6 +213,35 @@ async function getAppForUser(req) {
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
+
+// POST /api/app/content/presign-upload
+router.post("/presign-upload", async (req, res) => {
+  const { mimetype } = req.body;
+  if (!mimetype || !mimetype.startsWith("image/")) return res.status(400).json({ error: "Invalid mimetype" });
+  if (!isR2Configured()) return res.status(503).json({ error: "R2_NOT_CONFIGURED" });
+  try {
+    const { presignedUrl, key, publicUrl } = await generatePresignedUploadUrl(mimetype);
+    const fullPublicUrl = publicUrl.startsWith("/") ? `${req.protocol}://${req.get("host")}${publicUrl}` : publicUrl;
+    return res.json({ presignedUrl, key, publicUrl: fullPublicUrl });
+  } catch (e) {
+    console.error("[presign-upload]", e.message);
+    return res.status(500).json({ error: "Failed to generate presigned URL" });
+  }
+});
+
+// POST /api/app/content/upload-image
+router.post("/upload-image", upload.single("image"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No image provided" });
+  if (!isR2Configured()) return res.status(503).json({ error: "R2_NOT_CONFIGURED" });
+  try {
+    const { url } = await uploadToR2(req.file, "content/images");
+    const fullUrl = url.startsWith("/") ? `${req.protocol}://${req.get("host")}${url}` : url;
+    return res.json({ url: fullUrl });
+  } catch (e) {
+    console.error("[upload-image]", e.message);
+    return res.status(500).json({ error: "Upload failed" });
+  }
+});
 
 // POST /api/app/content/suggest-keywords
 router.post("/suggest-keywords", async (req, res) => {
