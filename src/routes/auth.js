@@ -3,7 +3,7 @@ const { z } = require("zod");
 const { User, toPublicUser } = require("../models/User");
 const { App, toPublicApp } = require("../models/App");
 const { Candidate, toPublicCandidate } = require("../models/Candidate");
-const { CEO } = require("../models/CEO");
+const { CEO, toPublicCEO } = require("../models/CEO");
 const { verifyPassword } = require("../utils/password");
 const { signAccessToken } = require("../utils/jwt");
 const { requireAuth, requireRole } = require("../middleware/auth");
@@ -117,6 +117,7 @@ router.post("/app/login", async (req, res) => {
         businessName: populated.businessName,
         showCandidates: populated.showCandidates ?? false,
         dashboardType: populated.dashboardType || "default",
+        isCEO: false,
       },
       app: toPublicApp(populated),
     });
@@ -163,62 +164,195 @@ router.post("/candidate/login", async (req, res) => {
   }
 });
 
-router.get("/me", requireAuth, requireRole("SUPERADMIN", "ADMIN"), async (req, res) => {
-  const user = await User.findById(req.user.sub);
-  if (!user || !user.isActive) return res.status(401).json({ error: "UNAUTHENTICATED" });
-  const publicUser = toPublicUser(user);
-  return res.json({
-    id: publicUser.id,
-    email: publicUser.email,
-    role: publicUser.role,
-    name: publicUser.name,
-  });
-});
+router.post("/ceo/login", async (req, res) => {
+  try {
+    const body = loginSchema.safeParse(req.body);
+    if (!body.success) return res.status(400).json({ error: "VALIDATION_ERROR" });
 
-router.get("/app/me", requireAuth, requireRole("APP"), async (req, res) => {
-  // CEO login-as: token has appId (parent App) + sub (CEO._id)
-  if (req.user.appId) {
-    const ceo = await CEO.findById(req.user.sub);
-    if (!ceo || !ceo.isActive) return res.status(401).json({ error: "UNAUTHENTICATED" });
-    return res.json({
-      id: ceo._id.toString(),
+    const { email, password } = body.data;
+    const ceo = await CEO.findOne({ email });
+    if (!ceo || !ceo.isActive || !ceo.passwordHash) {
+      return res.status(401).json({ error: "INVALID_CREDENTIALS" });
+    }
+
+    const ok = await verifyPassword(password, ceo.passwordHash);
+    if (!ok) return res.status(401).json({ error: "INVALID_CREDENTIALS" });
+
+    const accessToken = signAccessToken({
+      sub: ceo._id.toString(),
+      appId: ceo.appId.toString(),
       email: ceo.email,
-      role: "APP",
+      role: "CEO",
       name: ceo.name,
-      businessName: ceo.name,
-      showCandidates: false,
-      dashboardType: "default",
     });
+
+    return res.json({
+      accessToken,
+      user: {
+        id: ceo._id.toString(),
+        appId: ceo.appId.toString(),
+        email: ceo.email,
+        role: "CEO",
+        name: ceo.name,
+        businessName: ceo.name,
+        showCandidates: false,
+        dashboardType: "default",
+        isCEO: true,
+      },
+      ceo: toPublicCEO(ceo),
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[auth/ceo/login]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
   }
-  // Normal App login
-  const app = await App.findById(req.user.sub).populate("linkedAppId", "businessName");
-  if (!app || !app.isActive) return res.status(401).json({ error: "UNAUTHENTICATED" });
-  const publicApp = toPublicApp(app);
-  return res.json({
-    id: publicApp.id,
-    email: publicApp.email,
-    role: "APP",
-    name: publicApp.businessName,
-    businessName: publicApp.businessName,
-    showCandidates: app.showCandidates ?? false,
-    dashboardType: app.dashboardType || "default",
-    app: publicApp,
-  });
 });
 
-router.get("/candidate/me", requireAuth, requireRole("CANDIDATE"), async (req, res) => {
-  const candidate = await Candidate.findById(req.user.sub);
-  if (!candidate || !candidate.isActive) return res.status(401).json({ error: "UNAUTHENTICATED" });
-  const publicCandidate = toPublicCandidate(candidate);
-  return res.json({
-    id: publicCandidate.id,
-    email: publicCandidate.email,
-    role: "CANDIDATE",
-    name: publicCandidate.name,
-    constituency: publicCandidate.constituency,
-    assembly: publicCandidate.assembly,
-    candidate: publicCandidate,
-  });
+router.get("/me", requireAuth, async (req, res) => {
+  try {
+    const { sub, role, appId } = req.user;
+
+    // 1. If role is SUPERADMIN or ADMIN
+    if (role === "SUPERADMIN" || role === "ADMIN") {
+      const user = await User.findById(sub);
+      if (!user || !user.isActive) return res.status(401).json({ error: "UNAUTHENTICATED" });
+      const publicUser = toPublicUser(user);
+      return res.json({
+        id: publicUser.id,
+        email: publicUser.email,
+        role: publicUser.role,
+        name: publicUser.name,
+        isCEO: false,
+      });
+    }
+
+    // 2. If role is CEO or has appId
+    if (role === "CEO" || appId) {
+      const ceo = await CEO.findById(sub);
+      if (!ceo || !ceo.isActive) return res.status(401).json({ error: "UNAUTHENTICATED" });
+      return res.json({
+        id: ceo._id.toString(),
+        appId: ceo.appId.toString(),
+        email: ceo.email,
+        role: "CEO",
+        name: ceo.name,
+        businessName: ceo.name,
+        showCandidates: false,
+        dashboardType: "default",
+        isCEO: true,
+      });
+    }
+
+    // 3. If role is CANDIDATE
+    if (role === "CANDIDATE") {
+      const candidate = await Candidate.findById(sub);
+      if (!candidate || !candidate.isActive) return res.status(401).json({ error: "UNAUTHENTICATED" });
+      const publicCandidate = toPublicCandidate(candidate);
+      return res.json({
+        id: publicCandidate.id,
+        email: publicCandidate.email,
+        role: "CANDIDATE",
+        name: publicCandidate.name,
+        constituency: publicCandidate.constituency,
+        assembly: publicCandidate.assembly,
+        candidate: publicCandidate,
+        isCEO: false,
+      });
+    }
+
+    // 4. If role is APP
+    if (role === "APP") {
+      const app = await App.findById(sub).populate("linkedAppId", "businessName");
+      if (!app || !app.isActive) return res.status(401).json({ error: "UNAUTHENTICATED" });
+      const publicApp = toPublicApp(app);
+      return res.json({
+        id: publicApp.id,
+        email: publicApp.email,
+        role: "APP",
+        name: publicApp.businessName,
+        businessName: publicApp.businessName,
+        showCandidates: app.showCandidates ?? false,
+        dashboardType: app.dashboardType || "default",
+        app: publicApp,
+        isCEO: false,
+      });
+    }
+
+    return res.status(400).json({ error: "INVALID_ROLE" });
+  } catch (err) {
+    console.error("[auth/me]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  }
+});
+
+router.post("/unified-login", async (req, res) => {
+  try {
+    const body = loginSchema.safeParse(req.body);
+    if (!body.success) return res.status(400).json({ error: "VALIDATION_ERROR" });
+
+    const { email, password } = body.data;
+    const searchEmail = email.toLowerCase();
+
+    // 1. Search in CEO
+    const ceo = await CEO.findOne({ email: searchEmail });
+    if (ceo && ceo.isActive && ceo.passwordHash) {
+      const ok = await verifyPassword(password, ceo.passwordHash);
+      if (ok) {
+        const accessToken = signAccessToken({
+          sub: ceo._id.toString(),
+          appId: ceo.appId.toString(),
+          email: ceo.email,
+          role: "CEO",
+          name: ceo.name,
+        });
+        return res.json({
+          accessToken,
+          role: "CEO",
+          user: {
+            id: ceo._id.toString(),
+            appId: ceo.appId.toString(),
+            email: ceo.email,
+            role: "CEO",
+            name: ceo.name,
+            businessName: ceo.name,
+            showCandidates: false,
+            dashboardType: "default",
+            isCEO: true,
+          },
+        });
+      }
+    }
+
+    // 2. Search in Candidate
+    const candidate = await Candidate.findOne({ email: searchEmail });
+    if (candidate && candidate.isActive && candidate.passwordHash) {
+      const ok = await verifyPassword(password, candidate.passwordHash);
+      if (ok) {
+        const accessToken = signCandidateToken(candidate);
+        const publicCandidate = toPublicCandidate(candidate);
+        return res.json({
+          accessToken,
+          role: "CANDIDATE",
+          user: {
+            id: publicCandidate.id,
+            email: publicCandidate.email,
+            role: "CANDIDATE",
+            name: publicCandidate.name,
+            constituency: publicCandidate.constituency,
+            assembly: publicCandidate.assembly,
+          },
+        });
+      }
+    }
+
+    // Credentials don't match or not found
+    return res.status(401).json({ error: "INVALID_CREDENTIALS" });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[auth/unified-login]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  }
 });
 
 module.exports = { authRouter: router };
+

@@ -145,6 +145,8 @@ router.get("/overview", async (req, res) => {
       isActive:     ceo.isActive,
       totalCandidates: 0,
       agentsCount:  0,
+      isCEO:        true,
+      role:         "CEO",
     });
   }
   const totalCandidates = await Candidate.countDocuments({ appId: app._id });
@@ -160,6 +162,8 @@ router.get("/overview", async (req, res) => {
     isActive:     app.isActive,
     totalCandidates,
     agentsCount:  app.agentsCount ?? 0,
+    isCEO:        false,
+    role:         "APP",
   });
 });
 
@@ -472,7 +476,7 @@ router.post("/ceos/:id/login-as", async (req, res) => {
     sub: ceo._id.toString(),
     appId: app._id.toString(),
     email: ceo.email,
-    role: "APP",
+    role: "CEO",
     name: ceo.name,
     businessName: ceo.name,
     dashboardType: "default",
@@ -483,7 +487,7 @@ router.post("/ceos/:id/login-as", async (req, res) => {
     user: {
       id: ceo._id.toString(),
       email: ceo.email,
-      role: "APP",
+      role: "CEO",
       name: ceo.name,
       businessName: ceo.name,
       dashboardType: "default",
