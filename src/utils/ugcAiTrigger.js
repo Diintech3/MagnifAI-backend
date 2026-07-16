@@ -1,0 +1,82 @@
+const { getObjectFromR2 } = require("./r2");
+const { uploadVideoToAi, triggerProcessing } = require("../services/ugcAiService");
+
+/**
+ * Downloads raw video from R2, uploads to 3rdAI, and triggers the AI editing engine.
+ * Updates script model with the job ID and sets status to 'Editing' / processingStatus to 'processing'.
+ * @param {Document} script - Mongoose Script document
+ */
+async function triggerAiPipelineForScript(script) {
+  try {
+    if (!script.rawVideoUrl) {
+      throw new Error("No raw video URL found on script");
+    }
+
+    // 1. Update status to uploading
+    script.processingStatus = "uploading";
+    script.processingProgress = 10;
+    await script.save();
+
+    // 2. Extract key from rawVideoUrl
+    let key = script.rawVideoUrl;
+    if (key.includes("key=")) {
+      key = decodeURIComponent(key.split("key=")[1]);
+    }
+
+    console.log(`[ugc-pipeline] Downloading raw video from R2 for script "${script.title}" (key: ${key})...`);
+    
+    // Download raw video from R2
+    let object;
+    let retries = 3;
+    while (retries > 0) {
+      try {
+        object = await getObjectFromR2(key);
+        break;
+      } catch (err) {
+        retries--;
+        if (retries === 0) throw err;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+
+    let buffer;
+    if (object.Body.transformToByteArray) {
+      const bytes = await object.Body.transformToByteArray();
+      buffer = Buffer.from(bytes);
+    } else if (object.Body.pipe) {
+      const chunks = [];
+      for await (const chunk of object.Body) {
+        chunks.push(chunk);
+      }
+      buffer = Buffer.concat(chunks);
+    } else {
+      throw new Error("Unsupported R2 stream format");
+    }
+
+    // 3. Upload to 3rdAI server
+    console.log(`[ugc-pipeline] Uploading raw video to 3rdAI server for script "${script.title}"...`);
+    const jobId = await uploadVideoToAi(buffer, `${script._id}_raw.mp4`, "video/mp4");
+
+    // 4. Trigger AI video editing
+    console.log(`[ugc-pipeline] Triggering 3rdAI editing process for script "${script.title}" (jobId: ${jobId})...`);
+    await triggerProcessing(jobId);
+
+    // 5. Update DB
+    script.aiJobId = jobId;
+    script.processingStatus = "processing";
+    script.processingProgress = 20;
+    script.approvalStatus = "Editing";
+    await script.save();
+
+    console.log(`[ugc-pipeline] 3rdAI processing successfully triggered for script "${script.title}".`);
+  } catch (err) {
+    console.error(`[ugc-pipeline-error] Failed to trigger AI pipeline for script "${script.title}":`, err.message);
+    script.processingStatus = "failed";
+    script.processingProgress = 100;
+    await script.save();
+  }
+}
+
+module.exports = {
+  triggerAiPipelineForScript
+};

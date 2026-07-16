@@ -12,6 +12,10 @@ async function start() {
     const dbName = require("mongoose").connection.name;
     // eslint-disable-next-line no-console
     console.log(`[backend] listening on http://localhost:${env.PORT} (db: ${dbName})`);
+    
+    // Start background UGC AI video processing polling
+    const { startUgcAiPolling } = require("./src/services/ugcAiPollingService");
+    startUgcAiPolling();
   });
 }
 

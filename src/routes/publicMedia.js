@@ -12,7 +12,9 @@ function normalizeKey(raw) {
     !decoded.startsWith("candidates/") &&
     !decoded.startsWith("posts/media/") &&
     !decoded.startsWith("ceos/") &&
-    !decoded.startsWith("content/images/")
+    !decoded.startsWith("content/images/") &&
+    !decoded.startsWith("scripts/images/") &&
+    !decoded.startsWith("scripts/videos/")
   ) return null;
   return decoded;
 }

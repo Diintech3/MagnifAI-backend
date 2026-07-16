@@ -27,4 +27,23 @@ const candidateUpload = multer({
   { name: "photo", maxCount: 1 },
 ]);
 
-module.exports = { logoUpload, candidateUpload };
+const videoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200 MB limit
+  fileFilter(_req, file, cb) {
+    const allowed = [
+      "video/mp4",
+      "video/webm",
+      "video/quicktime",
+      "video/x-msvideo",
+      "video/mpeg",
+      "video/3gpp"
+    ];
+    if (!allowed.includes(file.mimetype)) {
+      return cb(new Error("INVALID_FILE_TYPE"));
+    }
+    return cb(null, true);
+  },
+});
+
+module.exports = { logoUpload, candidateUpload, videoUpload };

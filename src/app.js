@@ -12,6 +12,7 @@ const { candidatePortalRouter } = require("./routes/candidatePortal");
 const { contentToolsRouter } = require("./routes/contentTools");
 const { ceoWorkspaceRouter } = require("./routes/ceoWorkspace");
 const { publicMediaRouter } = require("./routes/publicMedia");
+const { personalityScriptsRouter } = require("./routes/personalityScripts");
 
 function createApp() {
   const app = express();
@@ -44,6 +45,7 @@ function createApp() {
   app.use("/api/app/workspace", requireAuth, requireRole("APP", "CEO"), ceoWorkspaceRouter);
   app.use("/api/app", requireAuth, requireRole("APP", "CEO"), appPortalRouter);
   app.use("/api/candidate", requireAuth, requireRole("CANDIDATE"), candidatePortalRouter);
+  app.use("/api/personality", requireAuth, personalityScriptsRouter);
 
   // fallback
   app.use((_req, res) => res.status(404).json({ error: "NOT_FOUND" }));
