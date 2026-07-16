@@ -111,6 +111,52 @@ router.post("/scripts", async (req, res) => {
   }
 });
 
+// ── GET script count summary by status ───────────────────────────────────
+router.get("/scripts/summary", async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const userObjectId = new (require("mongoose").Types.ObjectId)(userId);
+
+    const pipeline = [
+      {
+        $match: {
+          $or: [{ userId: userObjectId }, { userIds: userObjectId }]
+        }
+      },
+      {
+        $group: {
+          _id: "$approvalStatus",
+          count: { $sum: 1 }
+        }
+      }
+    ];
+
+    const results = await Script.aggregate(pipeline);
+
+    // Build summary object with all possible statuses
+    const allStatuses = ["Draft", "Pending", "Submitted", "Editing", "Edited", "Approved", "Rejected", "Objection"];
+    const summary = {};
+    let total = 0;
+
+    for (const status of allStatuses) {
+      summary[status] = 0;
+    }
+
+    for (const row of results) {
+      if (row._id) {
+        summary[row._id] = row.count;
+        total += row.count;
+      }
+    }
+
+    summary.total = total;
+
+    return res.json(summary);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET details of specific script ───────────────────────────────────────
 router.get("/scripts/:id", async (req, res) => {
   try {
@@ -159,25 +205,16 @@ router.put("/scripts/:id/status", async (req, res) => {
       return res.status(400).json({ error: "invalid or missing status" });
     }
 
+    let triggerPipeline = false;
     if (status === "Objection") {
       script.objectionNote = note || "Objection raised by creator.";
       script.approvalStatus = "Objection";
-
-      // Trigger AI video processing in background asynchronously
-      const { triggerAiPipelineForScript } = require("../utils/ugcAiTrigger");
-      triggerAiPipelineForScript(script).catch(err => {
-        console.error("[pipeline-trigger-async-error]", err.message);
-      });
+      triggerPipeline = true;
     } else if (status === "Editing") {
       script.approvalStatus = "Editing";
       script.processingStatus = "processing";
       script.processingProgress = 10;
-
-      // Trigger AI video processing in background
-      const { triggerAiPipelineForScript } = require("../utils/ugcAiTrigger");
-      triggerAiPipelineForScript(script).catch(err => {
-        console.error("[pipeline-trigger-async-error]", err.message);
-      });
+      triggerPipeline = true;
     } else {
       script.approvalStatus = status;
     }
@@ -188,6 +225,13 @@ router.put("/scripts/:id/status", async (req, res) => {
       note: note || `Status updated to ${status} by Creator`
     });
     await script.save();
+
+    if (triggerPipeline) {
+      const { triggerAiPipelineForScript } = require("../utils/ugcAiTrigger");
+      triggerAiPipelineForScript(script._id.toString()).catch(err => {
+        console.error("[pipeline-trigger-async-error]", err.message);
+      });
+    }
 
     return res.json({
       scriptId: script._id.toString(),

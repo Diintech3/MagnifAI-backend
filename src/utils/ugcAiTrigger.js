@@ -1,13 +1,20 @@
 const { getObjectFromR2 } = require("./r2");
 const { uploadVideoToAi, triggerProcessing } = require("../services/ugcAiService");
 
+const { Script } = require("../models/Script");
+
 /**
  * Downloads raw video from R2, uploads to 3rdAI, and triggers the AI editing engine.
  * Updates script model with the job ID and sets status to 'Editing' / processingStatus to 'processing'.
- * @param {Document} script - Mongoose Script document
+ * @param {string} scriptId - The script ID
  */
-async function triggerAiPipelineForScript(script) {
+async function triggerAiPipelineForScript(scriptId) {
   try {
+    const script = await Script.findById(scriptId);
+    if (!script) {
+      throw new Error(`Script ${scriptId} not found`);
+    }
+
     if (!script.rawVideoUrl) {
       throw new Error("No raw video URL found on script");
     }
@@ -21,6 +28,13 @@ async function triggerAiPipelineForScript(script) {
     let key = script.rawVideoUrl;
     if (key.includes("key=")) {
       key = decodeURIComponent(key.split("key=")[1]);
+    } else if (key.startsWith("http")) {
+      try {
+        const urlObj = new URL(key);
+        key = urlObj.pathname.startsWith("/") ? urlObj.pathname.slice(1) : urlObj.pathname;
+      } catch (e) {
+        console.error("[ugc-pipeline] Failed parsing key as URL", e);
+      }
     }
 
     console.log(`[ugc-pipeline] Downloading raw video from R2 for script "${script.title}" (key: ${key})...`);
@@ -72,7 +86,13 @@ async function triggerAiPipelineForScript(script) {
   } catch (err) {
     console.error(`[ugc-pipeline-error] Failed to trigger AI pipeline for script "${script.title}":`, err.message);
     script.processingStatus = "failed";
-    script.processingProgress = 100;
+    script.processingProgress = 0;
+    // Reset approvalStatus so the buttons become active for retry
+    if (script.createdByAdmin) {
+      script.approvalStatus = "Submitted";
+    } else {
+      script.approvalStatus = "Draft";
+    }
     await script.save();
   }
 }

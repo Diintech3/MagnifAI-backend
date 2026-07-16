@@ -83,12 +83,19 @@ async function pollRealAiJobs() {
         } else if (job.status === "failed") {
           console.error(`[ugc-polling] Script "${script.title}" AI editing failed on 3rdAI server.`);
           script.processingStatus = "failed";
-          script.processingProgress = 100;
+          script.processingProgress = 0;
           
+          // Reset approvalStatus so the buttons become active for retry
+          if (script.createdByAdmin) {
+            script.approvalStatus = "Submitted";
+          } else {
+            script.approvalStatus = "Draft";
+          }
+
           script.statusHistory.push({
             status: script.approvalStatus,
             changedBy: "3rdAI Engine",
-            note: "AI video processing failed."
+            note: "AI video processing failed on external engine."
           });
 
           await script.save();

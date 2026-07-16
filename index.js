@@ -13,7 +13,7 @@ async function start() {
     // eslint-disable-next-line no-console
     console.log(`[backend] listening on http://localhost:${env.PORT} (db: ${dbName})`);
     
-    // Start background UGC AI video processing polling
+    // Start background UGC AI video processing polling (triggered reload)
     const { startUgcAiPolling } = require("./src/services/ugcAiPollingService");
     startUgcAiPolling();
   });

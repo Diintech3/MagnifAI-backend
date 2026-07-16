@@ -121,8 +121,8 @@ async function checkJobStatus(jobId) {
     return {
       status: res.data.status, // 'processing' | 'completed' | 'failed'
       progress: res.data.progress || 0,
-      processedUrl: res.data.result_video_url || "",
-      viralUrl: res.data.viral_video_url || ""
+      processedUrl: res.data.result_video_path || res.data.result_video_url || "",
+      viralUrl: res.data.viral_video_path || res.data.viral_video_url || ""
     };
   } catch (err) {
     console.error("[3rdAI-status-error]", err.message, err.response?.data || "");
