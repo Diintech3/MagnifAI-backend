@@ -91,7 +91,7 @@ async function triggerAiPipelineForScript(scriptId) {
     if (script.createdByAdmin) {
       script.approvalStatus = "Submitted";
     } else {
-      script.approvalStatus = "Draft";
+      script.approvalStatus = "Pending";
     }
     await script.save();
   }

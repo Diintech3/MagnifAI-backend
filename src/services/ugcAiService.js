@@ -70,7 +70,7 @@ async function uploadVideoToAi(buffer, filename = "video.mp4", mimetype = "video
       },
       maxContentLength: Infinity,
       maxBodyLength: Infinity,
-      timeout: 120000 // 2 minutes timeout for video upload
+      timeout: 1800000 // 30 minutes timeout for video upload (prevents timeout on larger files)
     });
 
     const jobId = uploadRes.data?.job_id;
