@@ -2,6 +2,41 @@ const axios = require("axios");
 const FormData = require("form-data");
 const { env } = require("../config/env");
 
+function getCleanErrorMessage(err) {
+  if (!err) return "";
+  let details = "";
+  if (err.response && err.response.data) {
+    const data = err.response.data;
+    if (typeof data === "string") {
+      if (data.includes("<html") || data.includes("<!DOCTYPE")) {
+        const payloadMatch = data.match(/data-payload="([^"]+)"/);
+        if (payloadMatch) {
+          try {
+            const decoded = JSON.parse(Buffer.from(payloadMatch[1], "base64").toString("utf-8"));
+            details = ` (${decoded.message || decoded.title})`;
+          } catch (e) {
+            // ignore
+          }
+        }
+        if (!details) {
+          const noscriptMatch = data.match(/<noscript>(.*?)<\/noscript>/);
+          if (noscriptMatch) {
+            details = ` (${noscriptMatch[1].replace(/<[^>]*>/g, "").trim()})`;
+          }
+        }
+        if (!details) {
+          details = ` [HTML response: ${data.length} chars]`;
+        }
+      } else {
+        details = ` (${data.slice(0, 200)})`;
+      }
+    } else if (typeof data === "object") {
+      details = ` (${JSON.stringify(data)})`;
+    }
+  }
+  return `${err.message}${details}`;
+}
+
 /**
  * Check if 3rdAI configuration is present in environment
  */
@@ -45,7 +80,7 @@ async function uploadVideoToAi(buffer, filename = "video.mp4", mimetype = "video
 
     return jobId;
   } catch (err) {
-    console.error("[3rdAI-upload-error]", err.message, err.response?.data || "");
+    console.error("[3rdAI-upload-error]", getCleanErrorMessage(err));
     throw err;
   }
 }
@@ -92,7 +127,7 @@ async function triggerProcessing(jobId) {
 
     return true;
   } catch (err) {
-    console.error("[3rdAI-process-error]", err.message, err.response?.data || "");
+    console.error("[3rdAI-process-error]", getCleanErrorMessage(err));
     throw err;
   }
 }
@@ -125,7 +160,7 @@ async function checkJobStatus(jobId) {
       viralUrl: res.data.viral_video_path || res.data.viral_video_url || ""
     };
   } catch (err) {
-    console.error("[3rdAI-status-error]", err.message, err.response?.data || "");
+    console.error("[3rdAI-status-error]", getCleanErrorMessage(err));
     throw err;
   }
 }

@@ -4,6 +4,7 @@ const { uploadToR2 } = require("../utils/r2");
 const axios = require("axios");
 
 let pollingInterval = null;
+const failedPollAttempts = {};
 
 async function pollRealAiJobs() {
   try {
@@ -21,6 +22,9 @@ async function pollRealAiJobs() {
       try {
         const jobId = script.aiJobId;
         const job = await checkJobStatus(jobId);
+        
+        // Reset failed poll attempts counter on successful fetch
+        delete failedPollAttempts[script._id.toString()];
 
         if (job.status === "processing") {
           // Update progress
@@ -102,6 +106,35 @@ async function pollRealAiJobs() {
         }
       } catch (scriptErr) {
         console.error(`[ugc-polling] Error processing status for script "${script.title}":`, scriptErr.message);
+        
+        const scriptIdStr = script._id.toString();
+        const attempts = (failedPollAttempts[scriptIdStr] || 0) + 1;
+        failedPollAttempts[scriptIdStr] = attempts;
+        
+        if (attempts >= 5) {
+          console.error(`[ugc-polling] Script "${script.title}" status check failed 5 times consecutively. Marking as failed.`);
+          script.processingStatus = "failed";
+          script.processingProgress = 0;
+          
+          if (script.createdByAdmin) {
+            script.approvalStatus = "Submitted";
+          } else {
+            script.approvalStatus = "Draft";
+          }
+          
+          script.statusHistory.push({
+            status: script.approvalStatus,
+            changedBy: "3rdAI Engine",
+            note: `AI status check failed repeatedly: ${scriptErr.message}`
+          });
+          
+          try {
+            await script.save();
+          } catch (saveErr) {
+            console.error(`[ugc-polling] Failed to save failure state for script "${script.title}":`, saveErr.message);
+          }
+          delete failedPollAttempts[scriptIdStr];
+        }
       }
     }
   } catch (err) {

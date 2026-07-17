@@ -974,7 +974,7 @@ router.put("/scripts/:id/status", async (req, res) => {
 });
 
 // POST auto-generate script body using Groq AI
-router.post("/generate-script", async (req, res) => {
+router.post("/generate-script", logoUpload.single("image"), async (req, res) => {
   try {
     const app = await getAppForUser(req);
     if (!app) return res.status(404).json({ error: "NOT_FOUND" });
@@ -1019,6 +1019,13 @@ Write ONLY the script content. Do not include any conversational intro/outro or 
       return res.status(502).json({ error: "GROQ_API_ERROR", message: data.error.message });
     }
     const scriptBody = (data.choices?.[0]?.message?.content || "").trim();
+
+    let imageUrl = null;
+    if (req.file) {
+      if (!isR2Configured()) return res.status(503).json({ error: "R2_NOT_CONFIGURED" });
+      const uploaded = await uploadToR2(req.file, "scripts/images");
+      imageUrl = uploaded.url;
+    }
 
     // Create the script template in the database
     let parsedCreatorIds = creatorIds;
@@ -1065,7 +1072,8 @@ Write ONLY the script content. Do not include any conversational intro/outro or 
               changedBy: "Founder/App Admin",
               note: "Script template created via AI and assigned to creator."
             }
-          ]
+          ],
+          imageUrl
         });
         scriptsCreated.push(s);
       }
@@ -1089,7 +1097,8 @@ Write ONLY the script content. Do not include any conversational intro/outro or 
             changedBy: "Founder/App Admin",
             note: "Script template created via AI as Draft."
           }
-        ]
+        ],
+        imageUrl
       });
       scriptsCreated.push(s);
     }

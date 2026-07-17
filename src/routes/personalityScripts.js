@@ -89,7 +89,7 @@ router.post("/scripts", async (req, res) => {
       duration,
       scheduledDate: "Self-scheduled",
       scheduledTime: "Self-scheduled",
-      approvalStatus: "Draft"
+      approvalStatus: "Pending"
     });
 
     return res.status(201).json({
@@ -410,7 +410,7 @@ Context/Description: ${description || "No specific description provided"}`;
       duration: finalDuration,
       scheduledDate: "Self-scheduled",
       scheduledTime: "Self-scheduled",
-      approvalStatus: "Draft"
+      approvalStatus: "Pending"
     });
 
     return res.status(201).json({
