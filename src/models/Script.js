@@ -10,19 +10,7 @@ const scriptSchema = new mongoose.Schema(
     description: { type: String, default: null },
     category: {
       type: String,
-      required: true,
-      enum: [
-        "Spiritual",
-        "Health",
-        "Education",
-        "Business",
-        "Government",
-        "Agriculture",
-        "Social",
-        "Festivals",
-        "Motivation",
-        "Real Estate"
-      ]
+      required: true
     },
     duration:      { type: String, default: "45s" },
     scheduledDate: { type: String, default: "Self-scheduled" },
