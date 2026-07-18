@@ -170,6 +170,7 @@ router.get("/scripts/:id", async (req, res) => {
     return res.json({
       scriptId: script._id.toString(),
       userId: script.userId.toString(),
+      userIds: script.userIds ? script.userIds.map(id => id.toString()) : [],
       title: script.title,
       body: script.body,
       description: script.description || null,
@@ -178,8 +179,42 @@ router.get("/scripts/:id", async (req, res) => {
       scheduledDate: script.scheduledDate,
       scheduledTime: script.scheduledTime,
       approvalStatus: script.approvalStatus,
+      imageUrl: script.imageUrl,
+      rawVideoUrl: script.rawVideoUrl,
+      processedVideoUrl: script.processedVideoUrl,
+      viralVideoUrl: script.viralVideoUrl,
+      processingStatus: script.processingStatus,
+      processingProgress: script.processingProgress,
+      objectionNote: script.objectionNote,
+      createdByAdmin: script.createdByAdmin || false,
       createdAt: script.createdAt,
       updatedAt: script.updatedAt
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET lightweight AI processing progress of specific script ───────────
+router.get("/scripts/:id/progress", async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const script = await Script.findOne(
+      { _id: req.params.id, $or: [{ userId }, { userIds: userId }] },
+      "processingStatus processingProgress processedVideoUrl viralVideoUrl approvalStatus"
+    );
+
+    if (!script) {
+      return res.status(404).json({ error: "NOT_FOUND" });
+    }
+
+    return res.json({
+      scriptId: script._id.toString(),
+      approvalStatus: script.approvalStatus,
+      processingStatus: script.processingStatus || "none",
+      processingProgress: script.processingProgress || 0,
+      processedVideoUrl: script.processedVideoUrl || null,
+      viralVideoUrl: script.viralVideoUrl || null
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });

@@ -14,6 +14,7 @@ const { ceoWorkspaceRouter } = require("./routes/ceoWorkspace");
 const { publicMediaRouter } = require("./routes/publicMedia");
 const { personalityScriptsRouter } = require("./routes/personalityScripts");
 const { categoriesRouter } = require("./routes/categories");
+const { agentsRouter } = require("./routes/agents");
 
 function createApp() {
   const app = express();
@@ -48,6 +49,7 @@ function createApp() {
   app.use("/api/candidate", requireAuth, requireRole("CANDIDATE"), candidatePortalRouter);
   app.use("/api/personality", requireAuth, personalityScriptsRouter);
   app.use("/api/categories", requireAuth, categoriesRouter);
+  app.use("/api/agents", agentsRouter);
 
   // fallback
   app.use((_req, res) => res.status(404).json({ error: "NOT_FOUND" }));
