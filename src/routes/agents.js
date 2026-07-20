@@ -14,10 +14,16 @@ const {
   removeSourceFromAgent,
   getVisitorSessions,
   getSessionHistory,
+  getPublicVisitorHistory,
+  getPublicSessionStatus,
+  sendSessionAction,
+  clearSessionAction,
   analyzeSession,
   askAgent,
   publicAskAgent,
-  testVoiceSettings
+  testVoiceSettings,
+  submitAgentFeedback,
+  getAgentFeedbacks
 } = require("../services/agentAiService");
 
 const { logoUpload } = require("../middleware/upload");
@@ -100,6 +106,50 @@ router.get("/:agent_id/speak", async (req, res) => {
   } catch (err) {
     console.error("[speak-route-error]", err.message);
     return res.status(500).json({ error: "SPEAK_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Get Public Visitor Chat History (Client Side restore on reload)
+ * GET /api/agents/:agent_id/public-history
+ */
+router.get("/:agent_id/public-history", async (req, res) => {
+  try {
+    const { agent_id } = req.params;
+    const { device_id, session_id } = req.query;
+    const data = await getPublicVisitorHistory(agent_id, device_id, session_id);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "PUBLIC_HISTORY_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Get Public Session Status (Client Polling for creator action buttons)
+ * GET /api/agents/:agent_id/session-status
+ */
+router.get("/:agent_id/session-status", async (req, res) => {
+  try {
+    const { agent_id } = req.params;
+    const { device_id, session_id } = req.query;
+    const data = await getPublicSessionStatus(agent_id, device_id, session_id);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "SESSION_STATUS_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Submit Public Agent Feedback / Report
+ * POST /api/agents/:agent_id/feedback
+ */
+router.post("/:agent_id/feedback", async (req, res) => {
+  try {
+    const { agent_id } = req.params;
+    const data = await submitAgentFeedback(agent_id, req.body);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "SUBMIT_FEEDBACK_ERROR", message: err.message });
   }
 });
 
@@ -319,6 +369,48 @@ router.post("/:agent_id/ask", async (req, res) => {
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "ASK_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Send Creator Action Button (Call Now / WhatsApp Connect)
+ * POST /api/agents/sessions/:session_id/send-action
+ */
+router.post("/sessions/:session_id/send-action", async (req, res) => {
+  try {
+    const { session_id } = req.params;
+    const data = await sendSessionAction(session_id, req.body);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "SEND_ACTION_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Clear Session Action Button
+ * DELETE /api/agents/sessions/:session_id/clear-action
+ */
+router.delete("/sessions/:session_id/clear-action", async (req, res) => {
+  try {
+    const { session_id } = req.params;
+    const data = await clearSessionAction(session_id);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "CLEAR_ACTION_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Retrieve Feedback and Reports list for an Agent
+ * GET /api/agents/:agent_id/feedback
+ */
+router.get("/:agent_id/feedback", async (req, res) => {
+  try {
+    const { agent_id } = req.params;
+    const data = await getAgentFeedbacks(agent_id);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "GET_FEEDBACKS_ERROR", message: err.message });
   }
 });
 

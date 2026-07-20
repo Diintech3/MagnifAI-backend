@@ -169,13 +169,77 @@ async function removeSourceFromAgent(agentId, sourceId) {
 
 // ── Sessions & Analytics ──────────────────────────────────────────────────
 
+// Helper function to sanitize session lead info (clean up invalid names/phones extracted by AI)
+function sanitizeSessionItem(session) {
+  if (!session || typeof session !== "object") return session;
+  const item = { ...session };
+
+  if (item.phone_number) {
+    const raw = String(item.phone_number).trim();
+    const digitCount = (raw.match(/\d/g) || []).length;
+    if (digitCount < 7 || raw.toLowerCase() === "none" || /[a-zA-Z]{3,}/.test(raw)) {
+      item.phone_number = "None";
+    }
+  } else {
+    item.phone_number = "None";
+  }
+
+  if (item.user_name) {
+    const rawName = String(item.user_name).trim();
+    const isQuestionOrSentence = rawName.endsWith("?") || /^(what|how|why|when|where|who|is|can|do|hello|hi|mera|nice|thanks)\b/i.test(rawName);
+    if (isQuestionOrSentence || rawName === item.phone_number || rawName.length > 50) {
+      item.user_name = "Anonymous Visitor";
+    }
+  } else {
+    item.user_name = "Anonymous Visitor";
+  }
+
+  return item;
+}
+
 async function getVisitorSessions(agentId) {
   const { baseUrl, token } = getRequestConfig();
   try {
     const res = await axios.get(`${baseUrl}/api/agents/${agentId}/sessions`, {
       headers: { "X-App-Token": token }
     });
-    return res.data;
+    const data = res.data;
+    if (Array.isArray(data)) {
+      const sanitized = data.map(sanitizeSessionItem);
+
+      // Step 1: Device-level persistent lead identity resolution
+      const deviceMap = {};
+      sanitized.forEach(sess => {
+        const key = sess.device_id || sess.session_id;
+        if (!deviceMap[key]) {
+          deviceMap[key] = {
+            resolved_name: "Anonymous Visitor",
+            resolved_phone: "None",
+            sessions: []
+          };
+        }
+        deviceMap[key].sessions.push(sess);
+        if (sess.user_name && sess.user_name !== "Anonymous Visitor") {
+          deviceMap[key].resolved_name = sess.user_name;
+        }
+        if (sess.phone_number && sess.phone_number !== "None") {
+          deviceMap[key].resolved_phone = sess.phone_number;
+        }
+      });
+
+      // Step 2: Propagate resolved lead identity and attach visit_count
+      return sanitized.map(sess => {
+        const key = sess.device_id || sess.session_id;
+        const group = deviceMap[key];
+        return {
+          ...sess,
+          user_name: (sess.user_name && sess.user_name !== "Anonymous Visitor") ? sess.user_name : group.resolved_name,
+          phone_number: (sess.phone_number && sess.phone_number !== "None") ? sess.phone_number : group.resolved_phone,
+          visit_count: group.sessions.length
+        };
+      });
+    }
+    return data;
   } catch (err) {
     console.error("[agent-sessions-error]", getCleanErrorMessage(err));
     throw new Error(getCleanErrorMessage(err));
@@ -191,6 +255,68 @@ async function getSessionHistory(sessionId) {
     return res.data;
   } catch (err) {
     console.error("[agent-session-history-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+async function getPublicVisitorHistory(agentId, deviceId, sessionId) {
+  const { baseUrl, token } = getRequestConfig();
+  try {
+    const query = [];
+    if (deviceId) query.push(`device_id=${encodeURIComponent(deviceId)}`);
+    if (sessionId) query.push(`session_id=${encodeURIComponent(sessionId)}`);
+    const qStr = query.length ? `?${query.join("&")}` : "";
+
+    const res = await axios.get(`${baseUrl}/api/agents/${agentId}/public-history${qStr}`, {
+      headers: { "X-App-Token": token }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[agent-public-history-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+async function getPublicSessionStatus(agentId, deviceId, sessionId) {
+  const { baseUrl, token } = getRequestConfig();
+  try {
+    const query = [];
+    if (deviceId) query.push(`device_id=${encodeURIComponent(deviceId)}`);
+    if (sessionId) query.push(`session_id=${encodeURIComponent(sessionId)}`);
+    const qStr = query.length ? `?${query.join("&")}` : "";
+
+    const res = await axios.get(`${baseUrl}/api/agents/${agentId}/session-status${qStr}`, {
+      headers: { "X-App-Token": token }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[agent-session-status-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+async function sendSessionAction(sessionId, payload) {
+  const { baseUrl, token } = getRequestConfig();
+  try {
+    const res = await axios.post(`${baseUrl}/api/agents/sessions/${sessionId}/send-action`, payload, {
+      headers: { "X-App-Token": token, "Content-Type": "application/json" }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[agent-send-action-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+async function clearSessionAction(sessionId) {
+  const { baseUrl, token } = getRequestConfig();
+  try {
+    const res = await axios.delete(`${baseUrl}/api/agents/sessions/${sessionId}/clear-action`, {
+      headers: { "X-App-Token": token }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[agent-clear-action-error]", getCleanErrorMessage(err));
     throw new Error(getCleanErrorMessage(err));
   }
 }
@@ -261,6 +387,34 @@ async function testVoiceSettings(voiceConfig) {
   }
 }
 
+// ── Feedback & Reports ───────────────────────────────────────────────────
+
+async function submitAgentFeedback(agentId, payload) {
+  const { baseUrl, token } = getRequestConfig();
+  try {
+    const res = await axios.post(`${baseUrl}/api/agents/${agentId}/feedback`, payload, {
+      headers: { "X-App-Token": token, "Content-Type": "application/json" }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[agent-submit-feedback-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+async function getAgentFeedbacks(agentId) {
+  const { baseUrl, token } = getRequestConfig();
+  try {
+    const res = await axios.get(`${baseUrl}/api/agents/${agentId}/feedback`, {
+      headers: { "X-App-Token": token }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[agent-get-feedbacks-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
 module.exports = {
   isAiConfigured,
   createAgent,
@@ -273,9 +427,16 @@ module.exports = {
   removeSourceFromAgent,
   getVisitorSessions,
   getSessionHistory,
+  getPublicVisitorHistory,
+  getPublicSessionStatus,
+  sendSessionAction,
+  clearSessionAction,
   analyzeSession,
   askAgent,
   publicAskAgent,
   getSpeakStreamUrl,
-  testVoiceSettings
+  testVoiceSettings,
+  submitAgentFeedback,
+  getAgentFeedbacks,
+  sanitizeSessionItem
 };
