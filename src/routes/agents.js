@@ -20,6 +20,9 @@ const {
   testVoiceSettings
 } = require("../services/agentAiService");
 
+const { logoUpload } = require("../middleware/upload");
+const { uploadToR2, isR2Configured } = require("../utils/r2");
+
 const router = express.Router();
 
 // PDF file upload configuration for Memory Storage
@@ -127,6 +130,25 @@ router.post("/", async (req, res) => {
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "CREATE_AGENT_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Upload logo/avatar image for Agent Customization to Cloudflare R2
+ * POST /api/agents/upload-image
+ */
+router.post("/upload-image", logoUpload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "IMAGE_REQUIRED" });
+    }
+    if (!isR2Configured()) {
+      return res.status(503).json({ error: "R2_NOT_CONFIGURED" });
+    }
+    const uploaded = await uploadToR2(req.file, "agents/images");
+    return res.json({ url: uploaded.url });
+  } catch (err) {
+    return res.status(500).json({ error: "UPLOAD_IMAGE_ERROR", message: err.message });
   }
 });
 
