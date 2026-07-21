@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
     "name": "MagnifAI AI Agent API Integration",
-    "description": "Comprehensive Postman collection covering all 23 public visitor, authenticated CEO/Admin, Knowledge Base, Live Action Control, Feedback, and AI Summary endpoints for the AI Agent system (MagnifAI).",
+    "description": "Comprehensive Postman collection covering all 24 public visitor, authenticated CEO/Admin, Knowledge Base, User-Wise Grouped Sessions, Live Action Control, Feedback, and AI Summary endpoints for the AI Agent system (MagnifAI).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -708,6 +708,43 @@
               ]
             },
             "description": "Fetch list of all visitor sessions, including user name, phone number, device info, dates, visit count, and cached AI analysis details."
+          },
+          "response": []
+        },
+        {
+          "name": "GET User-Wise Grouped Visitor Sessions List",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/agents/:agent_id/user-sessions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "agents",
+                ":agent_id",
+                "user-sessions"
+              ],
+              "variable": [
+                {
+                  "key": "agent_id",
+                  "value": "da3243d9babb9387"
+                }
+              ]
+            },
+            "description": "Fetch list of visitor contacts grouped by User/Device ID, returning unique visitor cards with visit counts, resolved identities, and nested arrays of session history IDs."
           },
           "response": []
         },

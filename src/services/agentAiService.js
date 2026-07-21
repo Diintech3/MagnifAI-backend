@@ -246,6 +246,68 @@ async function getVisitorSessions(agentId) {
   }
 }
 
+async function getVisitorUserSessions(agentId) {
+  const { baseUrl, token } = getRequestConfig();
+  try {
+    const res = await axios.get(`${baseUrl}/api/agents/${agentId}/sessions`, {
+      headers: { "X-App-Token": token }
+    });
+    const data = res.data;
+    if (Array.isArray(data)) {
+      const sanitized = data.map(sanitizeSessionItem);
+
+      const deviceMap = {};
+      sanitized.forEach(sess => {
+        const key = sess.device_id || sess.session_id;
+        if (!deviceMap[key]) {
+          deviceMap[key] = {
+            device_id: sess.device_id || key,
+            device_name: sess.device_name || "Unknown Device",
+            user_name: "Anonymous Visitor",
+            phone_number: "None",
+            total_visits: 0,
+            latest_visit: sess.created_at || sess.updated_at,
+            sessions: []
+          };
+        }
+
+        deviceMap[key].total_visits += 1;
+        if (sess.user_name && sess.user_name !== "Anonymous Visitor") {
+          deviceMap[key].user_name = sess.user_name;
+        }
+        if (sess.phone_number && sess.phone_number !== "None") {
+          deviceMap[key].phone_number = sess.phone_number;
+        }
+        if (sess.device_name) {
+          deviceMap[key].device_name = sess.device_name;
+        }
+
+        deviceMap[key].sessions.push({
+          session_id: sess.session_id,
+          agent_id: sess.agent_id,
+          analysis: sess.analysis || null,
+          action_button: sess.action_button || null,
+          created_at: sess.created_at,
+          updated_at: sess.updated_at
+        });
+      });
+
+      return Object.values(deviceMap).map(userGroup => ({
+        ...userGroup,
+        sessions: userGroup.sessions.map(s => ({
+          ...s,
+          user_name: userGroup.user_name,
+          phone_number: userGroup.phone_number
+        }))
+      }));
+    }
+    return [];
+  } catch (err) {
+    console.error("[agent-user-sessions-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
 async function getSessionHistory(sessionId) {
   const { baseUrl, token } = getRequestConfig();
   try {
@@ -426,6 +488,7 @@ module.exports = {
   ingestUrlToAgent,
   removeSourceFromAgent,
   getVisitorSessions,
+  getVisitorUserSessions,
   getSessionHistory,
   getPublicVisitorHistory,
   getPublicSessionStatus,

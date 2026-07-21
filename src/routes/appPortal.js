@@ -995,14 +995,8 @@ router.post("/generate-script", logoUpload.single("image"), async (req, res) => 
     const prompt = `Write a high-converting, engaging UGC video speech script titled "${finalTitle}" for the category "${category.trim()}". The duration should be approximately ${duration || "45s"}.
 ${description ? `Context/Description of the script: ${description.trim()}` : ""}
 
-Format the output with distinct parts like:
-[HOOK]
-...
-[MAIN CONTENT]
-...
-[CTA]
-...
-Write ONLY the script content. Do not include any conversational intro/outro or styling outside the script parts.`;
+Write a natural, spoken video script divided into clear paragraphs (an engaging opening hook, compelling main content, and a strong call-to-action).
+Do NOT include section headers, bracket tags, or labels like [HOOK], [MAIN CONTENT], or [CTA]. Write ONLY the exact speech dialogue.`;
 
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -1018,7 +1012,9 @@ Write ONLY the script content. Do not include any conversational intro/outro or 
     if (data?.error) {
       return res.status(502).json({ error: "GROQ_API_ERROR", message: data.error.message });
     }
-    const scriptBody = (data.choices?.[0]?.message?.content || "").trim();
+    let scriptBody = (data.choices?.[0]?.message?.content || "").trim();
+    // Clean up any bracket headers if generated
+    scriptBody = scriptBody.replace(/\[(HOOK|MAIN CONTENT|CTA|INTRO|OUTRO)\]/gi, "").replace(/\n\s*\n\s*\n/g, "\n\n").trim();
 
     let imageUrl = null;
     if (req.file) {

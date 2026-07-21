@@ -13,6 +13,7 @@ const {
   ingestUrlToAgent,
   removeSourceFromAgent,
   getVisitorSessions,
+  getVisitorUserSessions,
   getSessionHistory,
   getPublicVisitorHistory,
   getPublicSessionStatus,
@@ -323,6 +324,20 @@ router.get("/:agent_id/sessions", async (req, res) => {
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "GET_SESSIONS_ERROR", message: err.message });
+  }
+});
+
+/**
+ * List visitor sessions grouped by user/device for an agent
+ * GET /api/agents/:agent_id/user-sessions
+ */
+router.get("/:agent_id/user-sessions", async (req, res) => {
+  try {
+    const { agent_id } = req.params;
+    const data = await getVisitorUserSessions(agent_id);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "GET_USER_SESSIONS_ERROR", message: err.message });
   }
 });
 
