@@ -141,12 +141,31 @@ router.get("/:agent_id/session-status", async (req, res) => {
 });
 
 /**
- * Submit Public Agent Feedback / Report
+ * Submit Public Agent Feedback / Report (Automatically resolves user details if authenticated)
  * POST /api/agents/:agent_id/feedback
  */
 router.post("/:agent_id/feedback", async (req, res) => {
   try {
     const { agent_id } = req.params;
+
+    // Resolve authenticated user details dynamically if token is present
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const token = authHeader.split(" ")[1];
+        if (token) {
+          const { verifyAccessToken } = require("../utils/jwt");
+          const decoded = verifyAccessToken(token);
+          if (decoded) {
+            if (decoded.name) req.body.user_name = decoded.name;
+            if (decoded.email) req.body.user_email = decoded.email;
+          }
+        }
+      } catch (err) {
+        // Soft fail token decoding, keep the manually passed user details
+      }
+    }
+
     const data = await submitAgentFeedback(agent_id, req.body);
     return res.json(data);
   } catch (err) {
