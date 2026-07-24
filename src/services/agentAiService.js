@@ -477,6 +477,44 @@ async function getAgentFeedbacks(agentId) {
   }
 }
 
+async function analyzeDevice(agentId, deviceId) {
+  const { baseUrl, token } = getRequestConfig();
+  try {
+    const res = await axios.post(`${baseUrl}/api/agents/sessions/analyze-device`, {
+      agent_id: agentId,
+      device_id: deviceId
+    }, {
+      headers: { "X-App-Token": token, "Content-Type": "application/json" }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[agent-analyze-device-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+async function uploadChatFile(agentId, fileBuffer, filename, mimetype) {
+  const { baseUrl, token } = getRequestConfig();
+  const form = new FormData();
+  form.append("file", fileBuffer, { filename, contentType: mimetype });
+
+  try {
+    const res = await axios.post(`${baseUrl}/api/agents/${agentId}/upload-chat-file`, form, {
+      headers: {
+        "X-App-Token": token,
+        ...form.getHeaders()
+      },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      timeout: 300000 // 5 minutes
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[agent-upload-chat-file-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
 module.exports = {
   isAiConfigured,
   createAgent,
@@ -495,8 +533,10 @@ module.exports = {
   sendSessionAction,
   clearSessionAction,
   analyzeSession,
+  analyzeDevice,
   askAgent,
   publicAskAgent,
+  uploadChatFile,
   getSpeakStreamUrl,
   testVoiceSettings,
   submitAgentFeedback,

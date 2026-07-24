@@ -20,8 +20,10 @@ const {
   sendSessionAction,
   clearSessionAction,
   analyzeSession,
+  analyzeDevice,
   askAgent,
   publicAskAgent,
+  uploadChatFile,
   testVoiceSettings,
   submitAgentFeedback,
   getAgentFeedbacks
@@ -385,6 +387,45 @@ router.post("/sessions/:session_id/analyze", async (req, res) => {
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "ANALYZE_SESSION_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Run Holistic AI Analysis on a visitor device (merges all sessions)
+ * POST /api/agents/sessions/analyze-device
+ */
+router.post("/sessions/analyze-device", async (req, res) => {
+  try {
+    const { agent_id, device_id } = req.body;
+    if (!agent_id || !device_id) {
+      return res.status(400).json({ error: "AGENT_ID_AND_DEVICE_ID_REQUIRED" });
+    }
+    const data = await analyzeDevice(agent_id, device_id);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "ANALYZE_DEVICE_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Upload visitor chat file (Image, PDF, Video, Doc) and get extracted text
+ * POST /api/agents/:agent_id/upload-chat-file
+ */
+router.post("/:agent_id/upload-chat-file", pdfUpload.single("file"), async (req, res) => {
+  try {
+    const { agent_id } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ error: "FILE_REQUIRED" });
+    }
+    const data = await uploadChatFile(
+      agent_id,
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype
+    );
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "UPLOAD_CHAT_FILE_ERROR", message: err.message });
   }
 });
 
