@@ -15,7 +15,7 @@ const { publicMediaRouter } = require("./routes/publicMedia");
 const { personalityScriptsRouter } = require("./routes/personalityScripts");
 const { categoriesRouter } = require("./routes/categories");
 const { agentsRouter } = require("./routes/agents");
-const { calendarRouter, remindersRouter } = require("./routes/calendar");
+const { rootAgentRouter } = require("./routes/calendar");
 
 function createApp() {
   const app = express();
@@ -51,8 +51,7 @@ function createApp() {
   app.use("/api/personality", requireAuth, personalityScriptsRouter);
   app.use("/api/categories", requireAuth, categoriesRouter);
   app.use("/api/agents", agentsRouter);
-  app.use("/api/v1/calendar", requireAuth, calendarRouter);
-  app.use("/api/v1/reminders", requireAuth, remindersRouter);
+  app.use("/api/root-agent", requireAuth, rootAgentRouter);
 
   // fallback
   app.use((_req, res) => res.status(404).json({ error: "NOT_FOUND" }));

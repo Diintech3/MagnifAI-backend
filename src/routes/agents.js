@@ -29,6 +29,7 @@ const {
   getAgentFeedbacks
 } = require("../services/agentAiService");
 
+const { bookMeetingViaSubAgent, getBookedDates } = require("../services/calendarService");
 const { logoUpload } = require("../middleware/upload");
 const { uploadToR2, isR2Configured } = require("../utils/r2");
 
@@ -486,6 +487,34 @@ router.get("/:agent_id/feedback", async (req, res) => {
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "GET_FEEDBACKS_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Book Meeting via Sub-Agent
+ * POST /api/agents/:agent_id/book-meeting
+ */
+router.post("/:agent_id/book-meeting", async (req, res) => {
+  try {
+    const { agent_id } = req.params;
+    const data = await bookMeetingViaSubAgent(agent_id, req.body);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "BOOK_MEETING_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Get Booked Dates & Planner Slots
+ * GET /api/agents/:agent_id/booked-dates
+ */
+router.get("/:agent_id/booked-dates", async (req, res) => {
+  try {
+    const { agent_id } = req.params;
+    const data = await getBookedDates(agent_id);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "GET_BOOKED_DATES_ERROR", message: err.message });
   }
 });
 
