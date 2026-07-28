@@ -71,9 +71,24 @@ async function triggerAiPipelineForScript(scriptId) {
     console.log(`[ugc-pipeline] Uploading raw video to 3rdAI server for script "${script.title}"...`);
     const jobId = await uploadVideoToAi(buffer, `${script._id}_raw.mp4`, "video/mp4");
 
-    // 4. Trigger AI video editing
-    console.log(`[ugc-pipeline] Triggering 3rdAI editing process for script "${script.title}" (jobId: ${jobId})...`);
-    await triggerProcessing(jobId);
+    // 4. Trigger AI video editing based on creator's sendMode preference
+    let resolvedSendMode = "auto";
+    if (script.userId) {
+      const { CEO } = require("../models/CEO");
+      const { Candidate } = require("../models/Candidate");
+      let creatorObj = await CEO.findById(script.userId);
+      if (!creatorObj) {
+        creatorObj = await Candidate.findById(script.userId);
+      }
+      if (creatorObj && creatorObj.sendMode) {
+        resolvedSendMode = creatorObj.sendMode;
+      }
+    } else {
+      resolvedSendMode = script.sendMode || "auto";
+    }
+
+    console.log(`[ugc-pipeline] Triggering 3rdAI editing process for script "${script.title}" (jobId: ${jobId}, sendMode: ${resolvedSendMode})...`);
+    await triggerProcessing(jobId, resolvedSendMode);
 
     // 5. Update DB
     script.aiJobId = jobId;
@@ -87,6 +102,7 @@ async function triggerAiPipelineForScript(scriptId) {
     console.error(`[ugc-pipeline-error] Failed to trigger AI pipeline for script "${script.title}":`, err.message);
     script.processingStatus = "failed";
     script.processingProgress = 0;
+    script.objectionNote = `Pipeline trigger failed: ${err.message}`;
     // Reset approvalStatus so the buttons become active for retry
     if (script.createdByAdmin) {
       script.approvalStatus = "Submitted";

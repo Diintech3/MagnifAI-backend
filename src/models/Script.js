@@ -33,6 +33,11 @@ const scriptSchema = new mongoose.Schema(
     processingProgress: { type: Number, default: 0 },
     objectionNote:      { type: String, default: null },
     createdByAdmin:     { type: Boolean, default: false },
+    sendMode: {
+      type: String,
+      enum: ["auto", "manual"],
+      default: "auto"
+    },
     statusHistory: [
       {
         status:    { type: String },

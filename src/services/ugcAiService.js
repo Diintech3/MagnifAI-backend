@@ -90,7 +90,7 @@ async function uploadVideoToAi(buffer, filename = "video.mp4", mimetype = "video
  * @param {string} jobId - The job_id returned by upload
  * @returns {Promise<boolean>}
  */
-async function triggerProcessing(jobId) {
+async function triggerProcessing(jobId, sendMode = "auto") {
   if (!isAiConfigured()) {
     throw new Error("3rdAI configuration is missing");
   }
@@ -113,7 +113,8 @@ async function triggerProcessing(jobId) {
     viral: true,
     background: false,
     logo: true,
-    video_quality: "1080p"
+    video_quality: "1080p",
+    send_mode: sendMode
   };
 
   try {
@@ -157,7 +158,8 @@ async function checkJobStatus(jobId) {
       status: res.data.status, // 'processing' | 'completed' | 'failed'
       progress: res.data.progress || 0,
       processedUrl: res.data.result_video_path || res.data.result_video_url || "",
-      viralUrl: res.data.viral_video_path || res.data.viral_video_url || ""
+      viralUrl: res.data.viral_video_path || res.data.viral_video_url || "",
+      errorMessage: res.data.error_message || ""
     };
   } catch (err) {
     console.error("[3rdAI-status-error]", getCleanErrorMessage(err));

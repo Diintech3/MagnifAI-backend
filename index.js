@@ -3,11 +3,13 @@ const { createApp } = require("./src/app");
 const { env } = require("./src/config/env");
 const { connectDB } = require("./src/db/db");
 const { ensureSuperAdmin } = require("./src/bootstrap/ensureSuperAdmin");
+const { ensureCeoAgentMapping } = require("./src/bootstrap/ensureCeoAgentMapping");
 const { setupSttProxy } = require("./src/services/wsSttProxy");
 
 async function start() {
   await connectDB();
   await ensureSuperAdmin();
+  await ensureCeoAgentMapping();
 
   const app = createApp();
   const server = http.createServer(app);

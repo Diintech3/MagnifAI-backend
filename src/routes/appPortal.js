@@ -11,6 +11,7 @@ const { uploadToR2, isR2Configured } = require("../utils/r2");
 const { candidateUpload, logoUpload } = require("../middleware/upload");
 const { candidatesRouter } = require("./candidates");
 const { postsRouter } = require("./posts");
+const { registerSubUser } = require("../services/agentAiService");
 
 const router = express.Router();
 
@@ -148,6 +149,8 @@ router.get("/overview", async (req, res) => {
       agentsCount:  0,
       isCEO:        true,
       role:         "CEO",
+      ragClientId:  ceo.ragClientId || null,
+      ragToken:     ceo.ragToken || null,
     });
   }
   const totalCandidates = await Candidate.countDocuments({ appId: app._id });
@@ -423,6 +426,36 @@ router.post("/ceos", ceoPhotoUpload, async (req, res) => {
       passwordHash: await hashPassword(parsed.data.password),
       photoUrl, photoKey,
     });
+
+    // Auto-register sub-user on RAG server
+    try {
+      const ragSubUser = await registerSubUser({
+        name: parsed.data.name,
+        email: email,
+        password: parsed.data.password,
+        business_name: parsed.data.company || parsed.data.name,
+        website_url: parsed.data.website || "",
+        mobile_number: parsed.data.mobile || "",
+        city: parsed.data.city || "",
+        pin_code: parsed.data.pincode || "",
+        address: parsed.data.address || "",
+        logo_url: photoUrl || ""
+      });
+
+      if (ragSubUser && ragSubUser.success && ragSubUser.user) {
+        await CEO.findByIdAndUpdate(ceo._id, {
+          ragClientId: ragSubUser.user.client_id,
+          ragToken: ragSubUser.user.token
+        });
+        // Update local object to return the mapped data
+        ceo.ragClientId = ragSubUser.user.client_id;
+        ceo.ragToken = ragSubUser.user.token;
+      }
+    } catch (ragErr) {
+      console.error("[appPortal-ceo-create-rag-error]", ragErr.message);
+      // Soft-fail: do not block CEO creation if RAG server registration fails
+    }
+
     return res.status(201).json({ ceo: toPublicCEO(ceo) });
   } catch (err) {
     if (err.message === "INVALID_FILE_TYPE") return res.status(400).json({ error: "INVALID_FILE_TYPE" });
@@ -454,6 +487,32 @@ router.patch("/ceos/:id", ceoPhotoUpload, async (req, res) => {
     const up = await uploadToR2(photoFile, "ceos/photos");
     ceo.photoUrl = up.url; ceo.photoKey = up.key;
   }
+
+  // Self-healing: if an existing CEO is updated and doesn't have a RAG sub-user token, register them now
+  if (!ceo.ragToken) {
+    try {
+      const ragSubUser = await registerSubUser({
+        name: ceo.name,
+        email: ceo.email,
+        password: parsed.data.password || "tempPassword123!",
+        business_name: ceo.company || ceo.name,
+        website_url: ceo.website || "",
+        mobile_number: ceo.mobile || "",
+        city: ceo.city || "",
+        pin_code: ceo.pincode || "",
+        address: ceo.address || "",
+        logo_url: ceo.photoUrl || ""
+      });
+
+      if (ragSubUser && ragSubUser.success && ragSubUser.user) {
+        ceo.ragClientId = ragSubUser.user.client_id;
+        ceo.ragToken = ragSubUser.user.token;
+      }
+    } catch (ragErr) {
+      console.error("[appPortal-ceo-patch-rag-error]", ragErr.message);
+    }
+  }
+
   await ceo.save();
   return res.json({ ceo: toPublicCEO(ceo) });
 });
@@ -577,11 +636,49 @@ router.get("/creators", async (req, res) => {
     const candidates = await Candidate.find({ appId: app._id, isActive: true }).sort({ name: 1 });
 
     const creators = [
-      ...ceos.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "CEO" })),
-      ...candidates.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "Candidate" }))
+      ...ceos.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "CEO", sendMode: c.sendMode || "auto" })),
+      ...candidates.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "Candidate", sendMode: c.sendMode || "auto" }))
     ];
 
     return res.json({ creators });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT update a creator's sendMode preference
+router.put("/creators/:creatorId/send-mode", async (req, res) => {
+  try {
+    const app = await getAppForUser(req);
+    if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+
+    const { creatorId } = req.params;
+    const { sendMode } = req.body;
+    if (!["auto", "manual"].includes(sendMode)) {
+      return res.status(400).json({ error: "invalid sendMode" });
+    }
+
+    // Try finding in CEO first
+    let creator = await CEO.findOneAndUpdate(
+      { _id: creatorId, appId: app._id },
+      { sendMode },
+      { new: true }
+    );
+
+    if (!creator) {
+      // Try Candidate
+      creator = await Candidate.findOneAndUpdate(
+        { _id: creatorId, appId: app._id },
+        { sendMode },
+        { new: true }
+      );
+    }
+
+    if (!creator) {
+      return res.status(404).json({ error: "CREATOR_NOT_FOUND" });
+    }
+
+    return res.json({ success: true, sendMode: creator.sendMode });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -593,7 +690,7 @@ router.post("/scripts", logoUpload.single("image"), async (req, res) => {
     const app = await getAppForUser(req);
     if (!app) return res.status(404).json({ error: "NOT_FOUND" });
 
-    const { title, body, description, category, duration, scheduledDate, scheduledTime } = req.body;
+    const { title, body, description, category, duration, scheduledDate, scheduledTime, sendMode } = req.body;
     if (!title?.trim() || !body?.trim() || !category?.trim()) {
       return res.status(400).json({ error: "title, body, and category are required" });
     }
@@ -646,6 +743,7 @@ router.post("/scripts", logoUpload.single("image"), async (req, res) => {
           scheduledTime: scheduledTime.trim(),
           approvalStatus: "Pending",
           createdByAdmin: true,
+          sendMode: sendMode || "auto",
           statusHistory: [
             {
               status: "Pending",
@@ -671,6 +769,7 @@ router.post("/scripts", logoUpload.single("image"), async (req, res) => {
         scheduledTime: scheduledTime.trim(),
         approvalStatus: "Draft",
         createdByAdmin: true,
+        sendMode: sendMode || "auto",
         statusHistory: [
           {
             status: "Draft",
@@ -737,7 +836,7 @@ router.patch("/scripts/:id", logoUpload.single("image"), async (req, res) => {
       return res.status(403).json({ error: "UNAUTHORIZED_SCRIPT_ACCESS" });
     }
 
-    const { title, body, description, category, duration, scheduledDate, scheduledTime, approvalStatus } = req.body;
+    const { title, body, description, category, duration, scheduledDate, scheduledTime, approvalStatus, sendMode } = req.body;
     if (title !== undefined) script.title = title.trim();
     if (body !== undefined) script.body = body.trim();
     if (description !== undefined) script.description = description ? description.trim() : null;
@@ -746,6 +845,7 @@ router.patch("/scripts/:id", logoUpload.single("image"), async (req, res) => {
     if (scheduledDate !== undefined) script.scheduledDate = scheduledDate;
     if (scheduledTime !== undefined) script.scheduledTime = scheduledTime;
     if (approvalStatus !== undefined) script.approvalStatus = approvalStatus;
+    if (sendMode !== undefined) script.sendMode = sendMode;
     
     let creatorIds = req.body.creatorIds !== undefined ? req.body.creatorIds : req.body.creatorId;
     if (creatorIds !== undefined) {
@@ -933,35 +1033,41 @@ router.put("/scripts/:id/status", async (req, res) => {
       return res.status(403).json({ error: "UNAUTHORIZED_SCRIPT_ACCESS" });
     }
 
-    const { status, note } = req.body;
+    const { status, note, sendMode } = req.body;
     const allowed = ["Draft", "Pending", "Waiting", "Submitted", "Editing", "Edited", "Approved", "Rejected", "Objection"];
     if (!status || !allowed.includes(status)) {
       return res.status(400).json({ error: "invalid or missing status" });
     }
 
+    let triggerPipeline = false;
     if (status === "Objection") {
       script.objectionNote = note || "Objection raised by founder.";
       script.approvalStatus = "Objection";
-      script.statusHistory.push({
-        status: "Objection",
-        changedBy: "Founder/App Admin",
-        note: note || "Objection raised by founder."
-      });
-      await script.save();
-
-      // Trigger re-editing using the pipeline in background
-      const { triggerAiPipelineForScript } = require("../utils/ugcAiTrigger");
-      triggerAiPipelineForScript(script).catch(err => {
-        console.error("[objection-trigger-error]", err.message);
-      });
+      triggerPipeline = true;
+    } else if (status === "Editing") {
+      script.approvalStatus = "Editing";
+      script.processingStatus = "processing";
+      script.processingProgress = 10;
+      if (sendMode) {
+        script.sendMode = sendMode;
+      }
+      triggerPipeline = true;
     } else {
       script.approvalStatus = status;
-      script.statusHistory.push({
-        status,
-        changedBy: "Founder/App Admin",
-        note: note || `Status updated to ${status}`
+    }
+
+    script.statusHistory.push({
+      status,
+      changedBy: "Founder/App Admin",
+      note: note || `Status updated to ${status} by Founder/App Admin`
+    });
+    await script.save();
+
+    if (triggerPipeline) {
+      const { triggerAiPipelineForScript } = require("../utils/ugcAiTrigger");
+      triggerAiPipelineForScript(script._id.toString()).catch(err => {
+        console.error("[admin-trigger-error]", err.message);
       });
-      await script.save();
     }
 
     return res.json({

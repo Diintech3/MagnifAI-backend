@@ -18,6 +18,9 @@ const ceoSchema = new mongoose.Schema(
     photoUrl:     { type: String, trim: true },
     photoKey:     { type: String, trim: true },
     isActive:     { type: Boolean, default: true },
+    ragClientId:  { type: String, trim: true },
+    ragToken:     { type: String, trim: true },
+    sendMode:     { type: String, enum: ["auto", "manual"], default: "auto" },
   },
   { timestamps: true },
 );
@@ -41,6 +44,10 @@ function toPublicCEO(doc) {
     photoUrl:    resolvePublicMediaUrl(doc.photoUrl, doc.photoKey),
     isActive:    doc.isActive !== false,
     hasPassword: Boolean(doc.passwordHash),
+    agentId:     doc.agentId,
+    ragClientId: doc.ragClientId,
+    ragToken:    doc.ragToken,
+    sendMode:    doc.sendMode || "auto",
     createdAt:   doc.createdAt,
     updatedAt:   doc.updatedAt,
   };

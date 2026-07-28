@@ -29,12 +29,12 @@ function getCleanErrorMessage(err) {
   return `${err.message}${details}`;
 }
 
-function getRequestConfig() {
+function getRequestConfig(overrideToken) {
   if (!env.UGC_AI_BASE_URL || !env.UGC_AI_APP_TOKEN) {
     throw new Error("3rdAI configuration (URL/Token) is missing");
   }
   const baseUrl = env.UGC_AI_BASE_URL.replace(/\/$/, "");
-  const token = env.UGC_AI_APP_TOKEN;
+  const token = overrideToken || env.UGC_AI_APP_TOKEN;
   return { baseUrl, token };
 }
 
@@ -160,8 +160,8 @@ async function createPlanFromMeeting(meetingData) {
 /**
  * 8. Book Meeting via Sub-Agent (With AI analysis & Auto-Planner Sync)
  */
-async function bookMeetingViaSubAgent(agentId, bookingData) {
-  const { baseUrl, token } = getRequestConfig();
+async function bookMeetingViaSubAgent(agentId, bookingData, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/agents/${agentId}/book-meeting`, bookingData, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
@@ -176,8 +176,8 @@ async function bookMeetingViaSubAgent(agentId, bookingData) {
 /**
  * 9. Get Booked Dates & Planner Slots
  */
-async function getBookedDates(agentId) {
-  const { baseUrl, token } = getRequestConfig();
+async function getBookedDates(agentId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.get(`${baseUrl}/api/agents/${agentId}/booked-dates`, {
       headers: { "X-App-Token": token }

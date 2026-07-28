@@ -85,7 +85,7 @@ async function pollRealAiJobs() {
           await script.save();
           console.log(`[ugc-polling] Script "${script.title}" updated to status "Edited".`);
         } else if (job.status === "failed") {
-          console.error(`[ugc-polling] Script "${script.title}" AI editing failed on 3rdAI server.`);
+          console.error(`[ugc-polling] Script "${script.title}" AI editing failed on 3rdAI server:`, job.errorMessage);
           script.processingStatus = "failed";
           script.processingProgress = 0;
           
@@ -96,10 +96,12 @@ async function pollRealAiJobs() {
             script.approvalStatus = "Pending";
           }
 
+          script.objectionNote = job.errorMessage || "AI video processing failed on external engine.";
+
           script.statusHistory.push({
             status: script.approvalStatus,
             changedBy: "3rdAI Engine",
-            note: "AI video processing failed on external engine."
+            note: job.errorMessage ? `AI video processing failed: ${job.errorMessage}` : "AI video processing failed on external engine."
           });
 
           await script.save();

@@ -2,6 +2,81 @@ const express = require("express");
 const { Script } = require("../models/Script");
 
 const router = express.Router();
+const { createPlan } = require("../services/calendarService");
+
+// Helper function to sync scheduled scripts with Daily Planner
+async function syncScriptToDailyPlanner(script) {
+  try {
+    if (!script.scheduledDate || script.scheduledDate === "Self-scheduled") return;
+    if (!script.scheduledTime || script.scheduledTime === "Self-scheduled") return;
+
+    let dateStr = script.scheduledDate;
+    let timeStr = script.scheduledTime;
+
+    // Parse date safely
+    const parsedDate = new Date(dateStr);
+    let planDate = dateStr;
+    if (!isNaN(parsedDate.getTime())) {
+      const yyyy = parsedDate.getFullYear();
+      const mm = String(parsedDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(parsedDate.getDate()).padStart(2, '0');
+      planDate = `${yyyy}-${mm}-${dd}`;
+    } else {
+      const clean = dateStr.replace(/,/g, "").trim();
+      const parts = clean.split(/\s+/);
+      const months = {
+        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+        jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+      };
+      const monthIdx = parts.findIndex(p => months[p.toLowerCase().substring(0, 3)] !== undefined);
+      if (monthIdx !== -1) {
+        const monthVal = months[parts[monthIdx].toLowerCase().substring(0, 3)];
+        const dayVal = Number(parts[monthIdx - 1]) || Number(parts[monthIdx + 1]);
+        const yearVal = Number(parts[parts.length - 1]);
+        if (dayVal && yearVal) {
+          const d = new Date(yearVal, monthVal, dayVal);
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          planDate = `${yyyy}-${mm}-${dd}`;
+        }
+      }
+    }
+
+    // Parse time safely
+    let planTime = "09:00";
+    if (timeStr) {
+      const ampmMatch = timeStr.match(/(am|pm)/i);
+      const timeParts = timeStr.replace(/(am|pm)/i, "").trim().split(":");
+      let hr = Number(timeParts[0]);
+      let min = timeParts[1] || "00";
+      if (ampmMatch) {
+        const isPm = ampmMatch[0].toLowerCase() === "pm";
+        if (isPm && hr < 12) hr += 12;
+        if (!isPm && hr === 12) hr = 0;
+      }
+      planTime = `${String(hr).padStart(2, '0')}:${min}`;
+    }
+
+    // Determine if script was assigned by admin or self-created
+    const isAssigned = script.createdByAdmin === true;
+    const titlePrefix = isAssigned ? "[Assigned Shoot]" : "[My Shoot]";
+
+    // Sync to Daily Planner via calendarService
+    await createPlan({
+      title: `${titlePrefix} ${script.title}`,
+      description: isAssigned
+        ? `Admin-assigned UGC Script: ${script.description || script.title}`
+        : `Self-created UGC Script: ${script.description || script.title}`,
+      category: "ugc",
+      plan_date: planDate,
+      plan_time: planTime
+    });
+    console.log(`[planner-sync] Script "${script.title}" synced successfully to Daily Planner: ${planDate} at ${planTime}.`);
+  } catch (err) {
+    console.error(`[planner-sync-error] Failed to sync script "${script.title}" to Daily Planner:`, err.message);
+  }
+}
 
 // ── GET all scripts for authenticated user ───────────────────────────────
 router.get("/scripts", async (req, res) => {
@@ -62,7 +137,7 @@ router.get("/scripts", async (req, res) => {
 router.post("/scripts", async (req, res) => {
   try {
     const userId = req.user.sub;
-    const { title, body, category, description } = req.body;
+    const { title, body, category, description, scheduledDate, scheduledTime } = req.body;
 
     if (!title?.trim() || !body?.trim() || !category?.trim()) {
       return res.status(400).json({ error: "title, body, and category are required" });
@@ -87,10 +162,13 @@ router.post("/scripts", async (req, res) => {
       description: description ? description.trim() : null,
       category: category.trim(),
       duration,
-      scheduledDate: "Self-scheduled",
-      scheduledTime: "Self-scheduled",
+      scheduledDate: scheduledDate || "Self-scheduled",
+      scheduledTime: scheduledTime || "Self-scheduled",
       approvalStatus: "Pending"
     });
+
+    // Sync script to Daily Planner
+    await syncScriptToDailyPlanner(script);
 
     return res.status(201).json({
       scriptId: script._id.toString(),
@@ -234,7 +312,7 @@ router.put("/scripts/:id/status", async (req, res) => {
       return res.status(404).json({ error: "NOT_FOUND" });
     }
 
-    const { status, note } = req.body;
+    const { status, note, sendMode } = req.body;
     const allowed = ["Draft", "Pending", "Waiting", "Submitted", "Editing", "Edited", "Approved", "Rejected", "Objection"];
     if (!status || !allowed.includes(status)) {
       return res.status(400).json({ error: "invalid or missing status" });
@@ -249,6 +327,9 @@ router.put("/scripts/:id/status", async (req, res) => {
       script.approvalStatus = "Editing";
       script.processingStatus = "processing";
       script.processingProgress = 10;
+      if (sendMode) {
+        script.sendMode = sendMode;
+      }
       triggerPipeline = true;
     } else {
       script.approvalStatus = status;
@@ -303,6 +384,9 @@ router.post("/scripts/:id/accept", async (req, res) => {
     });
     await script.save();
 
+    // Sync script template schedule to Daily Planner upon acceptance
+    await syncScriptToDailyPlanner(script);
+
     return res.json({
       success: true,
       scriptId: script._id.toString(),
@@ -346,12 +430,11 @@ router.post("/scripts/:id/upload-video", videoUpload.single("video"), async (req
     script.rawVideoUrl = uploaded.url;
     script.processingStatus = "none";
     script.processingProgress = 0;
-    script.approvalStatus = "Submitted";
     
     script.statusHistory.push({
-      status: "Submitted",
+      status: script.approvalStatus,
       changedBy: "Creator",
-      note: "Creator uploaded raw video. Awaiting approval or AI edit request."
+      note: "Creator uploaded raw video. Ready for preview."
     });
     await script.save();
 
@@ -486,8 +569,10 @@ router.put("/scripts/:id", async (req, res) => {
     if (duration !== undefined) script.duration = duration;
     if (scheduledDate !== undefined) script.scheduledDate = scheduledDate;
     if (scheduledTime !== undefined) script.scheduledTime = scheduledTime;
-
     await script.save();
+
+    // Sync updated script schedule to Daily Planner
+    await syncScriptToDailyPlanner(script);
 
     return res.json({
       success: true,

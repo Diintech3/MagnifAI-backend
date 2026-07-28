@@ -26,12 +26,57 @@ const {
   uploadChatFile,
   testVoiceSettings,
   submitAgentFeedback,
-  getAgentFeedbacks
+  getAgentFeedbacks,
+  registerSubUser,
+  loginSubUser,
+  addFaqToAgent
 } = require("../services/agentAiService");
 
 const { bookMeetingViaSubAgent, getBookedDates } = require("../services/calendarService");
 const { logoUpload } = require("../middleware/upload");
 const { uploadToR2, isR2Configured } = require("../utils/r2");
+
+// ── Token Resolution Helper Functions ──────────────────────────────────────
+
+async function getContextToken(req) {
+  if (req && req.user && req.user.role === "CEO") {
+    try {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(req.user.sub);
+      if (ceo && ceo.ragToken) {
+        return ceo.ragToken;
+      }
+    } catch (err) {
+      console.error("[getContextToken-error]", err.message);
+    }
+  }
+  return undefined;
+}
+
+async function resolveTokenByAgentId(agentId) {
+  if (!agentId) return undefined;
+  try {
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findOne({ agentId });
+    if (ceo && ceo.ragToken) {
+      return ceo.ragToken;
+    }
+  } catch (err) {
+    console.error("[resolveTokenByAgentId-error]", err.message);
+  }
+  return undefined;
+}
+
+async function resolveToken(req, agentId) {
+  let token = undefined;
+  if (agentId) {
+    token = await resolveTokenByAgentId(agentId);
+  }
+  if (!token && req) {
+    token = await getContextToken(req);
+  }
+  return token;
+}
 
 const router = express.Router();
 
@@ -57,7 +102,8 @@ function getRequestConfig() {
 router.get("/:agent_id/public-config", async (req, res) => {
   try {
     const { agent_id } = req.params;
-    const details = await getAgentDetails(agent_id);
+    const clientToken = await resolveToken(req, agent_id);
+    const details = await getAgentDetails(agent_id, clientToken);
     return res.json({
       name: details.name,
       category: details.category,
@@ -76,7 +122,8 @@ router.get("/:agent_id/public-config", async (req, res) => {
 router.post("/:agent_id/public-ask", async (req, res) => {
   try {
     const { agent_id } = req.params;
-    const data = await publicAskAgent(agent_id, req.body);
+    const clientToken = await resolveToken(req, agent_id);
+    const data = await publicAskAgent(agent_id, req.body, clientToken);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "PUBLIC_ASK_ERROR", message: err.message });
@@ -95,7 +142,9 @@ router.get("/:agent_id/speak", async (req, res) => {
       return res.status(400).json({ error: "TEXT_REQUIRED" });
     }
 
-    const { baseUrl, token } = getRequestConfig();
+    const clientToken = await resolveToken(req, agent_id);
+    const { baseUrl, token: defaultToken } = getRequestConfig();
+    const token = clientToken || defaultToken;
     const externalSpeakUrl = `${baseUrl}/api/agents/${agent_id}/speak?text=${encodeURIComponent(text)}`;
 
     const response = await axios.get(externalSpeakUrl, {
@@ -121,7 +170,8 @@ router.get("/:agent_id/public-history", async (req, res) => {
   try {
     const { agent_id } = req.params;
     const { device_id, session_id } = req.query;
-    const data = await getPublicVisitorHistory(agent_id, device_id, session_id);
+    const clientToken = await resolveToken(req, agent_id);
+    const data = await getPublicVisitorHistory(agent_id, device_id, session_id, clientToken);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "PUBLIC_HISTORY_ERROR", message: err.message });
@@ -136,7 +186,8 @@ router.get("/:agent_id/session-status", async (req, res) => {
   try {
     const { agent_id } = req.params;
     const { device_id, session_id } = req.query;
-    const data = await getPublicSessionStatus(agent_id, device_id, session_id);
+    const clientToken = await resolveToken(req, agent_id);
+    const data = await getPublicSessionStatus(agent_id, device_id, session_id, clientToken);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "SESSION_STATUS_ERROR", message: err.message });
@@ -169,7 +220,8 @@ router.post("/:agent_id/feedback", async (req, res) => {
       }
     }
 
-    const data = await submitAgentFeedback(agent_id, req.body);
+    const clientToken = await resolveToken(req, agent_id);
+    const data = await submitAgentFeedback(agent_id, req.body, clientToken);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "SUBMIT_FEEDBACK_ERROR", message: err.message });
@@ -186,7 +238,8 @@ router.use(requireAuth);
  */
 router.get("/", async (req, res) => {
   try {
-    const data = await listAgents();
+    const token = await resolveToken(req);
+    const data = await listAgents(token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "LIST_AGENTS_ERROR", message: err.message });
@@ -199,7 +252,12 @@ router.get("/", async (req, res) => {
  */
 router.post("/", async (req, res) => {
   try {
-    const data = await createAgent(req.body);
+    const token = await resolveToken(req);
+    const data = await createAgent(req.body, token);
+    if (req.user.role === "CEO") {
+      const { CEO } = require("../models/CEO");
+      await CEO.findByIdAndUpdate(req.user.sub, { agentId: data.agent_id });
+    }
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "CREATE_AGENT_ERROR", message: err.message });
@@ -231,7 +289,8 @@ router.post("/upload-image", logoUpload.single("image"), async (req, res) => {
  */
 router.post("/test-voice", async (req, res) => {
   try {
-    const data = await testVoiceSettings(req.body);
+    const token = await resolveToken(req);
+    const data = await testVoiceSettings(req.body, token);
     res.setHeader("Content-Type", "audio/mpeg");
     return res.send(data);
   } catch (err) {
@@ -246,7 +305,8 @@ router.post("/test-voice", async (req, res) => {
 router.get("/:agent_id", async (req, res) => {
   try {
     const { agent_id } = req.params;
-    const data = await getAgentDetails(agent_id);
+    const token = await resolveToken(req, agent_id);
+    const data = await getAgentDetails(agent_id, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "GET_AGENT_ERROR", message: err.message });
@@ -260,7 +320,8 @@ router.get("/:agent_id", async (req, res) => {
 router.patch("/:agent_id", async (req, res) => {
   try {
     const { agent_id } = req.params;
-    const data = await updateAgent(agent_id, req.body);
+    const token = await resolveToken(req, agent_id);
+    const data = await updateAgent(agent_id, req.body, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "UPDATE_AGENT_ERROR", message: err.message });
@@ -274,7 +335,8 @@ router.patch("/:agent_id", async (req, res) => {
 router.delete("/:agent_id", async (req, res) => {
   try {
     const { agent_id } = req.params;
-    const data = await deleteAgent(agent_id);
+    const token = await resolveToken(req, agent_id);
+    const data = await deleteAgent(agent_id, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "DELETE_AGENT_ERROR", message: err.message });
@@ -291,11 +353,13 @@ router.post("/:agent_id/upload-pdf", pdfUpload.single("file"), async (req, res) 
     if (!req.file) {
       return res.status(400).json({ error: "FILE_REQUIRED" });
     }
+    const token = await resolveToken(req, agent_id);
     const data = await uploadPdfToAgent(
       agent_id,
       req.file.buffer,
       req.file.originalname,
-      req.file.mimetype
+      req.file.mimetype,
+      token
     );
     return res.json(data);
   } catch (err) {
@@ -314,10 +378,30 @@ router.post("/:agent_id/ingest-url", async (req, res) => {
     if (!url) {
       return res.status(400).json({ error: "URL_REQUIRED" });
     }
-    const data = await ingestUrlToAgent(agent_id, url);
+    const token = await resolveToken(req, agent_id);
+    const data = await ingestUrlToAgent(agent_id, url, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "INGEST_URL_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Add FAQ (Q&A pair) to agent customization
+ * POST /api/agents/:agent_id/faq
+ */
+router.post("/:agent_id/faq", async (req, res) => {
+  try {
+    const { agent_id } = req.params;
+    const { q, a } = req.body;
+    if (!q || !a) {
+      return res.status(400).json({ error: "QUESTION_AND_ANSWER_REQUIRED" });
+    }
+    const token = await resolveToken(req, agent_id);
+    const data = await addFaqToAgent(agent_id, q, a, token);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "ADD_FAQ_ERROR", message: err.message });
   }
 });
 
@@ -328,7 +412,8 @@ router.post("/:agent_id/ingest-url", async (req, res) => {
 router.delete("/:agent_id/sources/:source_id", async (req, res) => {
   try {
     const { agent_id, source_id } = req.params;
-    const data = await removeSourceFromAgent(agent_id, source_id);
+    const token = await resolveToken(req, agent_id);
+    const data = await removeSourceFromAgent(agent_id, source_id, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "REMOVE_SOURCE_ERROR", message: err.message });
@@ -342,7 +427,8 @@ router.delete("/:agent_id/sources/:source_id", async (req, res) => {
 router.get("/:agent_id/sessions", async (req, res) => {
   try {
     const { agent_id } = req.params;
-    const data = await getVisitorSessions(agent_id);
+    const token = await resolveToken(req, agent_id);
+    const data = await getVisitorSessions(agent_id, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "GET_SESSIONS_ERROR", message: err.message });
@@ -356,7 +442,8 @@ router.get("/:agent_id/sessions", async (req, res) => {
 router.get("/:agent_id/user-sessions", async (req, res) => {
   try {
     const { agent_id } = req.params;
-    const data = await getVisitorUserSessions(agent_id);
+    const token = await resolveToken(req, agent_id);
+    const data = await getVisitorUserSessions(agent_id, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "GET_USER_SESSIONS_ERROR", message: err.message });
@@ -370,7 +457,8 @@ router.get("/:agent_id/user-sessions", async (req, res) => {
 router.get("/sessions/:session_id/history", async (req, res) => {
   try {
     const { session_id } = req.params;
-    const data = await getSessionHistory(session_id);
+    const token = await resolveToken(req);
+    const data = await getSessionHistory(session_id, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "GET_HISTORY_ERROR", message: err.message });
@@ -384,7 +472,8 @@ router.get("/sessions/:session_id/history", async (req, res) => {
 router.post("/sessions/:session_id/analyze", async (req, res) => {
   try {
     const { session_id } = req.params;
-    const data = await analyzeSession(session_id);
+    const token = await resolveToken(req);
+    const data = await analyzeSession(session_id, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "ANALYZE_SESSION_ERROR", message: err.message });
@@ -401,7 +490,8 @@ router.post("/sessions/analyze-device", async (req, res) => {
     if (!agent_id || !device_id) {
       return res.status(400).json({ error: "AGENT_ID_AND_DEVICE_ID_REQUIRED" });
     }
-    const data = await analyzeDevice(agent_id, device_id);
+    const token = await resolveToken(req, agent_id);
+    const data = await analyzeDevice(agent_id, device_id, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "ANALYZE_DEVICE_ERROR", message: err.message });
@@ -418,11 +508,13 @@ router.post("/:agent_id/upload-chat-file", pdfUpload.single("file"), async (req,
     if (!req.file) {
       return res.status(400).json({ error: "FILE_REQUIRED" });
     }
+    const token = await resolveToken(req, agent_id);
     const data = await uploadChatFile(
       agent_id,
       req.file.buffer,
       req.file.originalname,
-      req.file.mimetype
+      req.file.mimetype,
+      token
     );
     return res.json(data);
   } catch (err) {
@@ -441,7 +533,8 @@ router.post("/:agent_id/ask", async (req, res) => {
     if (!question) {
       return res.status(400).json({ error: "QUESTION_REQUIRED" });
     }
-    const data = await askAgent(agent_id, question, history || [], !!is_voice);
+    const token = await resolveToken(req, agent_id);
+    const data = await askAgent(agent_id, question, history || [], !!is_voice, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "ASK_ERROR", message: err.message });
@@ -455,7 +548,8 @@ router.post("/:agent_id/ask", async (req, res) => {
 router.post("/sessions/:session_id/send-action", async (req, res) => {
   try {
     const { session_id } = req.params;
-    const data = await sendSessionAction(session_id, req.body);
+    const token = await resolveToken(req);
+    const data = await sendSessionAction(session_id, req.body, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "SEND_ACTION_ERROR", message: err.message });
@@ -469,7 +563,8 @@ router.post("/sessions/:session_id/send-action", async (req, res) => {
 router.delete("/sessions/:session_id/clear-action", async (req, res) => {
   try {
     const { session_id } = req.params;
-    const data = await clearSessionAction(session_id);
+    const token = await resolveToken(req);
+    const data = await clearSessionAction(session_id, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "CLEAR_ACTION_ERROR", message: err.message });
@@ -483,7 +578,8 @@ router.delete("/sessions/:session_id/clear-action", async (req, res) => {
 router.get("/:agent_id/feedback", async (req, res) => {
   try {
     const { agent_id } = req.params;
-    const data = await getAgentFeedbacks(agent_id);
+    const token = await resolveToken(req, agent_id);
+    const data = await getAgentFeedbacks(agent_id, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "GET_FEEDBACKS_ERROR", message: err.message });
@@ -497,7 +593,8 @@ router.get("/:agent_id/feedback", async (req, res) => {
 router.post("/:agent_id/book-meeting", async (req, res) => {
   try {
     const { agent_id } = req.params;
-    const data = await bookMeetingViaSubAgent(agent_id, req.body);
+    const token = await resolveToken(req, agent_id);
+    const data = await bookMeetingViaSubAgent(agent_id, req.body, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "BOOK_MEETING_ERROR", message: err.message });
@@ -511,10 +608,93 @@ router.post("/:agent_id/book-meeting", async (req, res) => {
 router.get("/:agent_id/booked-dates", async (req, res) => {
   try {
     const { agent_id } = req.params;
-    const data = await getBookedDates(agent_id);
+    const token = await resolveToken(req, agent_id);
+    const data = await getBookedDates(agent_id, token);
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "GET_BOOKED_DATES_ERROR", message: err.message });
+  }
+});
+
+// ── Reseller Sub-User (Client) Admin Onboarding Routes ──────────────────────
+
+/**
+ * Register a new sub-user (client) on RAG and link to CEO
+ * POST /api/agents/clients/register
+ */
+router.post("/clients/register", async (req, res) => {
+  try {
+    const { ceoId, name, email, password, business_name, website_url, gst_number, pan_number, user_type, mobile_number, city, pin_code, address, dob, profession, logo_url } = req.body;
+    if (!ceoId) {
+      return res.status(400).json({ error: "CEO_ID_REQUIRED" });
+    }
+
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(ceoId);
+    if (!ceo) {
+      return res.status(404).json({ error: "CEO_NOT_FOUND" });
+    }
+
+    // Call RAG sub-user registration
+    const data = await registerSubUser({
+      name: name || ceo.name,
+      email: email || ceo.email,
+      password: password || "tempPassword123!", // dynamic or fallback
+      business_name: business_name || ceo.company || ceo.name,
+      website_url: website_url || ceo.website || "",
+      gst_number: gst_number || "",
+      pan_number: pan_number || "",
+      user_type: user_type || "Prime",
+      mobile_number: mobile_number || ceo.mobile || "",
+      city: city || ceo.city || "",
+      pin_code: pin_code || ceo.pincode || "",
+      address: address || ceo.address || "",
+      dob: dob || "1990-01-01",
+      profession: profession || ceo.designation || "",
+      logo_url: logo_url || ceo.photoUrl || ""
+    });
+
+    if (data && data.success && data.user) {
+      // Store returned credentials back to CEO
+      await CEO.findByIdAndUpdate(ceoId, {
+        ragClientId: data.user.client_id,
+        ragToken: data.user.token
+      });
+      return res.json({ success: true, user: data.user });
+    }
+
+    return res.status(500).json({ error: "REGISTRATION_FAILED", message: data.message || "Unknown RAG registration error" });
+  } catch (err) {
+    return res.status(500).json({ error: "CLIENT_REGISTER_ERROR", message: err.message });
+  }
+});
+
+/**
+ * Log in a sub-user on RAG to fetch/refresh token
+ * POST /api/agents/clients/login
+ */
+router.post("/clients/login", async (req, res) => {
+  try {
+    const { email, password, ceoId } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "EMAIL_AND_PASSWORD_REQUIRED" });
+    }
+
+    const data = await loginSubUser({ email, password });
+    if (data && data.token) {
+      if (ceoId) {
+        const { CEO } = require("../models/CEO");
+        await CEO.findByIdAndUpdate(ceoId, {
+          ragClientId: data.client_id,
+          ragToken: data.token
+        });
+      }
+      return res.json({ success: true, token: data.token, client_id: data.client_id });
+    }
+
+    return res.status(401).json({ error: "LOGIN_FAILED", message: data.message || "Invalid credentials" });
+  } catch (err) {
+    return res.status(500).json({ error: "CLIENT_LOGIN_ERROR", message: err.message });
   }
 });
 

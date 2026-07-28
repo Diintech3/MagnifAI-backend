@@ -41,19 +41,19 @@ function isAiConfigured() {
   return Boolean(env.UGC_AI_BASE_URL && env.UGC_AI_APP_TOKEN);
 }
 
-function getRequestConfig() {
+function getRequestConfig(overrideToken) {
   if (!isAiConfigured()) {
     throw new Error("UGC AI configuration (URL/Token) is missing");
   }
   const baseUrl = env.UGC_AI_BASE_URL.replace(/\/$/, "");
-  const token = env.UGC_AI_APP_TOKEN;
+  const token = overrideToken || env.UGC_AI_APP_TOKEN;
   return { baseUrl, token };
 }
 
 // ── Agent CRUD ───────────────────────────────────────────────────────────
 
-async function createAgent(agentData) {
-  const { baseUrl, token } = getRequestConfig();
+async function createAgent(agentData, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/agents`, agentData, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
@@ -65,8 +65,8 @@ async function createAgent(agentData) {
   }
 }
 
-async function updateAgent(agentId, agentData) {
-  const { baseUrl, token } = getRequestConfig();
+async function updateAgent(agentId, agentData, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.patch(`${baseUrl}/api/agents/${agentId}`, agentData, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
@@ -78,8 +78,8 @@ async function updateAgent(agentId, agentData) {
   }
 }
 
-async function listAgents() {
-  const { baseUrl, token } = getRequestConfig();
+async function listAgents(overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.get(`${baseUrl}/api/agents`, {
       headers: { "X-App-Token": token }
@@ -91,8 +91,8 @@ async function listAgents() {
   }
 }
 
-async function getAgentDetails(agentId) {
-  const { baseUrl, token } = getRequestConfig();
+async function getAgentDetails(agentId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.get(`${baseUrl}/api/agents/${agentId}`, {
       headers: { "X-App-Token": token }
@@ -104,8 +104,8 @@ async function getAgentDetails(agentId) {
   }
 }
 
-async function deleteAgent(agentId) {
-  const { baseUrl, token } = getRequestConfig();
+async function deleteAgent(agentId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.delete(`${baseUrl}/api/agents/${agentId}`, {
       headers: { "X-App-Token": token }
@@ -119,8 +119,8 @@ async function deleteAgent(agentId) {
 
 // ── Knowledge Base ────────────────────────────────────────────────────────
 
-async function uploadPdfToAgent(agentId, fileBuffer, filename, mimetype) {
-  const { baseUrl, token } = getRequestConfig();
+async function uploadPdfToAgent(agentId, fileBuffer, filename, mimetype, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   const form = new FormData();
   form.append("file", fileBuffer, { filename, contentType: mimetype });
 
@@ -141,8 +141,8 @@ async function uploadPdfToAgent(agentId, fileBuffer, filename, mimetype) {
   }
 }
 
-async function ingestUrlToAgent(agentId, url) {
-  const { baseUrl, token } = getRequestConfig();
+async function ingestUrlToAgent(agentId, url, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/agents/${agentId}/ingest-url`, { url }, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
@@ -154,8 +154,8 @@ async function ingestUrlToAgent(agentId, url) {
   }
 }
 
-async function removeSourceFromAgent(agentId, sourceId) {
-  const { baseUrl, token } = getRequestConfig();
+async function removeSourceFromAgent(agentId, sourceId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.delete(`${baseUrl}/api/agents/${agentId}/sources/${sourceId}`, {
       headers: { "X-App-Token": token }
@@ -163,6 +163,30 @@ async function removeSourceFromAgent(agentId, sourceId) {
     return res.data;
   } catch (err) {
     console.error("[agent-remove-source-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+async function addFaqToAgent(agentId, q, a, overrideToken) {
+  try {
+    const details = await getAgentDetails(agentId, overrideToken);
+    const customization = details.customization || {};
+    const qa_pairs = customization.qa_pairs || [];
+    
+    // Add the new Q&A pair
+    qa_pairs.push({ q: String(q).trim(), a: String(a).trim() });
+    
+    // Update the agent
+    const updated = await updateAgent(agentId, {
+      customization: {
+        ...customization,
+        qa_pairs
+      }
+    }, overrideToken);
+    
+    return updated;
+  } catch (err) {
+    console.error("[agent-add-faq-error]", getCleanErrorMessage(err));
     throw new Error(getCleanErrorMessage(err));
   }
 }
@@ -197,8 +221,8 @@ function sanitizeSessionItem(session) {
   return item;
 }
 
-async function getVisitorSessions(agentId) {
-  const { baseUrl, token } = getRequestConfig();
+async function getVisitorSessions(agentId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.get(`${baseUrl}/api/agents/${agentId}/sessions`, {
       headers: { "X-App-Token": token }
@@ -246,8 +270,8 @@ async function getVisitorSessions(agentId) {
   }
 }
 
-async function getVisitorUserSessions(agentId) {
-  const { baseUrl, token } = getRequestConfig();
+async function getVisitorUserSessions(agentId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.get(`${baseUrl}/api/agents/${agentId}/sessions`, {
       headers: { "X-App-Token": token }
@@ -308,8 +332,8 @@ async function getVisitorUserSessions(agentId) {
   }
 }
 
-async function getSessionHistory(sessionId) {
-  const { baseUrl, token } = getRequestConfig();
+async function getSessionHistory(sessionId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.get(`${baseUrl}/api/agents/sessions/${sessionId}/history`, {
       headers: { "X-App-Token": token }
@@ -321,8 +345,8 @@ async function getSessionHistory(sessionId) {
   }
 }
 
-async function getPublicVisitorHistory(agentId, deviceId, sessionId) {
-  const { baseUrl, token } = getRequestConfig();
+async function getPublicVisitorHistory(agentId, deviceId, sessionId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const query = [];
     if (deviceId) query.push(`device_id=${encodeURIComponent(deviceId)}`);
@@ -339,8 +363,8 @@ async function getPublicVisitorHistory(agentId, deviceId, sessionId) {
   }
 }
 
-async function getPublicSessionStatus(agentId, deviceId, sessionId) {
-  const { baseUrl, token } = getRequestConfig();
+async function getPublicSessionStatus(agentId, deviceId, sessionId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const query = [];
     if (deviceId) query.push(`device_id=${encodeURIComponent(deviceId)}`);
@@ -357,8 +381,8 @@ async function getPublicSessionStatus(agentId, deviceId, sessionId) {
   }
 }
 
-async function sendSessionAction(sessionId, payload) {
-  const { baseUrl, token } = getRequestConfig();
+async function sendSessionAction(sessionId, payload, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/agents/sessions/${sessionId}/send-action`, payload, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
@@ -370,8 +394,8 @@ async function sendSessionAction(sessionId, payload) {
   }
 }
 
-async function clearSessionAction(sessionId) {
-  const { baseUrl, token } = getRequestConfig();
+async function clearSessionAction(sessionId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.delete(`${baseUrl}/api/agents/sessions/${sessionId}/clear-action`, {
       headers: { "X-App-Token": token }
@@ -383,8 +407,8 @@ async function clearSessionAction(sessionId) {
   }
 }
 
-async function analyzeSession(sessionId) {
-  const { baseUrl, token } = getRequestConfig();
+async function analyzeSession(sessionId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/agents/sessions/${sessionId}/analyze`, {}, {
       headers: { "X-App-Token": token }
@@ -398,8 +422,8 @@ async function analyzeSession(sessionId) {
 
 // ── Ask Chat ──────────────────────────────────────────────────────────────
 
-async function askAgent(agentId, question, history, isVoice = false) {
-  const { baseUrl, token } = getRequestConfig();
+async function askAgent(agentId, question, history, isVoice = false, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/agents/${agentId}/ask`, {
       question,
@@ -415,8 +439,8 @@ async function askAgent(agentId, question, history, isVoice = false) {
   }
 }
 
-async function publicAskAgent(agentId, payload) {
-  const { baseUrl, token } = getRequestConfig();
+async function publicAskAgent(agentId, payload, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/agents/${agentId}/public-ask`, payload, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
@@ -451,8 +475,8 @@ async function testVoiceSettings(voiceConfig) {
 
 // ── Feedback & Reports ───────────────────────────────────────────────────
 
-async function submitAgentFeedback(agentId, payload) {
-  const { baseUrl, token } = getRequestConfig();
+async function submitAgentFeedback(agentId, payload, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/agents/${agentId}/feedback`, payload, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
@@ -464,8 +488,8 @@ async function submitAgentFeedback(agentId, payload) {
   }
 }
 
-async function getAgentFeedbacks(agentId) {
-  const { baseUrl, token } = getRequestConfig();
+async function getAgentFeedbacks(agentId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.get(`${baseUrl}/api/agents/${agentId}/feedback`, {
       headers: { "X-App-Token": token }
@@ -477,8 +501,8 @@ async function getAgentFeedbacks(agentId) {
   }
 }
 
-async function analyzeDevice(agentId, deviceId) {
-  const { baseUrl, token } = getRequestConfig();
+async function analyzeDevice(agentId, deviceId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/agents/sessions/analyze-device`, {
       agent_id: agentId,
@@ -493,8 +517,8 @@ async function analyzeDevice(agentId, deviceId) {
   }
 }
 
-async function uploadChatFile(agentId, fileBuffer, filename, mimetype) {
-  const { baseUrl, token } = getRequestConfig();
+async function uploadChatFile(agentId, fileBuffer, filename, mimetype, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   const form = new FormData();
   form.append("file", fileBuffer, { filename, contentType: mimetype });
 
@@ -511,6 +535,34 @@ async function uploadChatFile(agentId, fileBuffer, filename, mimetype) {
     return res.data;
   } catch (err) {
     console.error("[agent-upload-chat-file-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+// ── Reseller Client (Sub-User) Management ───────────────────────────────────
+
+async function registerSubUser(subUserData) {
+  const { baseUrl, token } = getRequestConfig(); // Always uses Parent App Token to register
+  try {
+    const res = await axios.post(`${baseUrl}/api/clients/sub-users`, subUserData, {
+      headers: { "X-App-Token": token, "Content-Type": "application/json" }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[sub-user-register-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+async function loginSubUser(credentials) {
+  const { baseUrl } = getRequestConfig(); // Endpoint does not require Parent token in header
+  try {
+    const res = await axios.post(`${baseUrl}/api/clients/login`, credentials, {
+      headers: { "Content-Type": "application/json" }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[sub-user-login-error]", getCleanErrorMessage(err));
     throw new Error(getCleanErrorMessage(err));
   }
 }
@@ -541,5 +593,8 @@ module.exports = {
   testVoiceSettings,
   submitAgentFeedback,
   getAgentFeedbacks,
-  sanitizeSessionItem
+  sanitizeSessionItem,
+  registerSubUser,
+  loginSubUser,
+  addFaqToAgent
 };

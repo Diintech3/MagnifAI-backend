@@ -240,6 +240,8 @@ router.get("/me", requireAuth, async (req, res) => {
         showCandidates: false,
         dashboardType: "default",
         isCEO: true,
+        designation: ceo.designation,
+        company: ceo.company,
       });
     }
 
