@@ -240,7 +240,16 @@ router.get("/", async (req, res) => {
   try {
     const token = await resolveToken(req);
     const data = await listAgents(token);
-    return res.json(data);
+    const origin = req.headers.origin || "http://localhost:5173";
+    const enriched = (data || []).map(agent => {
+      const chatLink = `${origin}/agent-chat?id=${agent.agent_id}`;
+      return {
+        ...agent,
+        publicChatUrl: chatLink,
+        qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(chatLink)}`
+      };
+    });
+    return res.json(enriched);
   } catch (err) {
     return res.status(500).json({ error: "LIST_AGENTS_ERROR", message: err.message });
   }
@@ -307,6 +316,12 @@ router.get("/:agent_id", async (req, res) => {
     const { agent_id } = req.params;
     const token = await resolveToken(req, agent_id);
     const data = await getAgentDetails(agent_id, token);
+    const origin = req.headers.origin || "http://localhost:5173";
+    if (data) {
+      const chatLink = `${origin}/agent-chat?id=${data.agent_id}`;
+      data.publicChatUrl = chatLink;
+      data.qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(chatLink)}`;
+    }
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "GET_AGENT_ERROR", message: err.message });

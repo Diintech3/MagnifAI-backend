@@ -20,6 +20,7 @@ const candidateSchema = new mongoose.Schema(
     photoKey: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
     sendMode: { type: String, enum: ["auto", "manual"], default: "auto" },
+    adminReviewMode: { type: String, enum: ["auto", "manual"], default: "manual" },
   },
   { timestamps: true },
 );
@@ -42,6 +43,7 @@ function toPublicCandidate(doc) {
     isActive: doc.isActive !== false,
     hasPassword: Boolean(doc.passwordHash),
     sendMode: doc.sendMode || "auto",
+    adminReviewMode: doc.adminReviewMode || "manual",
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   };

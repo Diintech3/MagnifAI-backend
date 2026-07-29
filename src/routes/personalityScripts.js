@@ -428,15 +428,39 @@ router.post("/scripts/:id/upload-video", videoUpload.single("video"), async (req
     const uploaded = await uploadToR2(req.file, "scripts/videos/raw");
     
     script.rawVideoUrl = uploaded.url;
-    script.processingStatus = "none";
-    script.processingProgress = 0;
     
-    script.statusHistory.push({
-      status: script.approvalStatus,
-      changedBy: "Creator",
-      note: "Creator uploaded raw video. Ready for preview."
-    });
-    await script.save();
+    const { CEO } = require("../models/CEO");
+    const { Candidate } = require("../models/Candidate");
+    let creatorObj = await CEO.findById(userId);
+    if (!creatorObj) {
+      creatorObj = await Candidate.findById(userId);
+    }
+    const resolvedAdminReviewMode = creatorObj?.adminReviewMode || "manual";
+
+    if (resolvedAdminReviewMode === "auto") {
+      script.approvalStatus = "Editing";
+      script.processingStatus = "processing";
+      script.processingProgress = 10;
+      script.statusHistory.push({
+        status: "Editing",
+        changedBy: "System (Auto-Approve)",
+        note: "Creator uploaded raw video. Auto-verification is active. Triggering AI processing pipeline."
+      });
+      await script.save();
+
+      triggerAiPipelineForScript(script._id.toString()).catch(err => {
+        console.error(`[creator-upload-auto-trigger-error] Failed to auto-trigger pipeline for script ${script._id}:`, err.message);
+      });
+    } else {
+      script.processingStatus = "none";
+      script.processingProgress = 0;
+      script.statusHistory.push({
+        status: script.approvalStatus,
+        changedBy: "Creator",
+        note: "Creator uploaded raw video. Ready for preview."
+      });
+      await script.save();
+    }
 
     return res.json({
       success: true,

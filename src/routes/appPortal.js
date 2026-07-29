@@ -11,7 +11,7 @@ const { uploadToR2, isR2Configured } = require("../utils/r2");
 const { candidateUpload, logoUpload } = require("../middleware/upload");
 const { candidatesRouter } = require("./candidates");
 const { postsRouter } = require("./posts");
-const { registerSubUser } = require("../services/agentAiService");
+const { registerSubUser, listSubUsers, listAgents, createAgent } = require("../services/agentAiService");
 
 const router = express.Router();
 
@@ -389,6 +389,90 @@ const ceoPhotoUpload = require("multer")({
 router.get("/ceos", async (req, res) => {
   const app = await getAppForUser(req);
   if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+
+  // Sync sub-users from RAG server
+  try {
+    const ragData = await listSubUsers();
+    if (ragData && ragData.success && Array.isArray(ragData.users)) {
+      const defaultPasswordHash = await hashPassword("tempPassword123!");
+      for (const u of ragData.users) {
+        if (!u.email) continue;
+        const email = u.email.toLowerCase();
+
+        // Fetch first agentId for this sub-user from RAG server to maintain local agentId mapping
+        let agentIdVal = undefined;
+        if (u.token) {
+          try {
+            const agentsData = await listAgents(u.token);
+            const rootAgent = (agentsData || []).find(ag => ag.category === "root_assistant");
+            if (rootAgent) {
+              agentIdVal = rootAgent.agent_id;
+            } else {
+              // Auto-provision a new root agent if missing
+              try {
+                const newAgent = await createAgent({
+                  name: "Personal Assistant 👑",
+                  description: "Root Personal AI Assistant with full system control, memory, meeting scheduler, and media vault.",
+                  category: "root_assistant",
+                  personality: "Professional, helpful and efficient AI assistant.",
+                  starting_message: "Hello! I am your Personal AI Assistant. How can I help you today?",
+                  voice_config: { provider: "sarvam", voice_name: "neutral" },
+                  system_config: { provider: "gemini", model: "gemini-3.5-flash", system_prompt: "You are a helpful assistant." }
+                }, u.token);
+                agentIdVal = newAgent.agent_id;
+              } catch (createErr) {
+                console.error(`[auto-create-root-agent-failed] for ${u.email}:`, createErr.message);
+              }
+            }
+          } catch (agErr) {
+            // Ignore individual agent fetch failures
+          }
+        }
+
+        let ceo = await CEO.findOne({ email });
+        if (!ceo) {
+          ceo = await CEO.create({
+            appId: app._id,
+            name: u.name,
+            email,
+            mobile: u.mobile_number || "0000000000",
+            passwordHash: defaultPasswordHash,
+            company: u.business_name || "",
+            website: u.website_url || "",
+            city: u.city || "",
+            address: u.address || "",
+            pincode: u.pin_code || "",
+            photoUrl: u.logo_url || "",
+            designation: u.profession || "",
+            ragClientId: u.client_id,
+            ragToken: u.token,
+            agentId: agentIdVal,
+            isActive: true
+          });
+        } else {
+          // Update tokens/fields if they are empty or out of sync
+          let updated = false;
+          if (!ceo.ragClientId && u.client_id) { ceo.ragClientId = u.client_id; updated = true; }
+          if (!ceo.ragToken && u.token) { ceo.ragToken = u.token; updated = true; }
+          if (!ceo.agentId && agentIdVal) { ceo.agentId = agentIdVal; updated = true; }
+          if (ceo.agentId !== agentIdVal && agentIdVal) { ceo.agentId = agentIdVal; updated = true; }
+          if (!ceo.photoUrl && u.logo_url) { ceo.photoUrl = u.logo_url; updated = true; }
+          if (!ceo.company && u.business_name) { ceo.company = u.business_name; updated = true; }
+          if (!ceo.website && u.website_url) { ceo.website = u.website_url; updated = true; }
+          if (!ceo.city && u.city) { ceo.city = u.city; updated = true; }
+          if (!ceo.address && u.address) { ceo.address = u.address; updated = true; }
+          if (!ceo.pincode && u.pin_code) { ceo.pincode = u.pin_code; updated = true; }
+          if (!ceo.designation && u.profession) { ceo.designation = u.profession; updated = true; }
+          if (updated) {
+            await ceo.save();
+          }
+        }
+      }
+    }
+  } catch (syncErr) {
+    console.error("[ceos-sync-error]", syncErr.message);
+  }
+
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   const filter = { appId: app._id };
   if (q) {
@@ -397,6 +481,24 @@ router.get("/ceos", async (req, res) => {
   }
   const ceos = await CEO.find(filter).sort({ createdAt: -1 });
   return res.json({ ceos: ceos.map(toPublicCEO) });
+});
+
+router.get("/ceos/rag/:rag_client_id/agents", async (req, res) => {
+  try {
+    const { rag_client_id } = req.params;
+    const ceo = await CEO.findOne({ ragClientId: rag_client_id });
+    if (!ceo) {
+      return res.status(404).json({ error: "CEO_NOT_FOUND" });
+    }
+    if (!ceo.ragToken) {
+      return res.status(400).json({ error: "RAG_TOKEN_MISSING" });
+    }
+    const agents = await listAgents(ceo.ragToken);
+    return res.json({ success: true, agents });
+  } catch (err) {
+    console.error("[get-ceo-agents-by-rag-id-error]", err.message);
+    return res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: err.message });
+  }
 });
 
 router.post("/ceos", ceoPhotoUpload, async (req, res) => {
@@ -636,8 +738,8 @@ router.get("/creators", async (req, res) => {
     const candidates = await Candidate.find({ appId: app._id, isActive: true }).sort({ name: 1 });
 
     const creators = [
-      ...ceos.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "CEO", sendMode: c.sendMode || "auto" })),
-      ...candidates.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "Candidate", sendMode: c.sendMode || "auto" }))
+      ...ceos.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "CEO", sendMode: c.sendMode || "auto", adminReviewMode: c.adminReviewMode || "manual" })),
+      ...candidates.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "Candidate", sendMode: c.sendMode || "auto", adminReviewMode: c.adminReviewMode || "manual" }))
     ];
 
     return res.json({ creators });
@@ -679,6 +781,44 @@ router.put("/creators/:creatorId/send-mode", async (req, res) => {
     }
 
     return res.json({ success: true, sendMode: creator.sendMode });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT update a creator's adminReviewMode preference
+router.put("/creators/:creatorId/admin-review-mode", async (req, res) => {
+  try {
+    const app = await getAppForUser(req);
+    if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+
+    const { creatorId } = req.params;
+    const { adminReviewMode } = req.body;
+    if (!["auto", "manual"].includes(adminReviewMode)) {
+      return res.status(400).json({ error: "invalid adminReviewMode" });
+    }
+
+    // Try finding in CEO first
+    let creator = await CEO.findOneAndUpdate(
+      { _id: creatorId, appId: app._id },
+      { adminReviewMode },
+      { new: true }
+    );
+
+    if (!creator) {
+      // Try Candidate
+      creator = await Candidate.findOneAndUpdate(
+        { _id: creatorId, appId: app._id },
+        { adminReviewMode },
+        { new: true }
+      );
+    }
+
+    if (!creator) {
+      return res.status(404).json({ error: "CREATOR_NOT_FOUND" });
+    }
+
+    return res.json({ success: true, adminReviewMode: creator.adminReviewMode });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

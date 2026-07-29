@@ -20,7 +20,9 @@ const ceoSchema = new mongoose.Schema(
     isActive:     { type: Boolean, default: true },
     ragClientId:  { type: String, trim: true },
     ragToken:     { type: String, trim: true },
+    agentId:      { type: String, trim: true },
     sendMode:     { type: String, enum: ["auto", "manual"], default: "auto" },
+    adminReviewMode: { type: String, enum: ["auto", "manual"], default: "manual" },
   },
   { timestamps: true },
 );
@@ -48,6 +50,7 @@ function toPublicCEO(doc) {
     ragClientId: doc.ragClientId,
     ragToken:    doc.ragToken,
     sendMode:    doc.sendMode || "auto",
+    adminReviewMode: doc.adminReviewMode || "manual",
     createdAt:   doc.createdAt,
     updatedAt:   doc.updatedAt,
   };

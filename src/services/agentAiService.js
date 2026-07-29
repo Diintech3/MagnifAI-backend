@@ -567,6 +567,19 @@ async function loginSubUser(credentials) {
   }
 }
 
+async function listSubUsers() {
+  const { baseUrl, token } = getRequestConfig(); // Always uses Parent App Token
+  try {
+    const res = await axios.get(`${baseUrl}/api/clients/sub-users`, {
+      headers: { "X-App-Token": token }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[sub-users-list-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
 module.exports = {
   isAiConfigured,
   createAgent,
@@ -596,5 +609,7 @@ module.exports = {
   sanitizeSessionItem,
   registerSubUser,
   loginSubUser,
+  listSubUsers,
   addFaqToAgent
 };
+
