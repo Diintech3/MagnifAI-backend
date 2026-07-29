@@ -399,9 +399,11 @@ router.get("/ceos", async (req, res) => {
         if (!u.email) continue;
         const email = u.email.toLowerCase();
 
-        // Fetch first agentId for this sub-user from RAG server to maintain local agentId mapping
-        let agentIdVal = undefined;
-        if (u.token) {
+        let ceo = await CEO.findOne({ email });
+        let agentIdVal = ceo?.agentId;
+
+        // Only query external RAG server if the CEO doesn't have an agentId mapped locally yet
+        if (!agentIdVal && u.token) {
           try {
             const agentsData = await listAgents(u.token);
             const rootAgent = (agentsData || []).find(ag => ag.category === "root_assistant");
@@ -428,8 +430,6 @@ router.get("/ceos", async (req, res) => {
             // Ignore individual agent fetch failures
           }
         }
-
-        let ceo = await CEO.findOne({ email });
         if (!ceo) {
           ceo = await CEO.create({
             appId: app._id,

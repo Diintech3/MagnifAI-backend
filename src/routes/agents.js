@@ -242,7 +242,10 @@ router.get("/", async (req, res) => {
     const data = await listAgents(token);
     const origin = req.headers.origin || "http://localhost:5173";
     const enriched = (data || []).map(agent => {
-      const chatLink = `${origin}/agent-chat?id=${agent.agent_id}`;
+      const customLink = agent.customization && agent.customization.chat_link;
+      const chatLink = (customLink && customLink.trim())
+        ? customLink.trim()
+        : `${origin}/agent-chat?id=${agent.agent_id}`;
       return {
         ...agent,
         publicChatUrl: chatLink,
@@ -263,7 +266,7 @@ router.post("/", async (req, res) => {
   try {
     const token = await resolveToken(req);
     const data = await createAgent(req.body, token);
-    if (req.user.role === "CEO") {
+    if (req.user.role === "CEO" && req.body.category === "root_assistant") {
       const { CEO } = require("../models/CEO");
       await CEO.findByIdAndUpdate(req.user.sub, { agentId: data.agent_id });
     }
@@ -318,7 +321,10 @@ router.get("/:agent_id", async (req, res) => {
     const data = await getAgentDetails(agent_id, token);
     const origin = req.headers.origin || "http://localhost:5173";
     if (data) {
-      const chatLink = `${origin}/agent-chat?id=${data.agent_id}`;
+      const customLink = data.customization && data.customization.chat_link;
+      const chatLink = (customLink && customLink.trim())
+        ? customLink.trim()
+        : `${origin}/agent-chat?id=${data.agent_id}`;
       data.publicChatUrl = chatLink;
       data.qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(chatLink)}`;
     }
