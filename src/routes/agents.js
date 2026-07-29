@@ -240,12 +240,12 @@ router.get("/", async (req, res) => {
   try {
     const token = await resolveToken(req);
     const data = await listAgents(token);
-    const origin = req.headers.origin || "http://localhost:5173";
+    const defaultLinkBase = (env.UGC_AI_BASE_URL || "https://vectorize.diintech.com").replace(/\/$/, "");
     const enriched = (data || []).map(agent => {
       const customLink = agent.customization && agent.customization.chat_link;
       const chatLink = (customLink && customLink.trim())
         ? customLink.trim()
-        : `${origin}/agent-chat?id=${agent.agent_id}`;
+        : `${defaultLinkBase}/agent-chat?id=${agent.agent_id}`;
       return {
         ...agent,
         publicChatUrl: chatLink,
@@ -319,12 +319,12 @@ router.get("/:agent_id", async (req, res) => {
     const { agent_id } = req.params;
     const token = await resolveToken(req, agent_id);
     const data = await getAgentDetails(agent_id, token);
-    const origin = req.headers.origin || "http://localhost:5173";
     if (data) {
+      const defaultLinkBase = (env.UGC_AI_BASE_URL || "https://vectorize.diintech.com").replace(/\/$/, "");
       const customLink = data.customization && data.customization.chat_link;
       const chatLink = (customLink && customLink.trim())
         ? customLink.trim()
-        : `${origin}/agent-chat?id=${data.agent_id}`;
+        : `${defaultLinkBase}/agent-chat?id=${data.agent_id}`;
       data.publicChatUrl = chatLink;
       data.qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(chatLink)}`;
     }
