@@ -41,8 +41,8 @@ function getRequestConfig(overrideToken) {
 /**
  * 1. Get Today's Plans
  */
-async function getTodayPlans() {
-  const { baseUrl, token } = getRequestConfig();
+async function getTodayPlans(overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.get(`${baseUrl}/api/root-agent/plans/today`, {
       headers: { "X-App-Token": token }
@@ -57,8 +57,8 @@ async function getTodayPlans() {
 /**
  * 2. List All Plans (With Filtering)
  */
-async function listPlans(filter) {
-  const { baseUrl, token } = getRequestConfig();
+async function listPlans(filter, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const qStr = filter ? `?filter=${encodeURIComponent(filter)}` : "";
     const res = await axios.get(`${baseUrl}/api/root-agent/plans${qStr}`, {
@@ -74,8 +74,8 @@ async function listPlans(filter) {
 /**
  * 3. Create Daily Plan
  */
-async function createPlan(planData) {
-  const { baseUrl, token } = getRequestConfig();
+async function createPlan(planData, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/root-agent/plans`, planData, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
@@ -90,8 +90,8 @@ async function createPlan(planData) {
 /**
  * 4. Toggle Plan Completion
  */
-async function togglePlanCompletion(planId) {
-  const { baseUrl, token } = getRequestConfig();
+async function togglePlanCompletion(planId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.patch(`${baseUrl}/api/root-agent/plans/${planId}/complete`, {}, {
       headers: { "X-App-Token": token }
@@ -106,8 +106,8 @@ async function togglePlanCompletion(planId) {
 /**
  * 5. Check Time Conflicts
  */
-async function checkTimeConflicts(planDate, planTime, excludePlanId) {
-  const { baseUrl, token } = getRequestConfig();
+async function checkTimeConflicts(planDate, planTime, excludePlanId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const query = [];
     if (planDate) query.push(`plan_date=${encodeURIComponent(planDate)}`);
@@ -128,8 +128,8 @@ async function checkTimeConflicts(planDate, planTime, excludePlanId) {
 /**
  * 6. Auto-Complete Past Plans
  */
-async function autoCompletePastPlans() {
-  const { baseUrl, token } = getRequestConfig();
+async function autoCompletePastPlans(overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/root-agent/plans/auto-complete`, {}, {
       headers: { "X-App-Token": token }
@@ -144,8 +144,8 @@ async function autoCompletePastPlans() {
 /**
  * 7. Create Plan from Meeting (RAG Trigger)
  */
-async function createPlanFromMeeting(meetingData) {
-  const { baseUrl, token } = getRequestConfig();
+async function createPlanFromMeeting(meetingData, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
     const res = await axios.post(`${baseUrl}/api/root-agent/plans/from-meeting`, meetingData, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
@@ -189,6 +189,39 @@ async function getBookedDates(agentId, overrideToken) {
   }
 }
 
+/**
+ * 10. Get Daily Plan AI Analysis
+ */
+async function getDailyPlanAnalysis(planDate, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
+  try {
+    const qStr = planDate ? `?plan_date=${encodeURIComponent(planDate)}` : "";
+    const res = await axios.get(`${baseUrl}/api/root-agent/plans/analyze${qStr}`, {
+      headers: { "X-App-Token": token }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[calendar-get-analysis-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+/**
+ * 11. Run Daily Plan AI Analysis
+ */
+async function runDailyPlanAnalysis(planDate, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
+  try {
+    const res = await axios.post(`${baseUrl}/api/root-agent/plans/analyze`, { plan_date: planDate }, {
+      headers: { "X-App-Token": token, "Content-Type": "application/json" }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[calendar-run-analysis-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
 module.exports = {
   getTodayPlans,
   listPlans,
@@ -198,5 +231,8 @@ module.exports = {
   autoCompletePastPlans,
   createPlanFromMeeting,
   bookMeetingViaSubAgent,
-  getBookedDates
+  getBookedDates,
+  getDailyPlanAnalysis,
+  runDailyPlanAnalysis
 };
+
