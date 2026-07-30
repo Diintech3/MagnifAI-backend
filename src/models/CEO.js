@@ -23,6 +23,23 @@ const ceoSchema = new mongoose.Schema(
     agentId:      { type: String, trim: true },
     sendMode:     { type: String, enum: ["auto", "manual"], default: "auto" },
     adminReviewMode: { type: String, enum: ["auto", "manual"], default: "manual" },
+    social: {
+      instagram: {
+        userId:   { type: String, trim: true },
+        username: { type: String, trim: true },
+      },
+      twitter: {
+        username: { type: String, trim: true },
+      },
+      facebook: {
+        pageId:   { type: String, trim: true },
+        pageName: { type: String, trim: true },
+      },
+      youtube: {
+        channelId:   { type: String, trim: true },
+        channelName: { type: String, trim: true },
+      },
+    },
   },
   { timestamps: true },
 );

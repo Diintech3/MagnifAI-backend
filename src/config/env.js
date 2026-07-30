@@ -32,6 +32,9 @@ const EnvSchema = z.object({
   INSTAGRAM_ACCESS_TOKEN: z.string().optional(),
   INSTAGRAM_USER_ID: z.string().optional(),
   INSTAGRAM_APP_ID: z.string().optional(),
+  META_APP_ID: z.string().optional(),
+  META_APP_SECRET: z.string().optional(),
+  YOUTUBE_API_KEY: z.string().optional(),
   UGC_AI_BASE_URL: z.string().url().optional(),
   UGC_AI_APP_TOKEN: z.string().optional(),
 });

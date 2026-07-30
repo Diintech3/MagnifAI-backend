@@ -24,7 +24,18 @@ function createApp() {
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        "img-src": ["'self'", "data:", "https://images.unsplash.com", "https://*.r2.cloudflarestorage.com", "https://*.r2.dev"],
+        "img-src": [
+          "'self'",
+          "data:",
+          "https://images.unsplash.com",
+          "https://*.r2.cloudflarestorage.com",
+          "https://*.r2.dev",
+          "https://*.cdninstagram.com",
+          "https://*.fbcdn.net",
+          "https://*.ytimg.com",
+          "https://*.ggpht.com",
+          "https://*.googleusercontent.com"
+        ],
       },
     },
   }));
