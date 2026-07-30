@@ -12,6 +12,8 @@ const { candidateUpload, logoUpload } = require("../middleware/upload");
 const { candidatesRouter } = require("./candidates");
 const { postsRouter } = require("./posts");
 const { registerSubUser, listSubUsers, listAgents, createAgent } = require("../services/agentAiService");
+const { Contact } = require("../models/Contact");
+const { Group } = require("../models/Group");
 
 const router = express.Router();
 
@@ -2016,6 +2018,268 @@ Do NOT include section headers, bracket tags, or labels like [HOOK], [MAIN CONTE
         imageUrl: script.imageUrl
       }
     });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Contacts Management ──────────────────────────────────────────────────
+router.get("/people/contacts", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const { search } = req.query;
+    const filter = { appId };
+    if (search) {
+      const re = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      filter.$or = [{ name: re }, { email: re }, { phone: re }];
+    }
+    const contacts = await Contact.find(filter).sort({ name: 1 });
+    return res.json(contacts.map(c => ({
+      id: c._id.toString(),
+      name: c.name,
+      phone: c.phone,
+      email: c.email || null,
+      lastConnected: c.lastConnected || "Just added",
+      avatar: c.avatar || null,
+      joinedAt: c.joinedAt
+    })));
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/people/contacts", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const { name, phone, email, avatar } = req.body;
+    if (!name || !phone) {
+      return res.status(400).json({ error: "NAME_AND_PHONE_REQUIRED" });
+    }
+    const contact = await Contact.create({
+      appId,
+      name: name.trim(),
+      phone: phone.trim(),
+      email: email ? email.trim() : undefined,
+      avatar: avatar || null,
+    });
+    return res.status(201).json({
+      id: contact._id.toString(),
+      name: contact.name,
+      phone: contact.phone,
+      email: contact.email || null,
+      lastConnected: contact.lastConnected,
+      avatar: contact.avatar || null
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ error: "CONTACT_ALREADY_EXISTS" });
+    }
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/people/contacts/:id", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const deleted = await Contact.findOneAndDelete({ _id: req.params.id, appId });
+    if (!deleted) {
+      return res.status(404).json({ error: "CONTACT_NOT_FOUND" });
+    }
+    return res.status(204).end();
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/people/contacts/sync", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const { contacts } = req.body;
+    if (!Array.isArray(contacts)) {
+      return res.status(400).json({ error: "CONTACTS_ARRAY_REQUIRED" });
+    }
+
+    let addedCount = 0;
+    let updatedCount = 0;
+
+    for (const item of contacts) {
+      if (!item.name || !item.phone) continue;
+      const phone = item.phone.trim();
+      const name = item.name.trim();
+      const email = item.email ? item.email.trim() : null;
+
+      // Check if contact already exists for this appId and phone
+      const existing = await Contact.findOne({ appId, phone });
+      if (existing) {
+        existing.name = name;
+        if (email) existing.email = email;
+        await existing.save();
+        updatedCount++;
+      } else {
+        await Contact.create({
+          appId,
+          name,
+          phone,
+          email: email || undefined
+        });
+        addedCount++;
+      }
+    }
+
+    return res.json({
+      syncedCount: contacts.length,
+      addedCount,
+      updatedCount
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Newly Joined Members ────────────────────────────────────────────────
+router.get("/people/new", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const contacts = await Contact.find({ appId })
+      .sort({ joinedAt: -1 })
+      .limit(15);
+
+    const formatRelativeTime = (date) => {
+      const diffMs = Date.now() - new Date(date).getTime();
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffMins < 1) return "Just now";
+      if (diffMins < 60) return `${diffMins} min ago`;
+      if (diffHours < 24) return `${diffHours} hours ago`;
+      return `${diffDays} days ago`;
+    };
+
+    return res.json(contacts.map(c => ({
+      id: c._id.toString(),
+      name: c.name,
+      phone: c.phone,
+      joinedAt: formatRelativeTime(c.joinedAt),
+      avatar: c.avatar || null
+    })));
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Groups Management ────────────────────────────────────────────────────
+router.get("/people/groups", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const groups = await Group.find({ appId }).populate("members", "name avatar");
+    return res.json(groups.map(g => ({
+      id: g._id.toString(),
+      name: g.name,
+      iconIndex: g.iconIndex,
+      colorHex: g.colorHex,
+      membersCount: g.members ? g.members.length : 0,
+      members: (g.members || []).map(m => ({
+        id: m._id.toString(),
+        name: m.name,
+        avatar: m.avatar || null
+      }))
+    })));
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/people/groups", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const { name, iconIndex, colorHex, memberIds } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "GROUP_NAME_REQUIRED" });
+    }
+
+    if (memberIds && Array.isArray(memberIds)) {
+      const mongoose = require("mongoose");
+      const invalid = memberIds.some(id => !mongoose.Types.ObjectId.isValid(id));
+      if (invalid) {
+        return res.status(400).json({ error: "INVALID_MEMBER_ID_FORMAT" });
+      }
+    }
+
+    const group = await Group.create({
+      appId,
+      name: name.trim(),
+      iconIndex: iconIndex || 0,
+      colorHex: colorHex || "#FFD54F",
+      members: memberIds || []
+    });
+    return res.status(201).json({
+      id: group._id.toString(),
+      name: group.name,
+      iconIndex: group.iconIndex,
+      colorHex: group.colorHex,
+      membersCount: group.members ? group.members.length : 0
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/people/groups/:id/members", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const { addMemberIds, removeMemberIds } = req.body;
+
+    const mongoose = require("mongoose");
+    if (Array.isArray(addMemberIds)) {
+      const invalid = addMemberIds.some(id => !mongoose.Types.ObjectId.isValid(id));
+      if (invalid) {
+        return res.status(400).json({ error: "INVALID_MEMBER_ID_FORMAT" });
+      }
+    }
+    if (Array.isArray(removeMemberIds)) {
+      const invalid = removeMemberIds.some(id => !mongoose.Types.ObjectId.isValid(id));
+      if (invalid) {
+        return res.status(400).json({ error: "INVALID_MEMBER_ID_FORMAT" });
+      }
+    }
+
+    const group = await Group.findOne({ _id: req.params.id, appId });
+    if (!group) {
+      return res.status(404).json({ error: "GROUP_NOT_FOUND" });
+    }
+
+    if (Array.isArray(addMemberIds)) {
+      addMemberIds.forEach(id => {
+        if (!group.members.includes(id)) {
+          group.members.push(id);
+        }
+      });
+    }
+
+    if (Array.isArray(removeMemberIds)) {
+      group.members = group.members.filter(id => !removeMemberIds.includes(id.toString()));
+    }
+
+    await group.save();
+
+    return res.json({
+      groupId: group._id.toString(),
+      currentMembersCount: group.members.length
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/people/groups/:id", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const deleted = await Group.findOneAndDelete({ _id: req.params.id, appId });
+    if (!deleted) {
+      return res.status(404).json({ error: "GROUP_NOT_FOUND" });
+    }
+    return res.status(204).end();
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
