@@ -488,6 +488,11 @@ router.get("/social/:platform/analytics", async (req, res) => {
     prevStart.setHours(0, 0, 0, 0);
     prevEnd.setDate(prevEnd.getDate() - 6);
     prevEnd.setHours(23, 59, 59, 999);
+  } else if (timeRange === "All" || timeRange === "All Time") {
+    currentStart = new Date(0);
+    currentEnd = new Date(now);
+    prevStart = new Date(0);
+    prevEnd = new Date(0);
   } else if (timeRange === "Date Range" && startDate && endDate) {
     currentStart = new Date(startDate);
     currentStart.setHours(0, 0, 0, 0);
@@ -646,6 +651,9 @@ router.get("/social/:platform/posts", async (req, res) => {
   } else if (timeRange === "7 Days") {
     currentStart.setDate(currentStart.getDate() - 6);
     currentStart.setHours(0, 0, 0, 0);
+    currentEnd = new Date(now);
+  } else if (timeRange === "All" || timeRange === "All Time") {
+    currentStart = new Date(0);
     currentEnd = new Date(now);
   } else if (timeRange === "Date Range" && startDate && endDate) {
     currentStart = new Date(startDate);
