@@ -233,6 +233,80 @@ router.post("/:agent_id/feedback", async (req, res) => {
 router.use(requireAuth);
 
 /**
+ * Get aggregate pings metrics for active agents
+ * GET /api/agents/analytics/pings
+ */
+router.get("/analytics/pings", async (req, res) => {
+  try {
+    const token = await resolveToken(req);
+    const agentsList = await listAgents(token);
+    const nonRootAgents = (agentsList || []).filter(ag => ag.category !== "root_assistant");
+
+    let totalPings = 0;
+    let whatsappChats = 0;
+    let webChats = 0;
+    let meetingRequests = 0;
+
+    const breakdown = [];
+
+    for (const agent of nonRootAgents) {
+      let agentSessions = [];
+      try {
+        agentSessions = await getVisitorSessions(agent.agent_id, token);
+      } catch (err) {
+        console.error(`[pings-agent-sessions-error] Agent: ${agent.agent_id}`, err.message);
+      }
+
+      let agentWhatsapp = 0;
+      let agentWeb = 0;
+      let agentMeetings = 0;
+
+      for (const sess of agentSessions) {
+        if (sess.platform === "whatsapp" || sess.role === "whatsapp") {
+          agentWhatsapp++;
+        } else {
+          agentWeb++;
+        }
+        if (sess.status === "meeting_request") {
+          agentMeetings++;
+        }
+      }
+
+      const agentChats = agentWhatsapp + agentWeb;
+      totalPings += agentChats;
+      whatsappChats += agentWhatsapp;
+      webChats += agentWeb;
+      meetingRequests += agentMeetings;
+
+      breakdown.push({
+        agent_id: agent.agent_id,
+        name: agent.name,
+        totalChats: agentChats,
+        whatsappChats: agentWhatsapp,
+        webChats: agentWeb,
+        meetingRequests: agentMeetings
+      });
+    }
+
+    return res.json({
+      summary: {
+        totalPings,
+        whatsappChats,
+        webChats,
+        meetingRequests,
+        contactCalls: 0,
+        newCalls: 0,
+        ivrCalls: 0
+      },
+      breakdown
+    });
+  } catch (err) {
+    console.error("[analytics/pings-error]", err.message);
+    return res.status(500).json({ error: "PINGS_ANALYTICS_ERROR", message: err.message });
+  }
+});
+
+/**
  * List all agents
  * GET /api/agents
  */
@@ -311,9 +385,138 @@ router.post("/test-voice", async (req, res) => {
 });
 
 /**
+ * Get all sessions grouped by user/device across all active agents
+ * GET /api/agents/sessions
+ */
+router.get("/sessions", async (req, res) => {
+  try {
+    const token = await resolveToken(req);
+    const agentsList = await listAgents(token);
+    const nonRootAgents = (agentsList || []).filter(ag => ag.category !== "root_assistant");
+
+    const allRawSessions = [];
+    for (const agent of nonRootAgents) {
+      try {
+        const agentSessions = await getVisitorSessions(agent.agent_id, token);
+        const enriched = (agentSessions || []).map(sess => ({
+          ...sess,
+          agent_id: agent.agent_id,
+          agent_name: agent.name
+        }));
+        allRawSessions.push(...enriched);
+      } catch (err) {
+        console.error(`[all-sessions-agent-error] Agent: ${agent.agent_id}`, err.message);
+      }
+    }
+
+    const deviceMap = {};
+    for (const sess of allRawSessions) {
+      const key = sess.device_id || sess.session_id;
+      if (!deviceMap[key]) {
+        deviceMap[key] = {
+          device_id: sess.device_id || key,
+          device_name: sess.device_name || "Unknown Device",
+          user_name: "Anonymous Visitor",
+          phone_number: "None",
+          total_visits: 0,
+          latest_visit: sess.created_at || sess.updated_at,
+          sessions: []
+        };
+      }
+
+      deviceMap[key].total_visits += 1;
+      if (sess.user_name && sess.user_name !== "Anonymous Visitor") {
+        deviceMap[key].user_name = sess.user_name;
+      }
+      if (sess.phone_number && sess.phone_number !== "None") {
+        deviceMap[key].phone_number = sess.phone_number;
+      }
+      if (sess.device_name) {
+        deviceMap[key].device_name = sess.device_name;
+      }
+
+      const currentLatest = new Date(deviceMap[key].latest_visit || 0);
+      const sessTime = new Date(sess.created_at || sess.updated_at || 0);
+      if (sessTime > currentLatest) {
+        deviceMap[key].latest_visit = sess.created_at || sess.updated_at;
+      }
+
+      deviceMap[key].sessions.push({
+        session_id: sess.session_id,
+        agent_id: sess.agent_id,
+        agent_name: sess.agent_name,
+        platform: sess.platform,
+        role: sess.role,
+        status: sess.status,
+        analysis: sess.analysis || null,
+        action_button: sess.action_button || null,
+        created_at: sess.created_at,
+        updated_at: sess.updated_at
+      });
+    }
+
+    const result = Object.values(deviceMap).map(userGroup => {
+      userGroup.sessions.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      return {
+        ...userGroup,
+        sessions: userGroup.sessions.map(s => ({
+          ...s,
+          user_name: userGroup.user_name,
+          phone_number: userGroup.phone_number
+        }))
+      };
+    });
+
+    result.sort((a, b) => new Date(b.latest_visit || 0) - new Date(a.latest_visit || 0));
+
+    // Auto-sync resolved users into the workspace contacts database
+    const appId = req.user.appId || req.user.sub;
+    if (appId) {
+      try {
+        const { Contact } = require("../models/Contact");
+        for (const group of Object.values(deviceMap)) {
+          if (group.user_name && group.user_name !== "Anonymous Visitor" && group.phone_number && group.phone_number !== "None") {
+            const hasWhatsapp = group.sessions.some(s => s.platform === "whatsapp" || s.role === "whatsapp");
+            const sourceInfo = hasWhatsapp ? "AI Agent (WhatsApp)" : "AI Agent (Web Chat)";
+            
+            const cleanPhone = group.phone_number.trim();
+            const cleanName = group.user_name.trim();
+
+            const existing = await Contact.findOne({ appId, phone: cleanPhone });
+            if (!existing) {
+              await Contact.create({
+                appId,
+                name: cleanName,
+                phone: cleanPhone,
+                lastConnected: sourceInfo
+              });
+              console.log(`[contact-auto-sync] Automatically added contact: ${cleanName} (${cleanPhone}) from ${sourceInfo}`);
+            } else {
+              if (existing.lastConnected !== sourceInfo || existing.name !== cleanName) {
+                existing.name = cleanName;
+                existing.lastConnected = sourceInfo;
+                await existing.save();
+              }
+            }
+          }
+        }
+      } catch (dbErr) {
+        console.error("[contact-auto-sync-error] Failed to auto-sync contacts", dbErr.message);
+      }
+    }
+
+    return res.json(result);
+  } catch (err) {
+    console.error("[all-sessions-route-error]", err.message);
+    return res.status(500).json({ error: "ALL_SESSIONS_ERROR", message: err.message });
+  }
+});
+
+/**
  * Get Agent Details
  * GET /api/agents/:agent_id
  */
+
 router.get("/:agent_id", async (req, res) => {
   try {
     const { agent_id } = req.params;
@@ -503,11 +706,11 @@ router.post("/sessions/:session_id/analyze", async (req, res) => {
 
 /**
  * Run Holistic AI Analysis on a visitor device (merges all sessions)
- * POST /api/agents/sessions/analyze-device
+ * POST /api/agents/sessions/analyze/:agent_id/:device_id
  */
-router.post("/sessions/analyze-device", async (req, res) => {
+router.post("/sessions/analyze/:agent_id/:device_id", async (req, res) => {
   try {
-    const { agent_id, device_id } = req.body;
+    const { agent_id, device_id } = req.params;
     if (!agent_id || !device_id) {
       return res.status(400).json({ error: "AGENT_ID_AND_DEVICE_ID_REQUIRED" });
     }

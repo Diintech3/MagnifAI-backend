@@ -35,6 +35,51 @@ async function getSocialEntityForUser(req) {
   return App.findById(req.user.sub);
 }
 
+// Simple in-memory cache for live social stats
+const socialCache = new Map();
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache TTL
+
+async function getCachedLiveData(platform, creds) {
+  let cacheKey = "";
+  if (platform === "instagram" || platform === "twitter") {
+    cacheKey = `${platform}:${creds.username || ""}`;
+  } else if (platform === "facebook") {
+    cacheKey = `${platform}:${creds.pageId || ""}`;
+  } else if (platform === "youtube") {
+    cacheKey = `${platform}:${creds.channelId || ""}`;
+  }
+
+  const identifier = cacheKey.split(":")[1];
+  if (!identifier) {
+    return { followers: null, totalLikes: 0, totalComments: 0, totalReach: 0, posts: [] };
+  }
+
+  const cached = socialCache.get(cacheKey);
+  const now = Date.now();
+  if (cached && (now - cached.timestamp < CACHE_TTL)) {
+    return cached.data;
+  }
+
+  let liveData = null;
+  if (platform === "instagram") {
+    liveData = await fetchInstagramLive(creds);
+  } else if (platform === "facebook") {
+    liveData = await fetchFacebookLive(creds);
+  } else if (platform === "youtube") {
+    liveData = await fetchYouTubeLive(creds);
+  } else if (platform === "twitter") {
+    liveData = await fetchTwitterLive(creds);
+  }
+
+  if (liveData) {
+    socialCache.set(cacheKey, {
+      timestamp: now,
+      data: liveData
+    });
+  }
+  return liveData;
+}
+
 // Fetch live Instagram stats via Meta Graph API
 async function fetchInstagramLive(creds) {
   const username = creds.username?.replace(/^@/, "");
@@ -401,18 +446,9 @@ router.get("/social/:platform", async (req, res) => {
   let isPersonal = false;
 
   if (isConnected) {
-    let liveData = { followers: null, isPersonal: false };
-    if (platform === "instagram") {
-      liveData = await fetchInstagramLive(creds);
-    } else if (platform === "facebook") {
-      liveData = await fetchFacebookLive(creds);
-    } else if (platform === "youtube") {
-      liveData = await fetchYouTubeLive(creds);
-    } else if (platform === "twitter") {
-      liveData = await fetchTwitterLive(creds);
-    }
-    followers = liveData.followers || 0;
-    isPersonal = liveData.isPersonal || false;
+    const liveData = await getCachedLiveData(platform, creds);
+    followers = liveData?.followers || 0;
+    isPersonal = liveData?.isPersonal || false;
   }
 
   return res.json({
@@ -443,16 +479,8 @@ router.get("/social/:platform/analytics", async (req, res) => {
     });
   }
 
-  let liveData = { followers: null, posts: [] };
-  if (platform === "instagram") {
-    liveData = await fetchInstagramLive(creds);
-  } else if (platform === "facebook") {
-    liveData = await fetchFacebookLive(creds);
-  } else if (platform === "youtube") {
-    liveData = await fetchYouTubeLive(creds);
-  } else if (platform === "twitter") {
-    liveData = await fetchTwitterLive(creds);
-  }
+  let liveData = await getCachedLiveData(platform, creds);
+  if (!liveData) liveData = { followers: null, posts: [] };
 
   const { timeRange = "7 Days", startDate, endDate } = req.query;
 
@@ -624,16 +652,8 @@ router.get("/social/:platform/posts", async (req, res) => {
     return res.json({ posts: [] });
   }
 
-  let liveData = { posts: [] };
-  if (platform === "instagram") {
-    liveData = await fetchInstagramLive(creds);
-  } else if (platform === "facebook") {
-    liveData = await fetchFacebookLive(creds);
-  } else if (platform === "youtube") {
-    liveData = await fetchYouTubeLive(creds);
-  } else if (platform === "twitter") {
-    liveData = await fetchTwitterLive(creds);
-  }
+  let liveData = await getCachedLiveData(platform, creds);
+  if (!liveData) liveData = { posts: [] };
 
   const { timeRange = "7 Days", startDate, endDate } = req.query;
 
@@ -870,6 +890,7 @@ router.post("/social/:platform/connect", async (req, res) => {
   entity.social[platform] = { ...(entity.social[platform] || {}), ...fields };
   entity.markModified("social");
   await entity.save();
+  socialCache.clear();
 
   return res.json({ ok: true, credentials: entity.social[platform] });
 });
@@ -885,6 +906,7 @@ router.delete("/social/:platform/connect", async (req, res) => {
 
   if (entity.social) { entity.social[platform] = {}; entity.markModified("social"); }
   await entity.save();
+  socialCache.clear();
   return res.json({ ok: true });
 });
 
