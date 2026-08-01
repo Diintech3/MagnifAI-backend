@@ -243,9 +243,12 @@ router.get("/analytics/pings", async (req, res) => {
     const nonRootAgents = (agentsList || []).filter(ag => ag.category !== "root_assistant");
 
     let totalPings = 0;
-    let whatsappChats = 0;
-    let webChats = 0;
-    let meetingRequests = 0;
+    let whatsappCount = 0;
+    let webChatCount = 0;
+    let webCallCount = 0;
+    let meetingRequestCount = 0;
+    let enquiryCount = 0;
+    let otherCount = 0;
 
     const breakdown = [];
 
@@ -258,45 +261,80 @@ router.get("/analytics/pings", async (req, res) => {
       }
 
       let agentWhatsapp = 0;
-      let agentWeb = 0;
+      let agentWebChat = 0;
+      let agentWebCall = 0;
       let agentMeetings = 0;
+      let agentEnquiries = 0;
+      let agentOthers = 0;
 
       for (const sess of agentSessions) {
-        if (sess.platform === "whatsapp" || sess.role === "whatsapp") {
+        const sessId = (sess.session_id || "").toLowerCase();
+        const devName = (sess.device_name || "").toLowerCase();
+        const plat = (sess.platform || "").toLowerCase();
+        const role = (sess.role || "").toLowerCase();
+
+        // 1. Platform classification
+        if (sessId.startsWith("wa_") || devName === "whatsapp client" || plat === "whatsapp" || role === "whatsapp") {
           agentWhatsapp++;
+        } else if (sessId.startsWith("call_") || devName.includes("call") || plat === "webcall" || plat === "web_call" || role === "webcall" || role === "web_call") {
+          agentWebCall++;
         } else {
-          agentWeb++;
+          agentWebChat++;
         }
-        if (sess.status === "meeting_request") {
+
+        // 2. Category classification
+        const analysisCat = (sess.analysis?.category || "").toLowerCase();
+        const status = (sess.status || "").toLowerCase();
+        
+        if (analysisCat === "meeting" || status === "meeting_request") {
           agentMeetings++;
+        } else if (["marketing", "investing", "enquiry", "lead", "inquiry"].includes(analysisCat) || ["enquiry", "lead", "inquiry"].includes(status)) {
+          agentEnquiries++;
+        } else {
+          agentOthers++;
         }
       }
 
-      const agentChats = agentWhatsapp + agentWeb;
+      const agentChats = agentWhatsapp + agentWebChat + agentWebCall;
       totalPings += agentChats;
-      whatsappChats += agentWhatsapp;
-      webChats += agentWeb;
-      meetingRequests += agentMeetings;
+      whatsappCount += agentWhatsapp;
+      webChatCount += agentWebChat;
+      webCallCount += agentWebCall;
+      meetingRequestCount += agentMeetings;
+      enquiryCount += agentEnquiries;
+      otherCount += agentOthers;
 
       breakdown.push({
         agent_id: agent.agent_id,
         name: agent.name,
         totalChats: agentChats,
-        whatsappChats: agentWhatsapp,
-        webChats: agentWeb,
-        meetingRequests: agentMeetings
+        whatsappChats: agentWhatsapp, // Backward compatibility
+        webChats: agentWebChat, // Backward compatibility
+        meetingRequests: agentMeetings, // Backward compatibility
+        whatsapp: agentWhatsapp,
+        webChat: agentWebChat,
+        webCall: agentWebCall,
+        meetingRequest: agentMeetings,
+        enquiry: agentEnquiries,
+        other: agentOthers
       });
     }
 
     return res.json({
       summary: {
         totalPings,
-        whatsappChats,
-        webChats,
-        meetingRequests,
-        contactCalls: 0,
-        newCalls: 0,
-        ivrCalls: 0
+        whatsappChats: whatsappCount, // Backward compatibility
+        webChats: webChatCount, // Backward compatibility
+        meetingRequests: meetingRequestCount, // Backward compatibility
+        whatsapp: whatsappCount,
+        webChat: webChatCount,
+        webCall: webCallCount,
+        meetingRequest: meetingRequestCount,
+        enquiry: enquiryCount,
+        other: otherCount,
+        contactCalls: 0, // Backward compatibility
+        newCalls: 0, // Backward compatibility
+        ivrCalls: 0 // Backward compatibility
       },
       breakdown
     });
