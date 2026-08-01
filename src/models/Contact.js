@@ -31,6 +31,10 @@ const contactSchema = new mongoose.Schema(
       type: String,
       default: "Just added",
     },
+    isWhatsAppActive: {
+      type: Boolean,
+      default: null,
+    },
     joinedAt: {
       type: Date,
       default: Date.now,

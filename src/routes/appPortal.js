@@ -2056,12 +2056,38 @@ router.get("/people/contacts", async (req, res) => {
       filter.$or = [{ name: re }, { email: re }, { phone: re }];
     }
     const contacts = await Contact.find(filter).sort({ name: 1 });
+
+    // Synchronously verify WhatsApp status for any unverified contacts in the current view
+    const unverifiedContacts = contacts.filter(c => c.isWhatsAppActive == null);
+    if (unverifiedContacts.length > 0) {
+      const phoneNumbers = unverifiedContacts.map(c => c.phone);
+      const { verifyWhatsAppNumbers } = require("../utils/whatsappVerify");
+      try {
+        const resultsMap = await verifyWhatsAppNumbers(phoneNumbers);
+        for (const contact of unverifiedContacts) {
+          const status = resultsMap[contact.phone];
+          if (status !== undefined) {
+            contact.isWhatsAppActive = status;
+            await contact.save();
+          }
+        }
+      } catch (err) {
+        console.error("[whatsapp-sync-verify-contacts-error]", err.message);
+        // Fallback: set isWhatsAppActive to false for unverified ones if API fails
+        for (const contact of unverifiedContacts) {
+          contact.isWhatsAppActive = false;
+          await contact.save();
+        }
+      }
+    }
+
     return res.json(contacts.map(c => ({
       id: c._id.toString(),
       name: c.name,
       phone: c.phone,
       email: c.email || null,
       lastConnected: c.lastConnected || "Just added",
+      isWhatsAppActive: c.isWhatsAppActive,
       avatar: c.avatar || null,
       joinedAt: c.joinedAt
     })));
@@ -2090,6 +2116,7 @@ router.post("/people/contacts", async (req, res) => {
       phone: contact.phone,
       email: contact.email || null,
       lastConnected: contact.lastConnected,
+      isWhatsAppActive: contact.isWhatsAppActive,
       avatar: contact.avatar || null
     });
   } catch (err) {
@@ -2158,6 +2185,93 @@ router.post("/people/contacts/sync", async (req, res) => {
   }
 });
 
+router.post("/people/contacts/verify-whatsapp", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const { force } = req.query;
+
+    const query = { appId };
+    if (force !== "true") {
+      query.isWhatsAppActive = null;
+    }
+
+    const contacts = await Contact.find(query);
+    if (contacts.length === 0) {
+      return res.json({ message: "NO_CONTACTS_TO_VERIFY", checkedCount: 0 });
+    }
+
+    const phoneNumbers = contacts.map(c => c.phone);
+    const { verifyWhatsAppNumbers } = require("../utils/whatsappVerify");
+    
+    try {
+      const resultsMap = await verifyWhatsAppNumbers(phoneNumbers);
+
+      let activeCount = 0;
+      let inactiveCount = 0;
+
+      for (const contact of contacts) {
+        const phone = contact.phone;
+        const status = resultsMap[phone];
+        if (status !== undefined) {
+          contact.isWhatsAppActive = status;
+          await contact.save();
+          if (status) activeCount++;
+          else inactiveCount++;
+        }
+      }
+
+      return res.json({
+        success: true,
+        message: "VERIFICATION_COMPLETED",
+        checkedCount: contacts.length,
+        activeCount,
+        inactiveCount
+      });
+    } catch (apiErr) {
+      console.warn("[verify-whatsapp-api-failed]", apiErr.message);
+      return res.status(400).json({
+        success: false,
+        error: "META_API_ERROR",
+        message: "Meta WhatsApp credentials are unassigned or inactive. Please assign the WhatsApp Asset to your System User in Meta Business Suite."
+      });
+    }
+  } catch (err) {
+    console.error("[verify-whatsapp-route-error]", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/people/contacts/:id/verify-whatsapp", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const { id } = req.params;
+
+    const contact = await Contact.findOne({ _id: id, appId });
+    if (!contact) {
+      return res.status(404).json({ error: "CONTACT_NOT_FOUND" });
+    }
+
+    const { verifyWhatsAppNumbers } = require("../utils/whatsappVerify");
+    const resultsMap = await verifyWhatsAppNumbers([contact.phone]);
+    const status = resultsMap[contact.phone];
+
+    if (status !== undefined) {
+      contact.isWhatsAppActive = status;
+      await contact.save();
+    }
+
+    return res.json({
+      id: contact._id.toString(),
+      name: contact.name,
+      phone: contact.phone,
+      isWhatsAppActive: contact.isWhatsAppActive
+    });
+  } catch (err) {
+    console.error("[verify-single-whatsapp-route-error]", err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Newly Joined Members ────────────────────────────────────────────────
 router.get("/people/new", async (req, res) => {
   try {
@@ -2178,11 +2292,36 @@ router.get("/people/new", async (req, res) => {
       return `${diffDays} days ago`;
     };
 
+    // Synchronously verify WhatsApp status for any unverified contacts in the current view
+    const unverifiedContacts = contacts.filter(c => c.isWhatsAppActive == null);
+    if (unverifiedContacts.length > 0) {
+      const phoneNumbers = unverifiedContacts.map(c => c.phone);
+      const { verifyWhatsAppNumbers } = require("../utils/whatsappVerify");
+      try {
+        const resultsMap = await verifyWhatsAppNumbers(phoneNumbers);
+        for (const contact of unverifiedContacts) {
+          const status = resultsMap[contact.phone];
+          if (status !== undefined) {
+            contact.isWhatsAppActive = status;
+            await contact.save();
+          }
+        }
+      } catch (err) {
+        console.error("[whatsapp-sync-verify-new-error]", err.message);
+        // Fallback: set isWhatsAppActive to false for unverified ones if API fails
+        for (const contact of unverifiedContacts) {
+          contact.isWhatsAppActive = false;
+          await contact.save();
+        }
+      }
+    }
+
     return res.json(contacts.map(c => ({
       id: c._id.toString(),
       name: c.name,
       phone: c.phone,
       joinedAt: formatRelativeTime(c.joinedAt),
+      isWhatsAppActive: c.isWhatsAppActive,
       avatar: c.avatar || null
     })));
   } catch (err) {
