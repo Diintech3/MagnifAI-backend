@@ -8,7 +8,8 @@ const {
   autoCompletePastPlans,
   createPlanFromMeeting,
   getDailyPlanAnalysis,
-  runDailyPlanAnalysis
+  runDailyPlanAnalysis,
+  editPlan
 } = require("../services/calendarService");
 
 const rootAgentRouter = express.Router();
@@ -163,6 +164,21 @@ rootAgentRouter.post("/plans/analyze", async (req, res) => {
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "RUN_ANALYSIS_ERROR", message: err.message });
+  }
+});
+
+/**
+ * 12. Edit Daily Plan
+ * PUT /api/root-agent/plans/:plan_id
+ */
+rootAgentRouter.put("/plans/:plan_id", async (req, res) => {
+  try {
+    const { plan_id } = req.params;
+    const token = await getContextToken(req);
+    const data = await editPlan(plan_id, req.body, token);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "EDIT_PLAN_ERROR", message: err.message });
   }
 });
 

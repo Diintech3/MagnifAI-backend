@@ -222,6 +222,19 @@ async function runDailyPlanAnalysis(planDate, overrideToken) {
   }
 }
 
+async function editPlan(planId, planData, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
+  try {
+    const res = await axios.put(`${baseUrl}/api/root-agent/plans/${planId}`, planData, {
+      headers: { "X-App-Token": token, "Content-Type": "application/json" }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[calendar-edit-plan-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
 module.exports = {
   getTodayPlans,
   listPlans,
@@ -233,6 +246,7 @@ module.exports = {
   bookMeetingViaSubAgent,
   getBookedDates,
   getDailyPlanAnalysis,
-  runDailyPlanAnalysis
+  runDailyPlanAnalysis,
+  editPlan
 };
 
