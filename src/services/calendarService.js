@@ -222,6 +222,9 @@ async function runDailyPlanAnalysis(planDate, overrideToken) {
   }
 }
 
+/**
+ * 12. Edit Daily Plan
+ */
 async function editPlan(planId, planData, overrideToken) {
   const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
