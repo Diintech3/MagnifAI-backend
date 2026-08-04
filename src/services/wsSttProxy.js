@@ -1,5 +1,7 @@
 const WebSocket = require("ws");
 const { env } = require("../config/env");
+const { verifyAccessToken } = require("../utils/jwt");
+const { CEO } = require("../models/CEO");
 
 function setupSttProxy(server) {
   const wss = new WebSocket.Server({ noServer: true });
@@ -13,7 +15,7 @@ function setupSttProxy(server) {
     }
   });
 
-  wss.on("connection", (clientWs, req) => {
+  wss.on("connection", async (clientWs, req) => {
     console.log("[STT-Proxy] Client connected to WebSocket STT proxy");
 
     if (!env.UGC_AI_BASE_URL || !env.UGC_AI_APP_TOKEN) {
@@ -22,9 +24,54 @@ function setupSttProxy(server) {
       return;
     }
 
-    // Convert http/https URL to ws/wss URL and preserve query params (e.g. ?agent_id=...)
+    let agentId = "";
+    try {
+      const urlParsed = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+      agentId = urlParsed.searchParams.get("agent_id");
+      const tokenParam = urlParsed.searchParams.get("token");
+
+      // Fallback: If agent_id is missing but token is provided, resolve agent_id from Database (CEO model)
+      if (!agentId && tokenParam) {
+        const decoded = verifyAccessToken(tokenParam);
+        if (decoded && decoded.sub) {
+          const ceo = await CEO.findById(decoded.sub);
+          if (ceo && ceo.agentId) {
+            agentId = ceo.agentId;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[STT-Proxy] Authentication or parameter resolution error:", err.message);
+      clientWs.close(1008, "Authentication failed");
+      return;
+    }
+
+    if (!agentId) {
+      console.error("[STT-Proxy] Error: agent_id is missing and could not be resolved from token");
+      clientWs.close(1008, "agent_id is required");
+      return;
+    }
+
+    // Convert http/https URL to ws/wss URL
     let targetBaseWsUrl = env.UGC_AI_BASE_URL.replace(/^http/, "ws").replace(/\/$/, "");
-    const queryString = req.url && req.url.includes("?") ? req.url.slice(req.url.indexOf("?")) : "";
+
+    // Build query params for the external server connection
+    const targetParams = new URLSearchParams();
+    targetParams.set("agent_id", agentId);
+
+    // Forward any other query params as well, but exclude the sensitive token
+    try {
+      const urlObj = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+      urlObj.searchParams.forEach((value, key) => {
+        if (key !== "agent_id" && key !== "token") {
+          targetParams.append(key, value);
+        }
+      });
+    } catch (e) {
+      // Ignore URL parsing errors
+    }
+
+    const queryString = targetParams.toString() ? `?${targetParams.toString()}` : "";
     const targetWsUrl = `${targetBaseWsUrl}/api/agents/ws/transcribe${queryString}`;
 
     const urlParsed = new URL(env.UGC_AI_BASE_URL);
