@@ -9,7 +9,11 @@ const {
   createPlanFromMeeting,
   getDailyPlanAnalysis,
   runDailyPlanAnalysis,
-  editPlan
+  editPlan,
+  askRootAgentChat,
+  getRootAgentSessions,
+  getRootAgentHistory,
+  deleteRootAgentSession
 } = require("../services/calendarService");
 
 const rootAgentRouter = express.Router();
@@ -179,6 +183,64 @@ rootAgentRouter.put("/plans/:plan_id", async (req, res) => {
     return res.json(data);
   } catch (err) {
     return res.status(500).json({ error: "EDIT_PLAN_ERROR", message: err.message });
+  }
+});
+
+/**
+ * 13. Root Agent Chat - Send conversation message
+ * POST /api/root-agent/chat
+ */
+rootAgentRouter.post("/chat", async (req, res) => {
+  try {
+    const token = await getContextToken(req);
+    const data = await askRootAgentChat(req.body, token);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "ROOT_CHAT_ERROR", message: err.message });
+  }
+});
+
+/**
+ * 14. Root Agent Chat - Get Sessions List
+ * GET /api/root-agent/sessions
+ */
+rootAgentRouter.get("/sessions", async (req, res) => {
+  try {
+    const token = await getContextToken(req);
+    const data = await getRootAgentSessions(token);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "ROOT_SESSIONS_ERROR", message: err.message });
+  }
+});
+
+/**
+ * 15. Root Agent Chat - Retrieve Session History
+ * GET /api/root-agent/history
+ */
+rootAgentRouter.get("/history", async (req, res) => {
+  try {
+    const { session_id } = req.query;
+    const token = await getContextToken(req);
+    const data = await getRootAgentHistory(session_id, token);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "ROOT_HISTORY_ERROR", message: err.message });
+  }
+});
+
+/**
+ * 16. Root Agent Chat - Delete Session
+ * DELETE /api/root-agent/sessions/:session_id
+ */
+rootAgentRouter.delete("/sessions/:session_id", async (req, res) => {
+  try {
+    const { session_id } = req.params;
+    const token = await getContextToken(req);
+    const data = await deleteRootAgentSession(session_id, token);
+    return res.json(data);
+  } catch (err) {
+    return res.status(500).json({ error: "ROOT_DELETE_SESSION_ERROR", message: err.message });
   }
 });
 

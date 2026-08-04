@@ -2,7 +2,7 @@ const express = require("express");
 const axios = require("axios");
 const { env } = require("../config/env");
 const { CEO } = require("../models/CEO");
-const { askAgent } = require("../services/agentAiService");
+const { askRootAgentChat } = require("../services/calendarService");
 
 const paaiChatRouter = express.Router();
 
@@ -29,13 +29,21 @@ function getRequestConfig() {
  */
 paaiChatRouter.post("/ask", async (req, res) => {
   try {
-    const { question, history, is_voice } = req.body;
+    const { question, history, session_id } = req.body;
     if (!question) {
       return res.status(400).json({ error: "QUESTION_REQUIRED" });
     }
 
     const { agentId, token } = await getCeoDetails(req);
-    const data = await askAgent(agentId, question, history || [], !!is_voice, token);
+    const resolvedSessionId = session_id || `root_sess_${agentId}`;
+
+    const chatPayload = {
+      message: question,
+      session_id: resolvedSessionId,
+      history: history || []
+    };
+
+    const data = await askRootAgentChat(chatPayload, token);
     return res.json(data);
   } catch (err) {
     console.error("[paai-chat-ask-error]", err.message);

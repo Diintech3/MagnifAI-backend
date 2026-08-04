@@ -267,6 +267,71 @@ async function editPlan(planId, planData, overrideToken) {
   }
 }
 
+/**
+ * 13. Root Agent Chat - Send conversation query
+ */
+async function askRootAgentChat(chatData, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
+  try {
+    const res = await axios.post(`${baseUrl}/api/root-agent/chat`, chatData, {
+      headers: { "X-App-Token": token, "Content-Type": "application/json" }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[calendar-root-chat-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+/**
+ * 14. Root Agent Chat - Fetch Sessions List
+ */
+async function getRootAgentSessions(overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
+  try {
+    const res = await axios.get(`${baseUrl}/api/root-agent/sessions`, {
+      headers: { "X-App-Token": token }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[calendar-root-sessions-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+/**
+ * 15. Root Agent Chat - Retrieve Session History
+ */
+async function getRootAgentHistory(sessionId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
+  try {
+    const qStr = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : "";
+    const res = await axios.get(`${baseUrl}/api/root-agent/history${qStr}`, {
+      headers: { "X-App-Token": token }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[calendar-root-history-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
+/**
+ * 16. Root Agent Chat - Delete Session
+ */
+async function deleteRootAgentSession(sessionId, overrideToken) {
+  const { baseUrl, token } = getRequestConfig(overrideToken);
+  try {
+    const res = await axios.delete(`${baseUrl}/api/root-agent/sessions/${sessionId}`, {
+      headers: { "X-App-Token": token }
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[calendar-root-delete-session-error]", getCleanErrorMessage(err));
+    throw new Error(getCleanErrorMessage(err));
+  }
+}
+
 module.exports = {
   getTodayPlans,
   listPlans,
@@ -279,6 +344,10 @@ module.exports = {
   getBookedDates,
   getDailyPlanAnalysis,
   runDailyPlanAnalysis,
-  editPlan
+  editPlan,
+  askRootAgentChat,
+  getRootAgentSessions,
+  getRootAgentHistory,
+  deleteRootAgentSession
 };
 
