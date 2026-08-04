@@ -242,6 +242,33 @@ router.get("/analytics/pings", async (req, res) => {
     const agentsList = await listAgents(token);
     const nonRootAgents = (agentsList || []).filter(ag => ag.category !== "root_assistant");
 
+    const { filter, startDate, endDate } = req.query;
+    let startLimit = null;
+    let endLimit = null;
+
+    if (filter === "today") {
+      const now = new Date();
+      startLimit = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      endLimit = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else if (filter === "yesterday") {
+      const now = new Date();
+      startLimit = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      endLimit = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
+    } else if (filter === "custom" || (!filter && (startDate || endDate))) {
+      if (startDate) {
+        const parts = startDate.split("-");
+        if (parts.length === 3) {
+          startLimit = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+      }
+      if (endDate) {
+        const parts = endDate.split("-");
+        if (parts.length === 3) {
+          endLimit = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 23, 59, 59, 999);
+        }
+      }
+    }
+
     let totalPings = 0;
     let whatsappCount = 0;
     let webChatCount = 0;
@@ -258,6 +285,16 @@ router.get("/analytics/pings", async (req, res) => {
         agentSessions = await getVisitorSessions(agent.agent_id, token);
       } catch (err) {
         console.error(`[pings-agent-sessions-error] Agent: ${agent.agent_id}`, err.message);
+      }
+
+      // Filter sessions by date range if defined
+      if (startLimit || endLimit) {
+        agentSessions = agentSessions.filter(sess => {
+          const sessTime = new Date(sess.created_at || sess.updated_at || 0);
+          if (startLimit && sessTime < startLimit) return false;
+          if (endLimit && sessTime > endLimit) return false;
+          return true;
+        });
       }
 
       let agentWhatsapp = 0;
