@@ -190,6 +190,35 @@ async function getBookedDates(agentId, overrideToken) {
 }
 
 /**
+ * Helper to calculate and inject allocation status if missing or invalid
+ */
+function enrichAnalysisResponse(data) {
+  if (data && data.pace_json && data.pace_json.allocation) {
+    const allocation = data.pace_json.allocation;
+    if (!allocation.status || !["Good", "Fair", "Poor"].includes(allocation.status)) {
+      let openPct = 0;
+      if (Array.isArray(allocation.categories)) {
+        const openCat = allocation.categories.find(c => 
+          c.name && (c.name.toLowerCase().includes("open") || c.name.toLowerCase().includes("unscheduled"))
+        );
+        if (openCat) {
+          openPct = parseFloat(openCat.percentage) || 0;
+        }
+      }
+      const scheduledPct = 100 - openPct;
+      if (scheduledPct >= 70) {
+        allocation.status = "Good";
+      } else if (scheduledPct >= 40) {
+        allocation.status = "Fair";
+      } else {
+        allocation.status = "Poor";
+      }
+    }
+  }
+  return data;
+}
+
+/**
  * 10. Get Daily Plan AI Analysis
  */
 async function getDailyPlanAnalysis(planDate, overrideToken) {
@@ -199,7 +228,7 @@ async function getDailyPlanAnalysis(planDate, overrideToken) {
     const res = await axios.get(`${baseUrl}/api/root-agent/plans/analyze${qStr}`, {
       headers: { "X-App-Token": token }
     });
-    return res.data;
+    return enrichAnalysisResponse(res.data);
   } catch (err) {
     console.error("[calendar-get-analysis-error]", getCleanErrorMessage(err));
     throw new Error(getCleanErrorMessage(err));
@@ -215,7 +244,7 @@ async function runDailyPlanAnalysis(planDate, overrideToken) {
     const res = await axios.post(`${baseUrl}/api/root-agent/plans/analyze`, { plan_date: planDate }, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
     });
-    return res.data;
+    return enrichAnalysisResponse(res.data);
   } catch (err) {
     console.error("[calendar-run-analysis-error]", getCleanErrorMessage(err));
     throw new Error(getCleanErrorMessage(err));
