@@ -78,6 +78,18 @@ async function resolveToken(req, agentId) {
   return token;
 }
 
+function resolveChatLink(customLink, agentId, defaultLinkBase) {
+  const trimmed = customLink ? customLink.trim() : "";
+  if (!trimmed) {
+    return `${defaultLinkBase}/agent-chat?id=${agentId}`;
+  }
+  if (trimmed.includes("id=") || trimmed.includes("agent_id=")) {
+    return trimmed;
+  }
+  const base = trimmed.replace(/\/$/, "");
+  return `${base}/agent-chat?id=${agentId}`;
+}
+
 const router = express.Router();
 
 // PDF file upload configuration for Memory Storage
@@ -392,9 +404,7 @@ router.get("/", async (req, res) => {
     const defaultLinkBase = (env.UGC_AI_BASE_URL || "https://vectorize.diintech.com").replace(/\/$/, "");
     const enriched = (data || []).map(agent => {
       const customLink = agent.customization && agent.customization.chat_link;
-      const chatLink = (customLink && customLink.trim())
-        ? customLink.trim()
-        : `${defaultLinkBase}/agent-chat?id=${agent.agent_id}`;
+      const chatLink = resolveChatLink(customLink, agent.agent_id, defaultLinkBase);
       return {
         ...agent,
         publicChatUrl: chatLink,
@@ -600,9 +610,7 @@ router.get("/:agent_id", async (req, res) => {
     if (data) {
       const defaultLinkBase = (env.UGC_AI_BASE_URL || "https://vectorize.diintech.com").replace(/\/$/, "");
       const customLink = data.customization && data.customization.chat_link;
-      const chatLink = (customLink && customLink.trim())
-        ? customLink.trim()
-        : `${defaultLinkBase}/agent-chat?id=${data.agent_id}`;
+      const chatLink = resolveChatLink(customLink, data.agent_id, defaultLinkBase);
       data.publicChatUrl = chatLink;
       data.qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(chatLink)}`;
     }
