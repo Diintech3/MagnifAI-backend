@@ -17,6 +17,7 @@ const { categoriesRouter } = require("./routes/categories");
 const { agentsRouter } = require("./routes/agents");
 const { rootAgentRouter } = require("./routes/calendar");
 const { paaiChatRouter } = require("./routes/paaiChat");
+const { clientsRouter } = require("./routes/clients");
 
 function createApp() {
   const app = express();
@@ -65,6 +66,7 @@ function createApp() {
   app.use("/api/agents", agentsRouter);
   app.use("/api/root-agent", requireAuth, rootAgentRouter);
   app.use("/api/paai-chat", requireAuth, requireRole("CEO"), paaiChatRouter);
+  app.use("/api/clients", requireAuth, clientsRouter);
 
   // fallback
   app.use((_req, res) => res.status(404).json({ error: "NOT_FOUND" }));

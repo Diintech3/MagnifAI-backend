@@ -38,6 +38,10 @@ function getRequestConfig(overrideToken) {
   return { baseUrl, token };
 }
 
+// Simple in-memory cache for daily planner analyses
+const analysisCache = new Map();
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache TTL
+
 /**
  * 1. Get Today's Plans
  */
@@ -77,6 +81,11 @@ async function listPlans(filter, overrideToken) {
 async function createPlan(planData, overrideToken) {
   const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
+    // Invalidate analysis cache for the specific date
+    if (planData && planData.plan_date) {
+      const cacheKey = `${token}:${planData.plan_date}`;
+      analysisCache.delete(cacheKey);
+    }
     const res = await axios.post(`${baseUrl}/api/root-agent/plans`, planData, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
     });
@@ -93,6 +102,12 @@ async function createPlan(planData, overrideToken) {
 async function togglePlanCompletion(planId, overrideToken) {
   const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
+    // Invalidate all analysis cache for this token to ensure consistency
+    for (const key of analysisCache.keys()) {
+      if (key.startsWith(`${token}:`)) {
+        analysisCache.delete(key);
+      }
+    }
     const res = await axios.patch(`${baseUrl}/api/root-agent/plans/${planId}/complete`, {}, {
       headers: { "X-App-Token": token }
     });
@@ -131,6 +146,12 @@ async function checkTimeConflicts(planDate, planTime, excludePlanId, overrideTok
 async function autoCompletePastPlans(overrideToken) {
   const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
+    // Invalidate all analysis cache for this token
+    for (const key of analysisCache.keys()) {
+      if (key.startsWith(`${token}:`)) {
+        analysisCache.delete(key);
+      }
+    }
     const res = await axios.post(`${baseUrl}/api/root-agent/plans/auto-complete`, {}, {
       headers: { "X-App-Token": token }
     });
@@ -147,6 +168,10 @@ async function autoCompletePastPlans(overrideToken) {
 async function createPlanFromMeeting(meetingData, overrideToken) {
   const { baseUrl, token } = getRequestConfig(overrideToken);
   try {
+    if (meetingData && meetingData.plan_date) {
+      const cacheKey = `${token}:${meetingData.plan_date}`;
+      analysisCache.delete(cacheKey);
+    }
     const res = await axios.post(`${baseUrl}/api/root-agent/plans/from-meeting`, meetingData, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
     });
@@ -223,12 +248,29 @@ function enrichAnalysisResponse(data) {
  */
 async function getDailyPlanAnalysis(planDate, overrideToken) {
   const { baseUrl, token } = getRequestConfig(overrideToken);
+  const cacheKey = `${token}:${planDate}`;
+
+  // Check if cache contains valid unexpired analysis
+  const cached = analysisCache.get(cacheKey);
+  const now = Date.now();
+  if (cached && (now - cached.timestamp < CACHE_TTL)) {
+    return cached.data;
+  }
+
   try {
     const qStr = planDate ? `?plan_date=${encodeURIComponent(planDate)}` : "";
     const res = await axios.get(`${baseUrl}/api/root-agent/plans/analyze${qStr}`, {
       headers: { "X-App-Token": token }
     });
-    return enrichAnalysisResponse(res.data);
+    const enriched = enrichAnalysisResponse(res.data);
+    
+    // Save to memory cache
+    analysisCache.set(cacheKey, {
+      timestamp: now,
+      data: enriched
+    });
+
+    return enriched;
   } catch (err) {
     console.error("[calendar-get-analysis-error]", getCleanErrorMessage(err));
     throw new Error(getCleanErrorMessage(err));
@@ -240,11 +282,20 @@ async function getDailyPlanAnalysis(planDate, overrideToken) {
  */
 async function runDailyPlanAnalysis(planDate, overrideToken) {
   const { baseUrl, token } = getRequestConfig(overrideToken);
+  const cacheKey = `${token}:${planDate}`;
   try {
     const res = await axios.post(`${baseUrl}/api/root-agent/plans/analyze`, { plan_date: planDate }, {
       headers: { "X-App-Token": token, "Content-Type": "application/json" }
     });
-    return enrichAnalysisResponse(res.data);
+    const enriched = enrichAnalysisResponse(res.data);
+
+    // Explicitly update the cache on manual rerun
+    analysisCache.set(cacheKey, {
+      timestamp: Date.now(),
+      data: enriched
+    });
+
+    return enriched;
   } catch (err) {
     console.error("[calendar-run-analysis-error]", getCleanErrorMessage(err));
     throw new Error(getCleanErrorMessage(err));
