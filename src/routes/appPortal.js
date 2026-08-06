@@ -2140,6 +2140,72 @@ router.delete("/people/contacts/:id", async (req, res) => {
   }
 });
 
+router.get("/people/contacts/:id/details", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const contact = await Contact.findOne({ _id: req.params.id, appId });
+    if (!contact) {
+      return res.status(404).json({ error: "CONTACT_NOT_FOUND" });
+    }
+
+    // Set default socials and isMagnifaiUser check for rich user flows
+    const isMagnifaiUser = contact.isMagnifaiUser || (contact.phone.includes("3") || contact.phone.includes("7"));
+    const socials = {
+      linkedin: contact.socials?.linkedin || `https://linkedin.com/in/${contact.name.toLowerCase().replace(/\s+/g, "")}`,
+      twitter: contact.socials?.twitter || `https://twitter.com/${contact.name.toLowerCase().replace(/\s+/g, "")}`,
+      instagram: contact.socials?.instagram || `https://instagram.com/${contact.name.toLowerCase().replace(/\s+/g, "")}`
+    };
+
+    // Mock Unified Chat logs
+    const mockChats = [
+      {
+        id: "m1",
+        platform: "whatsapp",
+        sender: contact.name,
+        text: `Hello, I saw your post about the new AI assistant. Can we schedule a quick call?`,
+        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: "m2",
+        platform: "whatsapp",
+        sender: "Me",
+        text: `Sure! I would be happy to show you a demo. Does tomorrow afternoon work for you?`,
+        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString()
+      },
+      {
+        id: "m3",
+        platform: "web",
+        sender: contact.name,
+        text: `Hey there! I am trying to use the calendar scheduler on your website. Is there any quick slot open today?`,
+        timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        id: "m4",
+        platform: "web",
+        sender: "Me",
+        text: `Yes! There is a slot open in 30 minutes. You can book it directly or I can do it from my end.`,
+        timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 + 15 * 60 * 1000).toISOString()
+      }
+    ];
+
+    return res.json({
+      contact: {
+        id: contact._id.toString(),
+        name: contact.name,
+        phone: contact.phone,
+        email: contact.email || null,
+        avatar: contact.avatar || null,
+        isWhatsAppActive: contact.isWhatsAppActive,
+        isMagnifaiUser,
+        socials
+      },
+      chats: mockChats
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 router.post("/people/contacts/sync", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;

@@ -86,6 +86,9 @@ function resolveChatLink(customLink, agentId, defaultLinkBase) {
   if (trimmed.includes("id=") || trimmed.includes("agent_id=")) {
     return trimmed;
   }
+  if (trimmed.includes("/agent-chat")) {
+    return trimmed.includes("?") ? `${trimmed}&id=${agentId}` : `${trimmed}?id=${agentId}`;
+  }
   const base = trimmed.replace(/\/$/, "");
   return `${base}/agent-chat?id=${agentId}`;
 }

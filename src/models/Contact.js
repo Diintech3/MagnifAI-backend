@@ -35,6 +35,15 @@ const contactSchema = new mongoose.Schema(
       type: Boolean,
       default: null,
     },
+    isMagnifaiUser: {
+      type: Boolean,
+      default: false,
+    },
+    socials: {
+      linkedin: { type: String, default: "" },
+      twitter: { type: String, default: "" },
+      instagram: { type: String, default: "" }
+    },
     joinedAt: {
       type: Date,
       default: Date.now,
