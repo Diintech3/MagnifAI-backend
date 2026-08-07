@@ -143,16 +143,15 @@ async function runTest() {
     });
     console.log("Admin Approval response:", approveRes.data);
 
-    // Verify App and CEO were created in database
-    const createdApp = await App.findOne({ email: testEmail });
+    // Verify CEO was created in database and linked to the active workspace
     const createdCEO = await CEO.findOne({ email: testEmail });
 
-    if (createdApp && createdCEO) {
-      console.log("\n✅ SUCCESS: App Workspace and CEO records created successfully!");
-      console.log(`Created App ID: ${createdApp._id} (Name: ${createdApp.businessName})`);
+    if (createdCEO && createdCEO.appId.toString() === appUser._id.toString()) {
+      console.log("\n✅ SUCCESS: CEO profile created and successfully linked to active App Workspace!");
+      console.log(`Linked App ID: ${createdCEO.appId}`);
       console.log(`Created CEO ID: ${createdCEO._id} (Name: ${createdCEO.name}, Designation: ${createdCEO.designation}, RAG Client ID: ${createdCEO.ragClientId || "none"})`);
     } else {
-      throw new Error("App Workspace or CEO record missing after approval.");
+      throw new Error("CEO record missing or linked to incorrect appId.");
     }
 
   } catch (err) {

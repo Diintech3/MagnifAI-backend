@@ -2167,17 +2167,27 @@ router.get("/people/contacts", async (req, res) => {
       }
     }
 
+    const totalContacts = await Contact.countDocuments(filter);
+    const totalPages = limit ? Math.ceil(totalContacts / limit) : 1;
+    const hasMore = page && limit ? (page * limit) < totalContacts : false;
+
     const resolved = await resolveRegisteredDetailsForContacts(contacts);
-    return res.json(resolved.map(c => ({
-      id: c.id,
-      name: c.name,
-      phone: c.phone,
-      email: c.email,
-      lastConnected: c.lastConnected || "Just added",
-      isWhatsAppActive: c.isWhatsAppActive,
-      avatar: c.avatar,
-      joinedAt: c.joinedAt
-    })));
+    return res.json({
+      contacts: resolved.map(c => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        lastConnected: c.lastConnected || "Just added",
+        isWhatsAppActive: c.isWhatsAppActive,
+        avatar: c.avatar,
+        joinedAt: c.joinedAt
+      })),
+      totalContacts,
+      totalPages,
+      currentPage: page || 1,
+      hasMore
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -2545,9 +2555,16 @@ router.post("/people/contacts/:id/verify-whatsapp", async (req, res) => {
 router.get("/people/new", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const totalNewMembers = await Contact.countDocuments({ appId });
+
     const contacts = await Contact.find({ appId })
       .sort({ joinedAt: -1 })
-      .limit(15);
+      .skip(skip)
+      .limit(limit);
 
     const formatRelativeTime = (date) => {
       const diffMs = Date.now() - new Date(date).getTime();
@@ -2586,14 +2603,19 @@ router.get("/people/new", async (req, res) => {
     }
 
     const resolved = await resolveRegisteredDetailsForContacts(contacts);
-    return res.json(resolved.map(c => ({
-      id: c.id,
-      name: c.name,
-      phone: c.phone,
-      joinedAt: formatRelativeTime(c.joinedAt),
-      isWhatsAppActive: c.isWhatsAppActive,
-      avatar: c.avatar
-    })));
+    return res.json({
+      newMembers: resolved.map(c => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        joinedAt: formatRelativeTime(c.joinedAt),
+        isWhatsAppActive: c.isWhatsAppActive,
+        avatar: c.avatar
+      })),
+      total: totalNewMembers,
+      currentPage: page,
+      hasMore: (page * limit) < totalNewMembers
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -2603,19 +2625,34 @@ router.get("/people/new", async (req, res) => {
 router.get("/people/groups", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
-    const groups = await Group.find({ appId }).populate("members", "name avatar");
-    return res.json(groups.map(g => ({
-      id: g._id.toString(),
-      name: g.name,
-      iconIndex: g.iconIndex,
-      colorHex: g.colorHex,
-      membersCount: g.members ? g.members.length : 0,
-      members: (g.members || []).map(m => ({
-        id: m._id.toString(),
-        name: m.name,
-        avatar: m.avatar || null
-      }))
-    })));
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const totalGroups = await Group.countDocuments({ appId });
+
+    const groups = await Group.find({ appId })
+      .populate("members", "name avatar")
+      .skip(skip)
+      .limit(limit);
+
+    return res.json({
+      groups: groups.map(g => ({
+        id: g._id.toString(),
+        name: g.name,
+        iconIndex: g.iconIndex,
+        colorHex: g.colorHex,
+        membersCount: g.members ? g.members.length : 0,
+        members: (g.members || []).map(m => ({
+          id: m._id.toString(),
+          name: m.name,
+          avatar: m.avatar || null
+        }))
+      })),
+      total: totalGroups,
+      currentPage: page,
+      hasMore: (page * limit) < totalGroups
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -2737,32 +2774,22 @@ router.post("/onboarding-requests/:id/approve", async (req, res) => {
       return res.status(400).json({ error: "REQUEST_ALREADY_APPROVED" });
     }
 
-    // 1. Create the App Workspace
-    const appWorkspace = await App.create({
-      businessName: request.organizationName,
-      websiteUrl: request.website || "",
-      fullName: request.name,
-      email: request.email,
-      mobile: request.mobile,
-      city: request.city || "",
-      address: request.address || "",
-      pincode: request.pincode || "",
-      passwordHash: request.passwordHash || "dummyPasswordHashUntilGoogleLink",
-      createdBy: req.user.sub,
-      logoUrl: request.photoUrl || "",
-      logoKey: request.photoKey || ""
-    });
+    const targetAppId = req.user.appId || req.user.sub;
+    const currentApp = await App.findById(targetAppId);
+    if (!currentApp) {
+      return res.status(404).json({ error: "ACTIVE_WORKSPACE_NOT_FOUND" });
+    }
 
-    // 2. Create the CEO Profile
+    // 1. Create the CEO Profile linked directly to the approving Founder's workspace
     const ceo = await CEO.create({
-      appId: appWorkspace._id,
+      appId: currentApp._id,
       name: request.name,
-      company: request.organizationName,
+      company: request.organizationName || currentApp.businessName,
       designation: request.designation,
-      website: request.website || "",
-      city: request.city || "",
-      address: request.address || "",
-      pincode: request.pincode || "",
+      website: request.website || currentApp.websiteUrl || "",
+      city: request.city || currentApp.city || "",
+      address: request.address || currentApp.address || "",
+      pincode: request.pincode || currentApp.pincode || "",
       email: request.email,
       mobile: request.mobile,
       passwordHash: request.passwordHash || "dummyPasswordHashUntilGoogleLink",
