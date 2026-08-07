@@ -17,7 +17,7 @@ const scriptSchema = new mongoose.Schema(
     scheduledTime: { type: String, default: "Self-scheduled" },
     approvalStatus: {
       type: String,
-      enum: ["Draft", "Pending", "Submitted", "Editing", "Edited", "Approved", "Rejected", "Objection"],
+      enum: ["Draft", "Pending", "Submitted", "Editing", "Edited", "Approved", "Rejected", "Objection", "Recorded", "Retake"],
       default: "Draft"
     },
     imageUrl:          { type: String, default: null },

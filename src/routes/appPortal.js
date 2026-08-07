@@ -1387,7 +1387,7 @@ router.get("/scripts", async (req, res) => {
         scheduledTime: s.scheduledTime,
         approvalStatus: s.approvalStatus,
         imageUrl: s.imageUrl,
-        rawVideoUrl: ["Submitted", "Editing", "Edited", "Approved", "Rejected"].includes(s.approvalStatus) ? s.rawVideoUrl : null,
+        rawVideoUrl: ["Recorded", "Retake", "Submitted", "Editing", "Edited", "Approved", "Rejected"].includes(s.approvalStatus) ? s.rawVideoUrl : null,
         processedVideoUrl: s.processedVideoUrl,
         viralVideoUrl: s.viralVideoUrl,
         processingStatus: s.processingStatus,
@@ -1852,7 +1852,7 @@ router.put("/scripts/:id/status", async (req, res) => {
     }
 
     const { status, note, sendMode } = req.body;
-    const allowed = ["Draft", "Pending", "Waiting", "Submitted", "Editing", "Edited", "Approved", "Rejected", "Objection"];
+    const allowed = ["Draft", "Pending", "Waiting", "Submitted", "Editing", "Edited", "Approved", "Rejected", "Objection", "Recorded", "Retake"];
     if (!status || !allowed.includes(status)) {
       return res.status(400).json({ error: "invalid or missing status" });
     }
@@ -1862,6 +1862,9 @@ router.put("/scripts/:id/status", async (req, res) => {
       script.objectionNote = note || "Objection raised by founder.";
       script.approvalStatus = "Objection";
       triggerPipeline = true;
+    } else if (status === "Retake") {
+      script.objectionNote = note || "Video rejected by Admin. Please record/upload a retake.";
+      script.approvalStatus = "Retake";
     } else if (status === "Editing") {
       script.approvalStatus = "Editing";
       script.processingStatus = "processing";

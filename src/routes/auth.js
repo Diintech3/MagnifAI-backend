@@ -230,6 +230,8 @@ router.get("/me", requireAuth, async (req, res) => {
     if (role === "CEO" || appId) {
       const ceo = await CEO.findById(sub);
       if (!ceo || !ceo.isActive) return res.status(401).json({ error: "UNAUTHENTICATED" });
+      
+      const publicCeo = toPublicCEO(ceo);
       return res.json({
         id: ceo._id.toString(),
         appId: ceo.appId.toString(),
@@ -244,6 +246,20 @@ router.get("/me", requireAuth, async (req, res) => {
         company: ceo.company,
         ragClientId: ceo.ragClientId || null,
         ragToken: ceo.ragToken || null,
+        
+        // Add missing profile fields
+        mobile: publicCeo.mobile,
+        industry: publicCeo.industry,
+        website: publicCeo.website,
+        city: publicCeo.city,
+        address: publicCeo.address,
+        pincode: publicCeo.pincode,
+        photoUrl: publicCeo.photoUrl,
+        sendMode: publicCeo.sendMode,
+        adminReviewMode: publicCeo.adminReviewMode,
+        social: ceo.social || {},
+        createdAt: publicCeo.createdAt,
+        updatedAt: publicCeo.updatedAt
       });
     }
 
