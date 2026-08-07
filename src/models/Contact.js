@@ -39,6 +39,14 @@ const contactSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    designation: {
+      type: String,
+      default: "",
+    },
+    company: {
+      type: String,
+      default: "",
+    },
     socials: {
       linkedin: { type: String, default: "" },
       twitter: { type: String, default: "" },

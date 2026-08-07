@@ -312,14 +312,50 @@ router.put("/scripts/:id/status", async (req, res) => {
       return res.status(404).json({ error: "NOT_FOUND" });
     }
 
-    const { status, note, sendMode } = req.body;
+    const { status, note, sendMode, clearVideo } = req.body;
     const allowed = ["Draft", "Pending", "Waiting", "Submitted", "Editing", "Edited", "Approved", "Rejected", "Objection"];
     if (!status || !allowed.includes(status)) {
       return res.status(400).json({ error: "invalid or missing status" });
     }
 
+    if (clearVideo) {
+      script.rawVideoUrl = null;
+      script.processedVideoUrl = null;
+      script.viralVideoUrl = null;
+      script.processingStatus = "none";
+      script.processingProgress = 0;
+      script.objectionNote = null;
+    }
+
     let triggerPipeline = false;
-    if (status === "Objection") {
+    if (status === "Submitted") {
+      const { CEO } = require("../models/CEO");
+      const { Candidate } = require("../models/Candidate");
+      let creatorObj = await CEO.findById(userId);
+      if (!creatorObj) {
+        creatorObj = await Candidate.findById(userId);
+      }
+      const resolvedAdminReviewMode = creatorObj?.adminReviewMode || "manual";
+
+      if (resolvedAdminReviewMode === "auto") {
+        script.approvalStatus = "Editing";
+        script.processingStatus = "processing";
+        script.processingProgress = 10;
+        script.statusHistory.push({
+          status: "Editing",
+          changedBy: "System (Auto-Approve)",
+          note: "Creator requested AI Edit. Auto-verification triggered pipeline."
+        });
+        triggerPipeline = true;
+      } else {
+        script.approvalStatus = "Submitted";
+        script.statusHistory.push({
+          status: "Submitted",
+          changedBy: "Creator",
+          note: "Creator requested AI Edit. Sent to Admin for review."
+        });
+      }
+    } else if (status === "Objection") {
       script.objectionNote = note || "Objection raised by creator.";
       script.approvalStatus = "Objection";
       triggerPipeline = true;
@@ -429,38 +465,14 @@ router.post("/scripts/:id/upload-video", videoUpload.single("video"), async (req
     
     script.rawVideoUrl = uploaded.url;
     
-    const { CEO } = require("../models/CEO");
-    const { Candidate } = require("../models/Candidate");
-    let creatorObj = await CEO.findById(userId);
-    if (!creatorObj) {
-      creatorObj = await Candidate.findById(userId);
-    }
-    const resolvedAdminReviewMode = creatorObj?.adminReviewMode || "manual";
-
-    if (resolvedAdminReviewMode === "auto") {
-      script.approvalStatus = "Editing";
-      script.processingStatus = "processing";
-      script.processingProgress = 10;
-      script.statusHistory.push({
-        status: "Editing",
-        changedBy: "System (Auto-Approve)",
-        note: "Creator uploaded raw video. Auto-verification is active. Triggering AI processing pipeline."
-      });
-      await script.save();
-
-      triggerAiPipelineForScript(script._id.toString()).catch(err => {
-        console.error(`[creator-upload-auto-trigger-error] Failed to auto-trigger pipeline for script ${script._id}:`, err.message);
-      });
-    } else {
-      script.processingStatus = "none";
-      script.processingProgress = 0;
-      script.statusHistory.push({
-        status: script.approvalStatus,
-        changedBy: "Creator",
-        note: "Creator uploaded raw video. Ready for preview."
-      });
-      await script.save();
-    }
+    script.processingStatus = "none";
+    script.processingProgress = 0;
+    script.statusHistory.push({
+      status: script.approvalStatus,
+      changedBy: "Creator",
+      note: "Creator uploaded raw video. Ready for preview/action."
+    });
+    await script.save();
 
     return res.json({
       success: true,

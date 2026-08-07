@@ -11,9 +11,10 @@ const { uploadToR2, isR2Configured } = require("../utils/r2");
 const { candidateUpload, logoUpload } = require("../middleware/upload");
 const { candidatesRouter } = require("./candidates");
 const { postsRouter } = require("./posts");
-const { registerSubUser, listSubUsers, listAgents, createAgent } = require("../services/agentAiService");
+const { registerSubUser, listSubUsers, listAgents, createAgent, getVisitorSessions, getSessionHistory } = require("../services/agentAiService");
 const { Contact } = require("../models/Contact");
 const { Group } = require("../models/Group");
+const { CeoProfile } = require("../models/CeoProfile");
 
 const router = express.Router();
 
@@ -1386,7 +1387,7 @@ router.get("/scripts", async (req, res) => {
         scheduledTime: s.scheduledTime,
         approvalStatus: s.approvalStatus,
         imageUrl: s.imageUrl,
-        rawVideoUrl: s.rawVideoUrl,
+        rawVideoUrl: ["Submitted", "Editing", "Edited", "Approved", "Rejected"].includes(s.approvalStatus) ? s.rawVideoUrl : null,
         processedVideoUrl: s.processedVideoUrl,
         viralVideoUrl: s.viralVideoUrl,
         processingStatus: s.processingStatus,
@@ -2045,6 +2046,80 @@ Do NOT include section headers, bracket tags, or labels like [HOOK], [MAIN CONTE
   }
 });
 
+async function resolveRegisteredDetailsForContacts(contacts) {
+  if (!contacts || contacts.length === 0) return [];
+  
+  const contactMap = contacts.map(c => {
+    const clean = c.phone.replace(/\D/g, "");
+    const suffix = clean.length >= 10 ? clean.slice(-10) : clean;
+    return { contact: c, suffix };
+  });
+
+  const suffixes = contactMap.map(item => item.suffix).filter(s => s.length > 0);
+  
+  let ceos = [];
+  let candidates = [];
+  if (suffixes.length > 0) {
+    const searchConditions = suffixes.map(s => ({
+      mobile: new RegExp(s.split("").join("\\D*") + "$")
+    }));
+    ceos = await CEO.find({ $or: searchConditions });
+    candidates = await Candidate.find({ $or: searchConditions });
+  }
+
+  return contacts.map(c => {
+    const clean = c.phone.replace(/\D/g, "");
+    const suffix = clean.length >= 10 ? clean.slice(-10) : clean;
+    
+    const matchedCeo = ceos.find(ceo => {
+      const ceoMobile = (ceo.mobile || "").replace(/\D/g, "");
+      return ceoMobile.endsWith(suffix);
+    });
+
+    if (matchedCeo) {
+      return {
+        id: c._id.toString(),
+        name: matchedCeo.name,
+        phone: c.phone,
+        email: c.email || null,
+        avatar: matchedCeo.photoUrl || c.avatar || null,
+        isWhatsAppActive: c.isWhatsAppActive,
+        joinedAt: c.joinedAt,
+        lastConnected: c.lastConnected
+      };
+    }
+
+    const matchedCandidate = candidates.find(cand => {
+      const candMobile = (cand.mobile || "").replace(/\D/g, "");
+      return candMobile.endsWith(suffix);
+    });
+
+    if (matchedCandidate) {
+      return {
+        id: c._id.toString(),
+        name: matchedCandidate.name,
+        phone: c.phone,
+        email: c.email || null,
+        avatar: matchedCandidate.photoUrl || c.avatar || null,
+        isWhatsAppActive: c.isWhatsAppActive,
+        joinedAt: c.joinedAt,
+        lastConnected: c.lastConnected
+      };
+    }
+
+    return {
+      id: c._id.toString(),
+      name: c.name,
+      phone: c.phone,
+      email: c.email || null,
+      avatar: c.avatar || null,
+      isWhatsAppActive: c.isWhatsAppActive,
+      joinedAt: c.joinedAt,
+      lastConnected: c.lastConnected
+    };
+  });
+}
+
 // ─── Contacts Management ──────────────────────────────────────────────────
 router.get("/people/contacts", async (req, res) => {
   try {
@@ -2055,7 +2130,14 @@ router.get("/people/contacts", async (req, res) => {
       const re = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
       filter.$or = [{ name: re }, { email: re }, { phone: re }];
     }
-    const contacts = await Contact.find(filter).sort({ name: 1 });
+    const page = parseInt(req.query.page) || null;
+    const limit = parseInt(req.query.limit) || null;
+    let query = Contact.find(filter).sort({ name: 1 });
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      query = query.skip(skip).limit(limit);
+    }
+    const contacts = await query;
 
     // Synchronously verify WhatsApp status for any unverified contacts in the current view
     const unverifiedContacts = contacts.filter(c => c.isWhatsAppActive == null);
@@ -2081,14 +2163,15 @@ router.get("/people/contacts", async (req, res) => {
       }
     }
 
-    return res.json(contacts.map(c => ({
-      id: c._id.toString(),
+    const resolved = await resolveRegisteredDetailsForContacts(contacts);
+    return res.json(resolved.map(c => ({
+      id: c.id,
       name: c.name,
       phone: c.phone,
-      email: c.email || null,
+      email: c.email,
       lastConnected: c.lastConnected || "Just added",
       isWhatsAppActive: c.isWhatsAppActive,
-      avatar: c.avatar || null,
+      avatar: c.avatar,
       joinedAt: c.joinedAt
     })));
   } catch (err) {
@@ -2148,58 +2231,174 @@ router.get("/people/contacts/:id/details", async (req, res) => {
       return res.status(404).json({ error: "CONTACT_NOT_FOUND" });
     }
 
-    // Set default socials and isMagnifaiUser check for rich user flows
-    const isMagnifaiUser = contact.isMagnifaiUser || (contact.phone.includes("3") || contact.phone.includes("7"));
-    const socials = {
-      linkedin: contact.socials?.linkedin || `https://linkedin.com/in/${contact.name.toLowerCase().replace(/\s+/g, "")}`,
-      twitter: contact.socials?.twitter || `https://twitter.com/${contact.name.toLowerCase().replace(/\s+/g, "")}`,
-      instagram: contact.socials?.instagram || `https://instagram.com/${contact.name.toLowerCase().replace(/\s+/g, "")}`
-    };
+    const cleanPhone = contact.phone.replace(/\D/g, "");
+    let last10Digits = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+    let registeredCeo = null;
+    let registeredCandidate = null;
+    let currentCeo = null;
 
-    // Mock Unified Chat logs
-    const mockChats = [
-      {
-        id: "m1",
-        platform: "whatsapp",
-        sender: contact.name,
-        text: `Hello, I saw your post about the new AI assistant. Can we schedule a quick call?`,
-        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: "m2",
-        platform: "whatsapp",
-        sender: "Me",
-        text: `Sure! I would be happy to show you a demo. Does tomorrow afternoon work for you?`,
-        timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000).toISOString()
-      },
-      {
-        id: "m3",
-        platform: "web",
-        sender: contact.name,
-        text: `Hey there! I am trying to use the calendar scheduler on your website. Is there any quick slot open today?`,
-        timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: "m4",
-        platform: "web",
-        sender: "Me",
-        text: `Yes! There is a slot open in 30 minutes. You can book it directly or I can do it from my end.`,
-        timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000 + 15 * 60 * 1000).toISOString()
+    if (req.user && req.user.appId) {
+      currentCeo = await CEO.findById(req.user.sub);
+    }
+
+    if (cleanPhone.length >= 10) {
+      last10Digits = cleanPhone.slice(-10);
+      // Create regex pattern to match digits even if separated by spaces, dashes or country code (e.g. 9\D*8\D*7\D*6\D*5\D*4\D*3\D*2\D*1\D*0$)
+      const regexPattern = last10Digits.split("").join("\\D*") + "$";
+      const phoneRegex = new RegExp(regexPattern);
+
+      registeredCeo = await CEO.findOne({
+        mobile: phoneRegex
+      });
+      if (!registeredCeo) {
+        registeredCandidate = await Candidate.findOne({
+          mobile: phoneRegex
+        });
       }
-    ];
+    }
+
+    let isMagnifaiUser = contact.isMagnifaiUser;
+    let name = contact.name;
+    let email = contact.email || null;
+    let designation = contact.designation || "";
+    let company = contact.company || "";
+    let socials = {
+      linkedin: "",
+      twitter: "",
+      instagram: ""
+    };
+    let displayId = contact._id.toString();
+    let avatar = contact.avatar || null;
+    let agents = [];
+
+    if (registeredCeo) {
+      isMagnifaiUser = true;
+      name = registeredCeo.name;
+      email = registeredCeo.email || email;
+      designation = registeredCeo.designation || "CEO";
+      company = registeredCeo.company || "MagnifAI Member";
+      displayId = registeredCeo._id.toString();
+      avatar = registeredCeo.photoUrl || avatar;
+
+      // Find real profile for LinkedIn and other socials
+      const ceoProfile = await CeoProfile.findOne({ appId: registeredCeo.appId });
+      socials.linkedin = ceoProfile?.social?.linkedin || "";
+      socials.twitter = registeredCeo.social?.twitter?.username 
+        ? `https://twitter.com/${registeredCeo.social.twitter.username}` 
+        : (ceoProfile?.social?.twitter || "");
+      socials.instagram = registeredCeo.social?.instagram?.username 
+        ? `https://instagram.com/${registeredCeo.social.instagram.username}` 
+        : (ceoProfile?.social?.instagram || "");
+
+      // Fetch active agents from vectorize service using RAG token
+      if (registeredCeo.ragToken) {
+        try {
+          const rawAgents = (await listAgents(registeredCeo.ragToken) || []).filter(ag => ag.category !== "root_assistant");
+          const defaultLinkBase = "https://magnifai.in";
+          agents = rawAgents.map(ag => {
+            const agId = ag.agent_id || ag.id;
+            const customLink = ag.customization?.chat_link?.trim() || "";
+            let chatUrl = customLink;
+            if (!chatUrl) {
+              chatUrl = `${defaultLinkBase}/agent-chat?id=${agId}`;
+            } else {
+              if (!/^https?:\/\//i.test(chatUrl)) {
+                chatUrl = "https://" + chatUrl;
+              }
+              if (chatUrl.includes("/agent-chat")) {
+                chatUrl = chatUrl.includes("?") ? `${chatUrl}&id=${agId}` : `${chatUrl}?id=${agId}`;
+              } else {
+                chatUrl = chatUrl.replace(/\/$/, "") + `/agent-chat?id=${agId}`;
+              }
+            }
+            return {
+              agentId: agId,
+              name: ag.agent_name || ag.name || "AI Agent",
+              qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(chatUrl)}`,
+              chatUrl
+            };
+          });
+        } catch (e) {
+          console.error("[list-agents-details-error]", e.message);
+        }
+      }
+    } else if (registeredCandidate) {
+      isMagnifaiUser = true;
+      name = registeredCandidate.name;
+      email = registeredCandidate.email || email;
+      designation = `${registeredCandidate.assembly} Candidate`;
+      company = registeredCandidate.partyName || "MagnifAI Candidate";
+      displayId = registeredCandidate.id || registeredCandidate._id.toString();
+      avatar = registeredCandidate.photoUrl || avatar;
+
+      // Try to find candidate socials
+      const { CandidateSocialLink } = require("../models/CandidateSocialLink");
+      const candSocial = await CandidateSocialLink.findOne({
+        candidateName: registeredCandidate.name
+      });
+      if (candSocial) {
+        socials.twitter = candSocial.twitter?.profileUrl || 
+          (candSocial.twitter?.handle ? `https://twitter.com/${candSocial.twitter.handle}` : "");
+        socials.instagram = candSocial.instagram?.profileUrl || 
+          (candSocial.instagram?.handle ? `https://instagram.com/${candSocial.instagram.handle}` : "");
+      }
+    }
+
+    // Fetch real live chat logs from vectorize sessions mapped by contact's phone suffix
+    const realChats = [];
+    if (currentCeo && currentCeo.ragToken && last10Digits) {
+      try {
+        const ceoAgents = await listAgents(currentCeo.ragToken) || [];
+        const nonRootCeoAgents = ceoAgents.filter(ag => ag.category !== "root_assistant");
+        
+        for (const ag of nonRootCeoAgents) {
+          const agId = ag.agent_id || ag.id;
+          const sessions = await getVisitorSessions(agId, currentCeo.ragToken) || [];
+          
+          // Find sessions matching this contact's phone suffix
+          const matchedSessions = sessions.filter(sess => {
+            const sessPhone = (sess.phone_number || "").replace(/\D/g, "");
+            return sessPhone.endsWith(last10Digits);
+          });
+          
+          for (const sess of matchedSessions) {
+            const history = await getSessionHistory(sess.session_id, currentCeo.ragToken) || [];
+            if (Array.isArray(history)) {
+              history.forEach((msg, idx) => {
+                realChats.push({
+                  id: msg.id || msg._id || `${sess.session_id}-${idx}`,
+                  platform: sess.platform || "web",
+                  sender: msg.role === "user" ? (contact.name || "User") : (ag.agent_name || ag.name || "AI Agent"),
+                  text: msg.content || msg.text || "",
+                  timestamp: msg.created_at || msg.timestamp || sess.created_at || new Date().toISOString()
+                });
+              });
+            }
+          }
+        }
+        
+        // Sort chronologically (oldest first, newest at the bottom)
+        realChats.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      } catch (e) {
+        console.error("Failed to load real chat logs for contact:", e.message);
+      }
+    }
 
     return res.json({
       contact: {
-        id: contact._id.toString(),
-        name: contact.name,
+        id: displayId,
+        name,
         phone: contact.phone,
-        email: contact.email || null,
-        avatar: contact.avatar || null,
+        email,
+        avatar,
         isWhatsAppActive: contact.isWhatsAppActive,
         isMagnifaiUser,
-        socials
+        designation,
+        company,
+        socials,
+        agents
       },
-      chats: mockChats
+      chats: realChats
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -2382,13 +2581,14 @@ router.get("/people/new", async (req, res) => {
       }
     }
 
-    return res.json(contacts.map(c => ({
-      id: c._id.toString(),
+    const resolved = await resolveRegisteredDetailsForContacts(contacts);
+    return res.json(resolved.map(c => ({
+      id: c.id,
       name: c.name,
       phone: c.phone,
       joinedAt: formatRelativeTime(c.joinedAt),
       isWhatsAppActive: c.isWhatsAppActive,
-      avatar: c.avatar || null
+      avatar: c.avatar
     })));
   } catch (err) {
     return res.status(500).json({ error: err.message });
