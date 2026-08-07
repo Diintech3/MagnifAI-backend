@@ -164,7 +164,7 @@ router.post("/scripts", async (req, res) => {
       duration,
       scheduledDate: scheduledDate || "Self-scheduled",
       scheduledTime: scheduledTime || "Self-scheduled",
-      approvalStatus: "Pending"
+      approvalStatus: "Draft"
     });
 
     // Sync script to Daily Planner

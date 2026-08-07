@@ -15,6 +15,7 @@ const { registerSubUser, listSubUsers, listAgents, createAgent, getVisitorSessio
 const { Contact } = require("../models/Contact");
 const { Group } = require("../models/Group");
 const { CeoProfile } = require("../models/CeoProfile");
+const { OnboardingRequest } = require("../models/OnboardingRequest");
 
 const router = express.Router();
 
@@ -2710,6 +2711,191 @@ router.delete("/people/groups/:id", async (req, res) => {
       return res.status(404).json({ error: "GROUP_NOT_FOUND" });
     }
     return res.status(204).end();
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET Onboarding Requests ──────────────────────────────────────────────
+router.get("/onboarding-requests", async (req, res) => {
+  try {
+    const requests = await OnboardingRequest.find().sort({ createdAt: -1 });
+    return res.json({ onboardingRequests: requests });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST Approve Onboarding Request ──────────────────────────────────────────
+router.post("/onboarding-requests/:id/approve", async (req, res) => {
+  try {
+    const request = await OnboardingRequest.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({ error: "ONBOARDING_REQUEST_NOT_FOUND" });
+    }
+    if (request.status === "Approved") {
+      return res.status(400).json({ error: "REQUEST_ALREADY_APPROVED" });
+    }
+
+    // 1. Create the App Workspace
+    const appWorkspace = await App.create({
+      businessName: request.organizationName,
+      websiteUrl: request.website || "",
+      fullName: request.name,
+      email: request.email,
+      mobile: request.mobile,
+      city: request.city || "",
+      address: request.address || "",
+      pincode: request.pincode || "",
+      passwordHash: request.passwordHash || "dummyPasswordHashUntilGoogleLink",
+      createdBy: req.user.sub,
+      logoUrl: request.photoUrl || "",
+      logoKey: request.photoKey || ""
+    });
+
+    // 2. Create the CEO Profile
+    const ceo = await CEO.create({
+      appId: appWorkspace._id,
+      name: request.name,
+      company: request.organizationName,
+      designation: request.designation,
+      website: request.website || "",
+      city: request.city || "",
+      address: request.address || "",
+      pincode: request.pincode || "",
+      email: request.email,
+      mobile: request.mobile,
+      passwordHash: request.passwordHash || "dummyPasswordHashUntilGoogleLink",
+      photoUrl: request.photoUrl || "",
+      photoKey: request.photoKey || "",
+      googleId: request.googleId || null,
+      isActive: true
+    });
+
+    // 3. Register with external RAG / Agent AI API
+    try {
+      const ragSubUser = await registerSubUser({
+        name: request.name,
+        email: request.email,
+        password: "tempPassword123!",
+        business_name: request.organizationName,
+        website_url: request.website || "",
+        mobile_number: request.mobile,
+        city: request.city || "",
+        pin_code: request.pincode || "",
+        address: request.address || "",
+        logo_url: request.photoUrl || ""
+      });
+
+      if (ragSubUser && ragSubUser.success && ragSubUser.user) {
+        ceo.ragClientId = ragSubUser.user.client_id;
+        ceo.ragToken = ragSubUser.user.token;
+        await ceo.save();
+      }
+    } catch (ragErr) {
+      console.error("[onboarding-approve-rag-error]", ragErr.message);
+    }
+
+    // 4. Update request status to Approved
+    request.status = "Approved";
+    await request.save();
+
+    // 5. Send confirmation email to approved user
+    try {
+      const nodemailer = require("nodemailer");
+      if (process.env.EMAIL_ENABLED === "true") {
+        const transporter = nodemailer.createTransport({
+          service: process.env.SMTP_SERVICE || "gmail",
+          host: process.env.SMTP_HOST || "smtp.gmail.com",
+          port: parseInt(process.env.SMTP_PORT || "587"),
+          secure: process.env.SMTP_PORT === "465",
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD
+          }
+        });
+        await transporter.sendMail({
+          from: `"magnifAi Support" <${process.env.EMAIL_USER}>`,
+          to: request.email,
+          subject: "Your magnifAi Account Has Been Approved!",
+          html: `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 12px; max-width: 500px; margin: auto;">
+              <h2 style="color: #16a34a; text-align: center;">Account Approved 🎉</h2>
+              <p>Hello <strong>${request.name}</strong>,</p>
+              <p>We are excited to inform you that your registration request for <strong>${request.organizationName}</strong> has been approved by our administrators!</p>
+              <p>You can now log in to the application and start generating amazing AI edited content.</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${process.env.FRONTEND_URL || "http://localhost:3000"}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Log In Now</a>
+              </div>
+              <p style="font-size: 12px; color: #6b7280; text-align: center;">If you have any questions, please contact our support team.</p>
+            </div>
+          `
+        });
+      }
+    } catch (mailErr) {
+      console.error("[onboarding-approve-mail-error]", mailErr.message);
+    }
+
+    return res.json({ success: true, message: "Onboarding request approved and workspace initialized successfully." });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST Reject Onboarding Request ──────────────────────────────────────────
+router.post("/onboarding-requests/:id/reject", async (req, res) => {
+  try {
+    const { note } = req.body;
+    const request = await OnboardingRequest.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({ error: "ONBOARDING_REQUEST_NOT_FOUND" });
+    }
+    if (request.status === "Approved") {
+      return res.status(400).json({ error: "CANNOT_REJECT_APPROVED_REQUEST" });
+    }
+
+    request.status = "Rejected";
+    request.rejectionReason = note || "Request rejected by administrator.";
+    await request.save();
+
+    // Send rejection email to user
+    try {
+      const nodemailer = require("nodemailer");
+      if (process.env.EMAIL_ENABLED === "true") {
+        const transporter = nodemailer.createTransport({
+          service: process.env.SMTP_SERVICE || "gmail",
+          host: process.env.SMTP_HOST || "smtp.gmail.com",
+          port: parseInt(process.env.SMTP_PORT || "587"),
+          secure: process.env.SMTP_PORT === "465",
+          auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASSWORD
+          }
+        });
+        await transporter.sendMail({
+          from: `"magnifAi Support" <${process.env.EMAIL_USER}>`,
+          to: request.email,
+          subject: "Update Regarding Your magnifAi Registration Request",
+          html: `
+            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 12px; max-width: 500px; margin: auto;">
+              <h2 style="color: #dc2626; text-align: center;">Onboarding Request Status Update</h2>
+              <p>Hello <strong>${request.name}</strong>,</p>
+              <p>Thank you for your interest in magnifAi. We have reviewed your registration request for <strong>${request.organizationName}</strong>.</p>
+              <p>Unfortunately, your request could not be approved at this time for the following reason:</p>
+              <div style="background-color: #fef2f2; border: 1px solid #fee2e2; color: #991b1b; padding: 15px; border-radius: 8px; margin: 20px 0; font-style: italic;">
+                "${request.rejectionReason}"
+              </div>
+              <p>You may submit a new request with updated information if you wish.</p>
+              <p style="font-size: 12px; color: #6b7280; text-align: center;">If you believe this was an error, please contact our support team.</p>
+            </div>
+          `
+        });
+      }
+    } catch (mailErr) {
+      console.error("[onboarding-reject-mail-error]", mailErr.message);
+    }
+
+    return res.json({ success: true, message: "Onboarding request rejected successfully." });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

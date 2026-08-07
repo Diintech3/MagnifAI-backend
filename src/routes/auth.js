@@ -4,9 +4,22 @@ const { User, toPublicUser } = require("../models/User");
 const { App, toPublicApp } = require("../models/App");
 const { Candidate, toPublicCandidate } = require("../models/Candidate");
 const { CEO, toPublicCEO } = require("../models/CEO");
-const { verifyPassword } = require("../utils/password");
+const { OnboardingRequest } = require("../models/OnboardingRequest");
+const { verifyPassword, hashPassword } = require("../utils/password");
 const { signAccessToken } = require("../utils/jwt");
 const { requireAuth, requireRole } = require("../middleware/auth");
+const { generateOtp, sendEmailOtp, sendWhatsAppOtp } = require("../utils/otp");
+const { uploadToR2, isR2Configured } = require("../utils/r2");
+const multer = require("multer");
+
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter(_req, file, cb) {
+    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+    cb(allowed.includes(file.mimetype) ? null : new Error("INVALID_FILE_TYPE"), allowed.includes(file.mimetype));
+  },
+}).fields([{ name: "photo", maxCount: 1 }]);
 
 const router = express.Router();
 
@@ -370,6 +383,367 @@ router.post("/unified-login", async (req, res) => {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("[auth/unified-login]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  }
+});
+
+// ── Google Login / Verification Route ────────────────────────────────────
+router.post("/google-login", async (req, res) => {
+  try {
+    const { email, name, googleId } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    // 1. Search in CEO
+    const ceo = await CEO.findOne({ email: email.toLowerCase() });
+    if (ceo) {
+      if (!ceo.isActive) {
+        return res.status(401).json({ error: "UNAUTHORIZED_ACCOUNT_INACTIVE" });
+      }
+      
+      // Update Google ID if not already saved
+      if (!ceo.googleId && googleId) {
+        ceo.googleId = googleId;
+        await ceo.save();
+      }
+
+      const accessToken = signAccessToken({
+        sub: ceo._id.toString(),
+        email: ceo.email,
+        role: "CEO",
+        name: ceo.name,
+        businessName: ceo.name,
+        showCandidates: false,
+        dashboardType: "default",
+        isCEO: true,
+      });
+
+      return res.json({
+        success: true,
+        accessToken,
+        role: "CEO",
+        user: toPublicCEO(ceo)
+      });
+    }
+
+    // 2. Search in Candidate
+    const candidate = await Candidate.findOne({ email: email.toLowerCase() });
+    if (candidate) {
+      if (!candidate.isActive) {
+        return res.status(401).json({ error: "UNAUTHORIZED_ACCOUNT_INACTIVE" });
+      }
+
+      const accessToken = signCandidateToken(candidate);
+      return res.json({
+        success: true,
+        accessToken,
+        role: "CANDIDATE",
+        user: toPublicCandidate(candidate)
+      });
+    }
+
+    // 3. Search in Onboarding Requests
+    const request = await OnboardingRequest.findOne({ email: email.toLowerCase() });
+    if (request) {
+      if (request.status === "Pending") {
+        return res.json({
+          success: false,
+          status: "AwaitingApproval",
+          message: "Your onboarding request is awaiting Admin review."
+        });
+      }
+      if (request.status === "Rejected") {
+        return res.json({
+          success: false,
+          status: "Rejected",
+          message: `Your request was rejected. Reason: ${request.rejectionReason || "No details provided"}.`
+        });
+      }
+    }
+
+    // 4. User is not registered at all
+    return res.json({
+      success: false,
+      status: "RegisterRequired",
+      message: "Profile not found. Please complete the registration request.",
+      email,
+      name,
+      googleId
+    });
+  } catch (err) {
+    console.error("[google-login-error]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  }
+});
+
+// ── Onboarding 4-Step Signup Flow ──────────────────────────────────────────
+
+// Step 1: Send Email Verification OTP
+router.post("/register-step1-email", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+    const targetEmail = email.toLowerCase().trim();
+
+    // Check if already registered
+    const existingCEO = await CEO.findOne({ email: targetEmail });
+    const existingCand = await Candidate.findOne({ email: targetEmail });
+    if (existingCEO || existingCand) {
+      return res.status(400).json({ error: "Email already registered in system." });
+    }
+
+    const otp = generateOtp();
+    let request = await OnboardingRequest.findOne({ email: targetEmail });
+    if (!request) {
+      request = new OnboardingRequest({ email: targetEmail });
+    }
+    
+    // Reset flags if starting a new signup/retry
+    request.emailOtp = otp;
+    request.isEmailVerified = false;
+    request.status = "Pending";
+    await request.save();
+
+    await sendEmailOtp(targetEmail, otp);
+    return res.json({ success: true, message: "Verification OTP code sent to your email." });
+  } catch (err) {
+    console.error("[register-step1-error]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR", message: err.message });
+  }
+});
+
+// Step 1 Verify: Verify Email OTP
+router.post("/verify-step1-email", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: "Email and OTP are required" });
+    const targetEmail = email.toLowerCase().trim();
+
+    const request = await OnboardingRequest.findOne({ email: targetEmail });
+    if (!request) return res.status(404).json({ error: "Registration session not found." });
+
+    if (request.emailOtp !== otp.trim()) {
+      return res.status(400).json({ error: "Invalid OTP verification code." });
+    }
+
+    request.isEmailVerified = true;
+    request.emailOtp = null; // Clear OTP
+    await request.save();
+
+    return res.json({ success: true, message: "Email verified successfully." });
+  } catch (err) {
+    console.error("[verify-step1-error]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  }
+});
+
+// Step 2: Enter Mobile & Send WhatsApp OTP
+router.post("/register-step2-mobile", async (req, res) => {
+  try {
+    const { email, mobile } = req.body;
+    if (!email || !mobile) return res.status(400).json({ error: "Email and mobile number are required" });
+    const targetEmail = email.toLowerCase().trim();
+
+    const request = await OnboardingRequest.findOne({ email: targetEmail });
+    if (!request || !request.isEmailVerified) {
+      return res.status(400).json({ error: "Please verify your email address first." });
+    }
+
+    const otp = generateOtp();
+    request.mobile = mobile.trim();
+    request.mobileOtp = otp;
+    request.isMobileVerified = false;
+    await request.save();
+
+    await sendWhatsAppOtp(mobile, otp);
+    return res.json({ success: true, message: "Verification OTP code sent to your WhatsApp number." });
+  } catch (err) {
+    console.error("[register-step2-error]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR", message: err.message });
+  }
+});
+
+// Step 2 Verify: Verify WhatsApp OTP
+router.post("/verify-step2-mobile", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: "Email and OTP are required" });
+    const targetEmail = email.toLowerCase().trim();
+
+    const request = await OnboardingRequest.findOne({ email: targetEmail });
+    if (!request) return res.status(404).json({ error: "Registration session not found." });
+
+    if (request.mobileOtp !== otp.trim()) {
+      return res.status(400).json({ error: "Invalid OTP verification code." });
+    }
+
+    request.isMobileVerified = true;
+    request.mobileOtp = null; // Clear OTP
+    await request.save();
+
+    return res.json({ success: true, message: "Mobile number verified successfully." });
+  } catch (err) {
+    console.error("[verify-step2-error]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  }
+});
+
+// Step 3: Profile Data Form Submission
+router.post("/register-step3-profile", async (req, res) => {
+  try {
+    const {
+      email,
+      name,
+      organizationName,
+      designation,
+      address,
+      city,
+      pincode,
+      description,
+      password,
+      googleId
+    } = req.body;
+
+    if (!email || !name || !organizationName || !designation || !address || !description) {
+      return res.status(400).json({ error: "Missing required profile fields." });
+    }
+    const targetEmail = email.toLowerCase().trim();
+
+    const request = await OnboardingRequest.findOne({ email: targetEmail });
+    if (!request || !request.isEmailVerified || !request.isMobileVerified) {
+      return res.status(400).json({ error: "Please complete Email and Mobile OTP verifications first." });
+    }
+
+    // Word count validation for description: max 30 words
+    const wordCount = description.trim().split(/\s+/).filter(Boolean).length;
+    if (wordCount > 30) {
+      return res.status(400).json({ error: "Description must not exceed 30 words." });
+    }
+
+    request.name = name.trim();
+    request.organizationName = organizationName.trim();
+    request.designation = designation.trim();
+    request.address = address.trim();
+    request.city = city ? city.trim() : "";
+    request.pincode = pincode ? pincode.trim() : "";
+    request.description = description.trim();
+    
+    if (googleId) {
+      request.googleId = googleId;
+    }
+    if (password) {
+      request.passwordHash = await hashPassword(password);
+    }
+
+    await request.save();
+    return res.json({ success: true, message: "Profile details saved successfully. Proceed to photo upload." });
+  } catch (err) {
+    console.error("[register-step3-error]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  }
+});
+
+// Step 4: Profile Image Upload & Finalize Submission
+router.post("/register-step4-photo", photoUpload, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+    const targetEmail = email.toLowerCase().trim();
+
+    const request = await OnboardingRequest.findOne({ email: targetEmail });
+    if (!request || !request.isEmailVerified || !request.isMobileVerified) {
+      return res.status(400).json({ error: "Registration session not found or verification not completed." });
+    }
+
+    const photoFile = req.files?.photo?.[0];
+    if (photoFile) {
+      if (!isR2Configured()) {
+        return res.status(503).json({ error: "R2_NOT_CONFIGURED" });
+      }
+      const uploaded = await uploadToR2(photoFile, "onboarding/photos");
+      request.photoUrl = uploaded.url;
+      request.photoKey = uploaded.key;
+    }
+
+    request.status = "Pending";
+    await request.save();
+
+    return res.json({
+      success: true,
+      message: "Your onboarding registration request has been submitted successfully. Admin will review and approve your account shortly.",
+      request
+    });
+  } catch (err) {
+    if (err.message === "INVALID_FILE_TYPE") {
+      return res.status(400).json({ error: "Invalid photo file type. Only standard formats (jpg, png, webp) are allowed." });
+    }
+    console.error("[register-step4-error]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  }
+});
+
+// ── POST Forgot Password (Send OTP) ──────────────────────────────────────
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email is required" });
+    const targetEmail = email.toLowerCase().trim();
+
+    const ceo = await CEO.findOne({ email: targetEmail });
+    if (!ceo) {
+      console.log(`[Forgot Password] Requested email not found: ${targetEmail}`);
+      return res.json({ success: true, message: "If the email is registered, a password reset code has been sent." });
+    }
+
+    // Generate 6-digit OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    ceo.resetOtp = otpCode;
+    ceo.resetOtpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+    await ceo.save();
+
+    // Send OTP via utility
+    const { sendEmailOtp } = require("../utils/otp");
+    await sendEmailOtp(targetEmail, otpCode);
+
+    return res.json({ success: true, message: "Verification OTP code sent to your email." });
+  } catch (err) {
+    console.error("[forgot-password-error]", err);
+    return res.status(500).json({ error: "INTERNAL_ERROR" });
+  }
+});
+
+// ── POST Reset Password (Verify OTP & Update) ───────────────────────────────────
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: "Email, OTP, and new password are required" });
+    }
+    const targetEmail = email.toLowerCase().trim();
+
+    const ceo = await CEO.findOne({
+      email: targetEmail,
+      resetOtp: otp.trim(),
+      resetOtpExpires: { $gt: new Date() }
+    });
+
+    if (!ceo) {
+      return res.status(400).json({ error: "Invalid or expired verification code" });
+    }
+
+    // Update password
+    const { hashPassword } = require("../utils/password");
+    ceo.passwordHash = await hashPassword(newPassword);
+    
+    // Clear OTP fields
+    ceo.resetOtp = undefined;
+    ceo.resetOtpExpires = undefined;
+    await ceo.save();
+
+    return res.json({ success: true, message: "Password reset successfully. You can now login with your new password." });
+  } catch (err) {
+    console.error("[reset-password-error]", err);
     return res.status(500).json({ error: "INTERNAL_ERROR" });
   }
 });

@@ -18,6 +18,8 @@ const ceoSchema = new mongoose.Schema(
     photoUrl:     { type: String, trim: true },
     photoKey:     { type: String, trim: true },
     isActive:     { type: Boolean, default: true },
+    resetOtp:     { type: String },
+    resetOtpExpires: { type: Date },
     ragClientId:  { type: String, trim: true },
     ragToken:     { type: String, trim: true },
     agentId:      { type: String, trim: true },
