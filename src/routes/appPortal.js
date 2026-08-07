@@ -1560,12 +1560,12 @@ router.post("/scripts", logoUpload.single("image"), async (req, res) => {
           duration: duration || "45s",
           scheduledDate: scheduledDate.trim(),
           scheduledTime: scheduledTime.trim(),
-          approvalStatus: "Pending",
+          approvalStatus: "Draft",
           createdByAdmin: true,
           sendMode: sendMode || "auto",
           statusHistory: [
             {
-              status: "Pending",
+              status: "Draft",
               changedBy: "Founder/App Admin",
               note: "Script template created and assigned to creator."
             }
@@ -1708,11 +1708,11 @@ router.patch("/scripts/:id", logoUpload.single("image"), async (req, res) => {
               duration: script.duration,
               timeGroup: script.timeGroup,
               scheduledTime: script.scheduledTime,
-              approvalStatus: "Pending",
+              approvalStatus: "Draft",
               createdByAdmin: true,
               statusHistory: [
                 {
-                  status: "Pending",
+                  status: "Draft",
                   changedBy: "Founder/App Admin",
                   note: "Script template cloned and assigned to creator."
                 }
@@ -1723,9 +1723,9 @@ router.patch("/scripts/:id", logoUpload.single("image"), async (req, res) => {
 
           script.userIds = [firstCreator];
           script.userId = firstCreator;
-          script.approvalStatus = "Pending";
+          script.approvalStatus = "Draft";
           script.statusHistory.push({
-            status: "Pending",
+            status: "Draft",
             changedBy: "Founder/App Admin",
             note: "Script template assigned to creator."
           });
@@ -1743,11 +1743,11 @@ router.patch("/scripts/:id", logoUpload.single("image"), async (req, res) => {
               duration: script.duration,
               timeGroup: script.timeGroup,
               scheduledTime: script.scheduledTime,
-              approvalStatus: "Pending",
+              approvalStatus: "Draft",
               createdByAdmin: true,
               statusHistory: [
                 {
-                  status: "Pending",
+                  status: "Draft",
                   changedBy: "Founder/App Admin",
                   note: "Script template cloned and assigned to creator."
                 }
@@ -1988,11 +1988,11 @@ Do NOT include section headers, bracket tags, or labels like [HOOK], [MAIN CONTE
           duration: duration || "45s",
           scheduledDate: aiScheduledDate,
           scheduledTime: aiScheduledTime,
-          approvalStatus: "Pending",
+          approvalStatus: "Draft",
           createdByAdmin: true,
           statusHistory: [
             {
-              status: "Pending",
+              status: "Draft",
               changedBy: "Founder/App Admin",
               note: "Script template created via AI and assigned to creator."
             }
