@@ -562,7 +562,7 @@ Context/Description: ${description || "No specific description provided"}`;
       duration: finalDuration,
       scheduledDate: "Self-scheduled",
       scheduledTime: "Self-scheduled",
-      approvalStatus: "Pending"
+      approvalStatus: "Draft"
     });
 
     return res.status(201).json({
