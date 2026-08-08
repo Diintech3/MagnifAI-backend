@@ -64,6 +64,8 @@ function createApp() {
   app.use("/api/personality", requireAuth, personalityScriptsRouter);
   app.use("/api/categories", requireAuth, categoriesRouter);
   app.use("/api/agents", agentsRouter);
+  const { getPingStatsHandler } = require("./routes/calendar");
+  app.get("/api/root-agent/pings/stats", getPingStatsHandler);
   app.use("/api/root-agent", requireAuth, rootAgentRouter);
   app.use("/api/paai-chat", requireAuth, requireRole("CEO"), paaiChatRouter);
   app.use("/api/clients", requireAuth, clientsRouter);

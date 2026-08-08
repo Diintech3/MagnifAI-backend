@@ -244,4 +244,278 @@ rootAgentRouter.delete("/sessions/:session_id", async (req, res) => {
   }
 });
 
-module.exports = { rootAgentRouter };
+async function getPingStatsHandler(req, res) {
+  try {
+    const { env } = require("../config/env");
+    
+    // 1. Resolve authentication (JWT or X-App-Token)
+    let token = req.headers["x-app-token"];
+    let ceo = null;
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const { verifyAccessToken } = require("../utils/jwt");
+        const jwtToken = authHeader.split(" ")[1];
+        const decoded = verifyAccessToken(jwtToken);
+        req.user = decoded;
+      } catch (err) {
+        // Ignore JWT errors and fall back to X-App-Token validation
+      }
+    }
+
+    const { CEO } = require("../models/CEO");
+
+    if (req.user) {
+      if (req.user.role === "CEO") {
+        ceo = await CEO.findById(req.user.sub);
+      } else if (req.user.role === "APP") {
+        ceo = await CEO.findOne({ appId: req.user.sub });
+      } else {
+        ceo = await CEO.findOne({});
+      }
+      if (ceo && ceo.ragToken) {
+        token = ceo.ragToken;
+      }
+    }
+
+    if (!ceo && token) {
+      ceo = await CEO.findOne({ ragToken: token });
+    }
+
+    if (!token) {
+      token = env.UGC_AI_APP_TOKEN;
+    }
+
+    // Validate token
+    if (!ceo && token !== env.UGC_AI_APP_TOKEN) {
+      return res.status(401).json({ error: "UNAUTHORIZED", message: "Invalid credentials or missing X-App-Token" });
+    }
+
+    // 2. Parse Query parameters
+    const { period, start_date, end_date } = req.query;
+
+    // 3. Date limits calculation
+    const now = new Date();
+    let currentStart = null, currentEnd = null, previousStart = null, previousEnd = null, suffix = "vs Previous";
+
+    if (start_date || end_date) {
+      currentStart = start_date ? new Date(start_date + "T00:00:00") : new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+      currentEnd = end_date ? new Date(end_date + "T23:59:59.999") : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      
+      const diffMs = currentEnd - currentStart;
+      previousStart = new Date(currentStart.getTime() - diffMs - 1);
+      previousEnd = new Date(currentStart.getTime() - 1);
+      suffix = "vs Previous Period";
+    } else {
+      const p = (period || "today").toLowerCase();
+      if (p === "today") {
+        currentStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        currentEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        previousStart = new Date(currentStart.getTime() - 24 * 60 * 60 * 1000);
+        previousEnd = new Date(currentEnd.getTime() - 24 * 60 * 60 * 1000);
+        suffix = "vs Yesterday";
+      } else if (p === "yesterday") {
+        currentStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+        currentEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
+        previousStart = new Date(currentStart.getTime() - 24 * 60 * 60 * 1000);
+        previousEnd = new Date(currentEnd.getTime() - 24 * 60 * 60 * 1000);
+        suffix = "vs Day Before";
+      } else if (p === "this_week") {
+        currentStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0);
+        currentEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        const diffMs = currentEnd - currentStart;
+        previousStart = new Date(currentStart.getTime() - diffMs - 1);
+        previousEnd = new Date(currentStart.getTime() - 1);
+        suffix = "vs Previous Week";
+      } else {
+        // "all" preset - no date filters
+        currentStart = null;
+        currentEnd = null;
+        previousStart = null;
+        previousEnd = null;
+        suffix = "vs Previous";
+      }
+    }
+
+    // 4. Fetch Agents
+    const { listAgents, getVisitorSessions, getSessionHistory } = require("../services/agentAiService");
+    const rawAgentsList = await listAgents(token);
+    const agentsList = Array.isArray(rawAgentsList) ? rawAgentsList : [];
+
+    // 5. Gather all sessions and aggregate
+    let allCurrentSessions = [];
+    let allPreviousSessions = [];
+
+    const agentVisitorsMap = {};
+    for (const agent of agentsList) {
+      agentVisitorsMap[agent.agent_id] = 0;
+      let agentSessions = [];
+      try {
+        const rawSessions = await getVisitorSessions(agent.agent_id, token);
+        agentSessions = Array.isArray(rawSessions) ? rawSessions : [];
+      } catch (err) {
+        console.error(`[ping-stats-sessions-error] Agent: ${agent.agent_id}`, err.message);
+      }
+
+      // Filter current sessions
+      const current = agentSessions.filter(sess => {
+        if (!currentStart && !currentEnd) return true;
+        const t = new Date(sess.created_at || sess.updated_at || 0);
+        if (currentStart && t < currentStart) return false;
+        if (currentEnd && t > currentEnd) return false;
+        return true;
+      });
+      agentVisitorsMap[agent.agent_id] = current.length;
+      allCurrentSessions.push(...current);
+
+      // Filter previous sessions
+      if (previousStart || previousEnd) {
+        const previous = agentSessions.filter(sess => {
+          const t = new Date(sess.created_at || sess.updated_at || 0);
+          if (previousStart && t < previousStart) return false;
+          if (previousEnd && t > previousEnd) return false;
+          return true;
+        });
+        allPreviousSessions.push(...previous);
+      }
+    }
+
+    // Classifiers
+    function classifySource(sess) {
+      const sessId = (sess.session_id || "").toLowerCase();
+      const devName = (sess.device_name || "").toLowerCase();
+      const plat = (sess.platform || "").toLowerCase();
+      const role = (sess.role || "").toLowerCase();
+
+      if (sessId.startsWith("wa_") || devName === "whatsapp client" || plat === "whatsapp" || role === "whatsapp") {
+        return "whatsapp";
+      } else if (sessId.startsWith("call_") || devName.includes("call") || plat === "webcall" || plat === "web_call" || role === "webcall" || role === "web_call") {
+        return "calls";
+      } else if (sessId.startsWith("widget_") || devName.includes("widget") || plat === "widget" || role === "widget") {
+        return "widgets";
+      } else {
+        return "chats";
+      }
+    }
+
+    function classifyOutcome(sess) {
+      const analysisCat = (sess.analysis?.category || "").toLowerCase();
+      const status = (sess.status || "").toLowerCase();
+      
+      if (analysisCat === "meeting" || status === "meeting_request") {
+        return "meetings";
+      } else if (["marketing", "investing", "enquiry", "lead", "inquiry"].includes(analysisCat) || ["enquiry", "lead", "inquiry"].includes(status)) {
+        return "enquiry";
+      } else if (analysisCat === "support" || status === "support") {
+        return "support";
+      } else if (analysisCat === "feedback" || status === "feedback") {
+        return "feedback";
+      } else {
+        return "others";
+      }
+    }
+
+    // Aggregate Current period metrics
+    const currentSources = { whatsapp: 0, chats: 0, calls: 0, widgets: 0 };
+    const currentOutcomes = { meetings: 0, enquiry: 0, support: 0, feedback: 0, others: 0 };
+
+    allCurrentSessions.forEach(s => {
+      if (s) {
+        currentSources[classifySource(s)]++;
+        currentOutcomes[classifyOutcome(s)]++;
+      }
+    });
+
+    // Aggregate Previous period metrics
+    const previousSources = { whatsapp: 0, chats: 0, calls: 0, widgets: 0 };
+    const previousOutcomes = { meetings: 0, enquiry: 0, support: 0, feedback: 0, others: 0 };
+
+    allPreviousSessions.forEach(s => {
+      if (s) {
+        previousSources[classifySource(s)]++;
+        previousOutcomes[classifyOutcome(s)]++;
+      }
+    });
+
+    // Fetch message histories to calculate total pings (messages)
+    async function getMessagesCount(sessionsList) {
+      let count = 0;
+      const batchSize = 15;
+      for (let i = 0; i < sessionsList.length; i += batchSize) {
+        const batch = sessionsList.slice(i, i + batchSize);
+        const results = await Promise.all(
+          batch.map(s => getSessionHistory(s.session_id, token).then(hist => (Array.isArray(hist) ? hist.length : 0)).catch(() => 0))
+        );
+        count += results.reduce((a, b) => a + b, 0);
+      }
+      return count;
+    }
+
+    const currentPings = await getMessagesCount(allCurrentSessions);
+    const previousPings = await getMessagesCount(allPreviousSessions);
+
+    // Compute Growth helper
+    function getGrowthMetrics(curr, prev, isOutcomeOrSource = false) {
+      if (prev === 0) {
+        if (curr === 0) {
+          return {
+            count: curr,
+            growth: isOutcomeOrSource ? "0%" : "0%",
+            growth_text: isOutcomeOrSource ? "" : `0% ${suffix}`,
+            is_positive: true
+          };
+        }
+        return {
+          count: curr,
+          growth: isOutcomeOrSource ? "100% ↑" : "↑ 100%",
+          growth_text: isOutcomeOrSource ? "" : `↑ 100% ${suffix}`,
+          is_positive: true
+        };
+      }
+      const pct = Math.round(((curr - prev) / prev) * 100);
+      const sign = pct >= 0 ? "↑" : "↓";
+      const absPct = Math.abs(pct);
+      return {
+        count: curr,
+        growth: isOutcomeOrSource ? `${absPct}% ${sign}` : `${sign} ${absPct}%`,
+        growth_text: isOutcomeOrSource ? "" : `${sign} ${absPct}% ${suffix}`,
+        is_positive: pct >= 0
+      };
+    }
+
+    const resAgents = agentsList.map(ag => ({
+      agent_id: ag.agent_id,
+      name: ag.name,
+      category: ag.category,
+      is_active: ag.is_active,
+      is_root: ag.category === "root_assistant" || ag.is_root || false,
+      total_visitors: agentVisitorsMap[ag.agent_id] || 0
+    }));
+
+    return res.json({
+      total_pings: getGrowthMetrics(currentPings, previousPings, false),
+      conversations: getGrowthMetrics(allCurrentSessions.length, allPreviousSessions.length, false),
+      sources: {
+        whatsapp: getGrowthMetrics(currentSources.whatsapp, previousSources.whatsapp, true),
+        chats: getGrowthMetrics(currentSources.chats, previousSources.chats, true),
+        calls: getGrowthMetrics(currentSources.calls, previousSources.calls, true),
+        widgets: getGrowthMetrics(currentSources.widgets, previousSources.widgets, true)
+      },
+      outcomes: {
+        meetings: getGrowthMetrics(currentOutcomes.meetings, previousOutcomes.meetings, true),
+        enquiry: getGrowthMetrics(currentOutcomes.enquiry, previousOutcomes.enquiry, true),
+        support: getGrowthMetrics(currentOutcomes.support, previousOutcomes.support, true),
+        feedback: getGrowthMetrics(currentOutcomes.feedback, previousOutcomes.feedback, true),
+        others: getGrowthMetrics(currentOutcomes.others, previousOutcomes.others, true)
+      },
+      agents: resAgents
+    });
+
+  } catch (err) {
+    console.error("[root-agent-pings-stats-error]", err.message);
+    return res.status(500).json({ error: "PING_STATS_ERROR", message: err.message });
+  }
+}
+
+module.exports = { rootAgentRouter, getPingStatsHandler };
