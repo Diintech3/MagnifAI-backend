@@ -2128,8 +2128,9 @@ async function resolveRegisteredDetailsForContacts(contacts) {
 router.get("/people/contacts", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     const { search } = req.query;
-    const filter = { appId };
+    const filter = ceoId ? { appId, ceoId } : { appId };
     if (search) {
       const re = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
       filter.$or = [{ name: re }, { email: re }, { phone: re }];
@@ -2196,12 +2197,14 @@ router.get("/people/contacts", async (req, res) => {
 router.post("/people/contacts", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     const { name, phone, email, avatar } = req.body;
     if (!name || !phone) {
       return res.status(400).json({ error: "NAME_AND_PHONE_REQUIRED" });
     }
     const contact = await Contact.create({
       appId,
+      ceoId,
       name: name.trim(),
       phone: phone.trim(),
       email: email ? email.trim() : undefined,
@@ -2224,10 +2227,24 @@ router.post("/people/contacts", async (req, res) => {
   }
 });
 
+router.delete("/people/contacts/all", async (req, res) => {
+  try {
+    const appId = req.user.appId || req.user.sub;
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    const filter = ceoId ? { appId, ceoId } : { appId };
+    const result = await Contact.deleteMany(filter);
+    return res.json({ success: true, message: `Successfully deleted ${result.deletedCount} contacts.` });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 router.delete("/people/contacts/:id", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
-    const deleted = await Contact.findOneAndDelete({ _id: req.params.id, appId });
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    const filter = ceoId ? { _id: req.params.id, appId, ceoId } : { _id: req.params.id, appId };
+    const deleted = await Contact.findOneAndDelete(filter);
     if (!deleted) {
       return res.status(404).json({ error: "CONTACT_NOT_FOUND" });
     }
@@ -2240,7 +2257,9 @@ router.delete("/people/contacts/:id", async (req, res) => {
 router.get("/people/contacts/:id/details", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
-    const contact = await Contact.findOne({ _id: req.params.id, appId });
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    const filter = ceoId ? { _id: req.params.id, appId, ceoId } : { _id: req.params.id, appId };
+    const contact = await Contact.findOne(filter);
     if (!contact) {
       return res.status(404).json({ error: "CONTACT_NOT_FOUND" });
     }
@@ -2422,6 +2441,7 @@ router.get("/people/contacts/:id/details", async (req, res) => {
 router.post("/people/contacts/sync", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     const { contacts } = req.body;
     if (!Array.isArray(contacts)) {
       return res.status(400).json({ error: "CONTACTS_ARRAY_REQUIRED" });
@@ -2436,8 +2456,9 @@ router.post("/people/contacts/sync", async (req, res) => {
       const name = item.name.trim();
       const email = item.email ? item.email.trim() : null;
 
-      // Check if contact already exists for this appId and phone
-      const existing = await Contact.findOne({ appId, phone });
+      // Check if contact already exists for this appId, ceoId, and phone
+      const queryFilter = ceoId ? { appId, ceoId, phone } : { appId, phone };
+      const existing = await Contact.findOne(queryFilter);
       if (existing) {
         existing.name = name;
         if (email) existing.email = email;
@@ -2446,6 +2467,7 @@ router.post("/people/contacts/sync", async (req, res) => {
       } else {
         await Contact.create({
           appId,
+          ceoId,
           name,
           phone,
           email: email || undefined
@@ -2467,9 +2489,10 @@ router.post("/people/contacts/sync", async (req, res) => {
 router.post("/people/contacts/verify-whatsapp", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     const { force } = req.query;
 
-    const query = { appId };
+    const query = ceoId ? { appId, ceoId } : { appId };
     if (force !== "true") {
       query.isWhatsAppActive = null;
     }
@@ -2523,9 +2546,11 @@ router.post("/people/contacts/verify-whatsapp", async (req, res) => {
 router.post("/people/contacts/:id/verify-whatsapp", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     const { id } = req.params;
 
-    const contact = await Contact.findOne({ _id: id, appId });
+    const filter = ceoId ? { _id: id, appId, ceoId } : { _id: id, appId };
+    const contact = await Contact.findOne(filter);
     if (!contact) {
       return res.status(404).json({ error: "CONTACT_NOT_FOUND" });
     }
@@ -2555,13 +2580,15 @@ router.post("/people/contacts/:id/verify-whatsapp", async (req, res) => {
 router.get("/people/new", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 15;
     const skip = (page - 1) * limit;
 
-    const totalNewMembers = await Contact.countDocuments({ appId });
+    const filter = ceoId ? { appId, ceoId } : { appId };
+    const totalNewMembers = await Contact.countDocuments(filter);
 
-    const contacts = await Contact.find({ appId })
+    const contacts = await Contact.find(filter)
       .sort({ joinedAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -2625,13 +2652,15 @@ router.get("/people/new", async (req, res) => {
 router.get("/people/groups", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const totalGroups = await Group.countDocuments({ appId });
+    const filter = ceoId ? { appId, ceoId } : { appId };
+    const totalGroups = await Group.countDocuments(filter);
 
-    const groups = await Group.find({ appId })
+    const groups = await Group.find(filter)
       .populate("members", "name avatar")
       .skip(skip)
       .limit(limit);
@@ -2661,6 +2690,7 @@ router.get("/people/groups", async (req, res) => {
 router.post("/people/groups", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     const { name, iconIndex, colorHex, memberIds } = req.body;
     if (!name) {
       return res.status(400).json({ error: "GROUP_NAME_REQUIRED" });
@@ -2676,6 +2706,7 @@ router.post("/people/groups", async (req, res) => {
 
     const group = await Group.create({
       appId,
+      ceoId,
       name: name.trim(),
       iconIndex: iconIndex || 0,
       colorHex: colorHex || "#FFD54F",
@@ -2696,6 +2727,7 @@ router.post("/people/groups", async (req, res) => {
 router.post("/people/groups/:id/members", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     const { addMemberIds, removeMemberIds } = req.body;
 
     const mongoose = require("mongoose");
@@ -2712,7 +2744,8 @@ router.post("/people/groups/:id/members", async (req, res) => {
       }
     }
 
-    const group = await Group.findOne({ _id: req.params.id, appId });
+    const filter = ceoId ? { _id: req.params.id, appId, ceoId } : { _id: req.params.id, appId };
+    const group = await Group.findOne(filter);
     if (!group) {
       return res.status(404).json({ error: "GROUP_NOT_FOUND" });
     }
@@ -2743,7 +2776,9 @@ router.post("/people/groups/:id/members", async (req, res) => {
 router.delete("/people/groups/:id", async (req, res) => {
   try {
     const appId = req.user.appId || req.user.sub;
-    const deleted = await Group.findOneAndDelete({ _id: req.params.id, appId });
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    const filter = ceoId ? { _id: req.params.id, appId, ceoId } : { _id: req.params.id, appId };
+    const deleted = await Group.findOneAndDelete(filter);
     if (!deleted) {
       return res.status(404).json({ error: "GROUP_NOT_FOUND" });
     }

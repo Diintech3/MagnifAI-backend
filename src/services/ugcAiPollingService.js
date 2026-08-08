@@ -89,12 +89,8 @@ async function pollRealAiJobs() {
           script.processingStatus = "failed";
           script.processingProgress = 0;
           
-          // Reset approvalStatus so the buttons become active for retry
-          if (script.createdByAdmin) {
-            script.approvalStatus = "Submitted";
-          } else {
-            script.approvalStatus = "Pending";
-          }
+          // Reset approvalStatus to Submitted so the retry buttons remain active on frontend
+          script.approvalStatus = "Submitted";
 
           script.objectionNote = job.errorMessage || "AI video processing failed on external engine.";
 

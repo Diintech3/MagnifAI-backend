@@ -8,6 +8,12 @@ const groupSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    ceoId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CEO",
+      required: false,
+      index: true,
+    },
     name: {
       type: String,
       required: true,

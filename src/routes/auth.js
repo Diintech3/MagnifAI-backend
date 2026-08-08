@@ -440,6 +440,7 @@ router.post("/google-login", async (req, res) => {
 
       const accessToken = signAccessToken({
         sub: ceo._id.toString(),
+        appId: ceo.appId.toString(),
         email: ceo.email,
         role: "CEO",
         name: ceo.name,

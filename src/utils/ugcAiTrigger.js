@@ -103,12 +103,8 @@ async function triggerAiPipelineForScript(scriptId) {
     script.processingStatus = "failed";
     script.processingProgress = 0;
     script.objectionNote = `Pipeline trigger failed: ${err.message}`;
-    // Reset approvalStatus so the buttons become active for retry
-    if (script.createdByAdmin) {
-      script.approvalStatus = "Submitted";
-    } else {
-      script.approvalStatus = "Pending";
-    }
+    // Reset approvalStatus to Submitted so the retry buttons remain active on frontend
+    script.approvalStatus = "Submitted";
     await script.save();
   }
 }
