@@ -15,7 +15,8 @@ function normalizeKey(raw) {
     !decoded.startsWith("content/images/") &&
     !decoded.startsWith("scripts/images/") &&
     !decoded.startsWith("scripts/videos/") &&
-    !decoded.startsWith("agents/images/")
+    !decoded.startsWith("agents/images/") &&
+    !decoded.startsWith("onboarding/")
   ) return null;
   return decoded;
 }

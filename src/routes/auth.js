@@ -387,12 +387,42 @@ router.post("/unified-login", async (req, res) => {
   }
 });
 
+// ── Google Client ID Retrieval Route ──────────────────────────────────────
+router.get("/google-client-id", (req, res) => {
+  return res.json({ clientId: process.env.Google_Client_ID });
+});
+
 // ── Google Login / Verification Route ────────────────────────────────────
 router.post("/google-login", async (req, res) => {
   try {
-    const { email, name, googleId } = req.body;
+    const { idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ error: "idToken is required" });
+    }
+
+    const axios = require("axios");
+
+    // Verify token with Google API
+    let payload;
+    try {
+      const tokenInfoRes = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+      payload = tokenInfoRes.data;
+    } catch (err) {
+      console.error("[google-verify-error]", err.message);
+      return res.status(400).json({ error: "Invalid Google token" });
+    }
+
+    // Verify client ID audience
+    if (payload.aud !== process.env.Google_Client_ID) {
+      return res.status(400).json({ error: "Token audience mismatch" });
+    }
+
+    const email = payload.email;
+    const name = payload.name;
+    const googleId = payload.sub;
+
     if (!email) {
-      return res.status(400).json({ error: "Email is required" });
+      return res.status(400).json({ error: "Email not provided by Google" });
     }
 
     // 1. Search in CEO
@@ -423,7 +453,17 @@ router.post("/google-login", async (req, res) => {
         success: true,
         accessToken,
         role: "CEO",
-        user: toPublicCEO(ceo)
+        user: {
+          id: ceo._id.toString(),
+          appId: ceo.appId ? ceo.appId.toString() : "",
+          email: ceo.email,
+          role: "CEO",
+          name: ceo.name,
+          businessName: ceo.name,
+          showCandidates: false,
+          dashboardType: "default",
+          isCEO: true,
+        }
       });
     }
 
@@ -434,39 +474,87 @@ router.post("/google-login", async (req, res) => {
         return res.status(401).json({ error: "UNAUTHORIZED_ACCOUNT_INACTIVE" });
       }
 
-      const accessToken = signCandidateToken(candidate);
+      // Update Google ID if not already saved
+      if (!candidate.googleId && googleId) {
+        candidate.googleId = googleId;
+        await candidate.save();
+      }
+
+      const accessToken = signAccessToken({
+        sub: candidate._id.toString(),
+        email: candidate.email,
+        role: "CANDIDATE",
+        name: candidate.name,
+        isCEO: false,
+      });
+
       return res.json({
         success: true,
         accessToken,
         role: "CANDIDATE",
-        user: toPublicCandidate(candidate)
+        user: {
+          id: candidate._id.toString(),
+          email: candidate.email,
+          role: "CANDIDATE",
+          name: candidate.name,
+          constituency: candidate.constituency,
+          assembly: candidate.assembly,
+        }
       });
     }
 
     // 3. Search in Onboarding Requests
-    const request = await OnboardingRequest.findOne({ email: email.toLowerCase() });
+    let request = await OnboardingRequest.findOne({ email: email.toLowerCase() });
     if (request) {
       if (request.status === "Pending") {
+        // If request is complete, show AwaitingApproval
+        if (request.isMobileVerified && request.name && request.photoUrl) {
+          return res.json({
+            success: false,
+            status: "AwaitingApproval",
+            message: "Your onboarding request is awaiting Admin review.",
+            email: request.email,
+            organizationName: request.organizationName
+          });
+        }
+        
+        // Otherwise, update googleId/verification and let them complete it
+        request.googleId = googleId;
+        request.isEmailVerified = true;
+        await request.save();
+        
         return res.json({
           success: false,
-          status: "AwaitingApproval",
-          message: "Your onboarding request is awaiting Admin review."
+          status: "RegisterRequired",
+          message: "Please complete your registration request.",
+          email,
+          name: request.name || name,
+          googleId
         });
       }
+      
       if (request.status === "Rejected") {
-        return res.json({
-          success: false,
-          status: "Rejected",
-          message: `Your request was rejected. Reason: ${request.rejectionReason || "No details provided"}.`
-        });
+        // Clear the rejected request
+        await OnboardingRequest.deleteOne({ _id: request._id });
+        request = null; // Set to null so we create a fresh one below
       }
     }
 
-    // 4. User is not registered at all
+    if (!request) {
+      // Create a new verified onboarding request session
+      const newRequest = new OnboardingRequest({
+        email: email.toLowerCase(),
+        googleId,
+        isEmailVerified: true,
+        status: "Pending"
+      });
+      await newRequest.save();
+    }
+
     return res.json({
       success: false,
       status: "RegisterRequired",
-      message: "Profile not found. Please complete the registration request.",
+      message: "Google account connected! Please complete your profile registration.",
       email,
       name,
       googleId
@@ -679,7 +767,11 @@ router.post("/register-step4-photo", photoUpload, async (req, res) => {
       return res.status(400).json({ error: "Invalid photo file type. Only standard formats (jpg, png, webp) are allowed." });
     }
     console.error("[register-step4-error]", err);
-    return res.status(500).json({ error: "INTERNAL_ERROR" });
+    return res.status(500).json({ 
+      error: "INTERNAL_ERROR", 
+      message: err.message,
+      stack: err.stack 
+    });
   }
 });
 
