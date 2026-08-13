@@ -58,6 +58,11 @@ const contactSchema = new mongoose.Schema(
       twitter: { type: String, default: "" },
       instagram: { type: String, default: "" }
     },
+    contactType: {
+      type: String,
+      enum: ["new", "regular"],
+      default: "regular"
+    },
     joinedAt: {
       type: Date,
       default: Date.now,

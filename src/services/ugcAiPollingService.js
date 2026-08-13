@@ -88,11 +88,15 @@ async function pollRealAiJobs() {
           console.error(`[ugc-polling] Script "${script.title}" AI editing failed on 3rdAI server:`, job.errorMessage);
           script.processingStatus = "failed";
           script.processingProgress = 0;
-          
           // Reset approvalStatus to Submitted so the retry buttons remain active on frontend
           script.approvalStatus = "Submitted";
 
-          script.objectionNote = job.errorMessage || "AI video processing failed on external engine.";
+          // Provide user-friendly message instead of raw error details
+          let userFriendlyMessage = "AI video processing failed on external engine. Please check your video or try again.";
+          if (job.errorMessage && (job.errorMessage.includes("401") || job.errorMessage.toLowerCase().includes("api key") || job.errorMessage.toLowerCase().includes("unauthorized"))) {
+            userFriendlyMessage = "AI editing failed due to a system authentication error. Please contact support.";
+          }
+          script.objectionNote = userFriendlyMessage;
 
           script.statusHistory.push({
             status: script.approvalStatus,

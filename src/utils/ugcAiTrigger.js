@@ -102,7 +102,12 @@ async function triggerAiPipelineForScript(scriptId) {
     console.error(`[ugc-pipeline-error] Failed to trigger AI pipeline for script "${script.title}":`, err.message);
     script.processingStatus = "failed";
     script.processingProgress = 0;
-    script.objectionNote = `Pipeline trigger failed: ${err.message}`;
+    // Provide user-friendly message instead of raw error details
+    let userFriendlyMessage = "AI editing service is temporarily unavailable. Please try again later.";
+    if (err.message && (err.message.includes("401") || err.message.toLowerCase().includes("api key") || err.message.toLowerCase().includes("unauthorized"))) {
+      userFriendlyMessage = "AI editing failed due to a system authentication error. Please contact support.";
+    }
+    script.objectionNote = userFriendlyMessage;
     // Reset approvalStatus to Submitted so the retry buttons remain active on frontend
     script.approvalStatus = "Submitted";
     await script.save();

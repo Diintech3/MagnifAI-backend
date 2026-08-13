@@ -40,6 +40,9 @@ const EnvSchema = z.object({
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  Google_Client_ID: z.string().optional(),
+  FIREBASE_GOOGLE_CLIENT_ID: z.string().optional(),
+  Google_Secret_ID: z.string().optional(),
 });
 
 function loadEnv() {

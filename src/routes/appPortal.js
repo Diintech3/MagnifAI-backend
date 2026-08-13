@@ -41,6 +41,47 @@ async function getSocialEntityForUser(req) {
 const socialCache = new Map();
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes cache TTL
 
+async function getYouTubeAccessToken(ceo) {
+  const axios = require("axios");
+  const { env } = require("../config/env");
+
+  if (!ceo.social?.youtube?.youtubeRefreshToken) {
+    throw new Error("YouTube channel not connected via Google OAuth");
+  }
+
+  // If token is still valid (expire time > now + 60s), return it
+  if (
+    ceo.social.youtube.youtubeAccessToken &&
+    ceo.social.youtube.youtubeTokenExpires &&
+    new Date(ceo.social.youtube.youtubeTokenExpires) > new Date(Date.now() + 60000)
+  ) {
+    return ceo.social.youtube.youtubeAccessToken;
+  }
+
+  console.log(`[youtube-token-refresh] Refreshing access token for CEO: ${ceo.name}`);
+  const tokenRes = await axios.post("https://oauth2.googleapis.com/token", {
+    client_id: env.Google_Client_ID,
+    client_secret: env.Google_Secret_ID,
+    refresh_token: ceo.social.youtube.youtubeRefreshToken,
+    grant_type: "refresh_token"
+  });
+
+  const { access_token, expires_in } = tokenRes.data;
+  ceo.social.youtube.youtubeAccessToken = access_token;
+  ceo.social.youtube.youtubeTokenExpires = new Date(Date.now() + (expires_in * 1000));
+  ceo.markModified("social");
+  await ceo.save();
+
+  return access_token;
+}
+
+function formatYMD(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 async function getCachedLiveData(platform, creds) {
   let cacheKey = "";
   if (platform === "instagram" || platform === "twitter") {
@@ -256,7 +297,7 @@ async function fetchYouTubeLive(creds) {
 
     let posts = [];
     if (uploadsPlaylistId) {
-      const playlistRes = await fetch(`${YT_BASE}/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=12&key=${apiKey}`);
+      const playlistRes = await fetch(`${YT_BASE}/playlistItems?part=snippet,contentDetails&playlistId=${uploadsPlaylistId}&maxResults=50&key=${apiKey}`);
       const playlistData = await playlistRes.json();
 
       const videoIds = (playlistData.items || []).map(vid => vid.contentDetails?.videoId).filter(Boolean);
@@ -481,6 +522,139 @@ router.get("/social/:platform/analytics", async (req, res) => {
     });
   }
 
+  // If platform is youtube and OAuth credentials exist, fetch using the Google Analytics API
+  if (platform === "youtube" && entity.social?.youtube?.youtubeRefreshToken) {
+    try {
+      const axios = require("axios");
+      const accessToken = await getYouTubeAccessToken(entity);
+      const channelId = entity.social.youtube.channelId;
+      
+      const { timeRange = "7 Days", startDate, endDate } = req.query;
+      
+      let startStr = "";
+      let endStr = "";
+      const now = new Date();
+      
+      if (timeRange === "Today") {
+        startStr = formatYMD(now);
+        endStr = formatYMD(now);
+      } else if (timeRange === "Yesterday") {
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        startStr = formatYMD(yesterday);
+        endStr = formatYMD(yesterday);
+      } else if (timeRange === "7 Days") {
+        const sevenDaysAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
+        startStr = formatYMD(sevenDaysAgo);
+        endStr = formatYMD(now);
+      } else if (timeRange === "Date Range" && startDate && endDate) {
+        startStr = startDate;
+        endStr = endDate;
+      } else {
+        // Default to All / 30 Days for chart
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        startStr = formatYMD(thirtyDaysAgo);
+        endStr = formatYMD(now);
+      }
+      
+      // 1. Fetch channel overall stats for subscribers (from YouTube Data API)
+      const apiKey = process.env.YOUTUBE_API_KEY;
+      let totalLifetimeSubscribers = 0;
+      let totalLifetimeViews = 0;
+      try {
+        const ytDataRes = await axios.get(`https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${apiKey}`);
+        const ytStats = ytDataRes.data.items?.[0]?.statistics;
+        if (ytStats) {
+          totalLifetimeSubscribers = parseInt(ytStats.subscriberCount || "0", 10);
+          totalLifetimeViews = parseInt(ytStats.viewCount || "0", 10);
+        }
+      } catch (err) {
+        console.error("[youtube-analytics-overall-fetch-error]", err.message);
+      }
+      
+      // 2. Fetch daily report from YouTube Analytics API
+      const reportRes = await axios.get("https://youtubeanalytics.googleapis.com/v2/reports", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        params: {
+          ids: `channel==${channelId}`,
+          startDate: startStr,
+          endDate: endStr,
+          metrics: "views,likes,comments,subscribersGained",
+          dimensions: "day",
+          sort: "day"
+        }
+      });
+      
+      // 3. Build day-by-day mapping
+      const daysMap = {};
+      let currDate = new Date(startStr + "T00:00:00");
+      const endDateObj = new Date(endStr + "T23:59:59");
+      while (currDate <= endDateObj) {
+        const key = formatYMD(currDate);
+        daysMap[key] = {
+          dateStr: currDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+          dayName: currDate.toLocaleDateString("en-IN", { weekday: "short" }).toUpperCase(),
+          likes: 0,
+          comments: 0,
+          reach: 0,
+          count: 0
+        };
+        currDate.setDate(currDate.getDate() + 1);
+      }
+      
+      let totalLikes = 0;
+      let totalComments = 0;
+      let totalReach = 0;
+      let totalSubGained = 0;
+      
+      if (reportRes.data.rows) {
+        reportRes.data.rows.forEach(row => {
+          const dayKey = row[0];
+          const views = parseInt(row[1] || 0, 10);
+          const likes = parseInt(row[2] || 0, 10);
+          const comments = parseInt(row[3] || 0, 10);
+          const subGained = parseInt(row[4] || 0, 10);
+          
+          totalLikes += likes;
+          totalComments += comments;
+          totalReach += views;
+          totalSubGained += subGained;
+          
+          if (daysMap[dayKey]) {
+            daysMap[dayKey].likes = likes;
+            daysMap[dayKey].comments = comments;
+            daysMap[dayKey].reach = views;
+            daysMap[dayKey].count = 1;
+          }
+        });
+      }
+      
+      const chartData = Object.values(daysMap);
+      
+      // For "All" range, views = total lifetime views
+      const isAllTime = timeRange === "All" || timeRange === "All Time";
+      const finalViews = isAllTime ? (totalLifetimeViews || totalReach) : totalReach;
+      
+      return res.json({
+        followers: totalLifetimeSubscribers || 0,
+        metrics: {
+          totalLikes,
+          totalComments,
+          totalReach: finalViews
+        },
+        growth: {
+          followers: totalSubGained >= 0 ? `+${totalSubGained}` : `${totalSubGained}`,
+          likes: `+${totalLikes}`,
+          comments: `+${totalComments}`,
+          reach: `+${totalReach}`
+        },
+        chartData
+      });
+    } catch (oauthErr) {
+      console.error("[youtube-analytics-oauth-failed-falling-back]", oauthErr.message);
+      // Fall through to public YouTube Data API fallback logic if OAuth API query fails
+    }
+  }
+
   let liveData = await getCachedLiveData(platform, creds);
   if (!liveData) liveData = { followers: null, posts: [] };
 
@@ -557,9 +731,12 @@ router.get("/social/:platform/analytics", async (req, res) => {
     return pDate >= currentStart && pDate <= currentEnd;
   });
 
+  const isAllTime = timeRange === "All" || timeRange === "All Time";
   const totalLikes = filteredPosts.reduce((acc, p) => acc + (p.likes || 0), 0);
   const totalComments = filteredPosts.reduce((acc, p) => acc + (p.comments || 0), 0);
-  const totalReach = filteredPosts.reduce((acc, p) => acc + (p.reach || (p.likes * 5) + (p.comments * 12)), 0);
+  const totalReach = (isAllTime && liveData.totalReach !== null && liveData.totalReach !== undefined)
+    ? liveData.totalReach
+    : filteredPosts.reduce((acc, p) => acc + (p.reach || (p.likes * 5) + (p.comments * 12)), 0);
 
   let prevLikes = 0;
   let prevComments = 0;
@@ -2130,7 +2307,7 @@ router.get("/people/contacts", async (req, res) => {
     const appId = req.user.appId || req.user.sub;
     const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     const { search } = req.query;
-    const filter = ceoId ? { appId, ceoId } : { appId };
+    const filter = ceoId ? { appId, ceoId, contactType: "regular" } : { appId, contactType: "regular" };
     if (search) {
       const re = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
       filter.$or = [{ name: re }, { email: re }, { phone: re }];
@@ -2209,6 +2386,7 @@ router.post("/people/contacts", async (req, res) => {
       phone: phone.trim(),
       email: email ? email.trim() : undefined,
       avatar: avatar || null,
+      contactType: "new"
     });
     return res.status(201).json({
       id: contact._id.toString(),
@@ -2585,7 +2763,7 @@ router.get("/people/new", async (req, res) => {
     const limit = parseInt(req.query.limit) || 15;
     const skip = (page - 1) * limit;
 
-    const filter = ceoId ? { appId, ceoId } : { appId };
+    const filter = ceoId ? { appId, ceoId, contactType: "new" } : { appId, contactType: "new" };
     const totalNewMembers = await Contact.countDocuments(filter);
 
     const contacts = await Contact.find(filter)
@@ -2960,6 +3138,722 @@ router.post("/onboarding-requests/:id/reject", async (req, res) => {
     return res.json({ success: true, message: "Onboarding request rejected successfully." });
   } catch (err) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Whats AI WhatsApp Integration Routes ────────────────────────────────
+router.get("/whatsapp/sso-link", async (req, res) => {
+  try {
+    const shareKey = process.env.WHATS_AI_PARTNER_KEY;
+    const token = process.env.WHATS_AI_ACCESS_TOKEN;
+    const ref = process.env.WHATS_AI_REFERENCE_KEY;
+    const frontendUrl = process.env.WHATS_AI_FRONTEND_URL;
+
+    if (!shareKey || !token || !ref || !frontendUrl) {
+      return res.status(500).json({ error: "WHATS_AI_SSO_CREDENTIALS_MISSING" });
+    }
+
+    const ssoUrl = `${frontendUrl.replace(/\/$/, "")}/auth/api-share?shareKey=${encodeURIComponent(shareKey)}&token=${encodeURIComponent(token)}&ref=${encodeURIComponent(ref)}`;
+    return res.json({ ssoUrl });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/whatsapp/config", async (req, res) => {
+  try {
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    if (!ceoId) {
+      return res.status(403).json({ error: "UNAUTHORIZED_ROLE" });
+    }
+
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(ceoId);
+    if (!ceo) {
+      return res.status(404).json({ error: "CEO_NOT_FOUND" });
+    }
+
+    return res.json({
+      whatsAppSendMode: ceo.whatsAppSendMode || "manual",
+      isWhatsAppConnected: Boolean(ceo.whatsAppClientId),
+      isWhatsAppConfigured: ceo.isWhatsAppConnected || false
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/whatsapp/toggle-mode", async (req, res) => {
+  try {
+    const { mode } = req.body;
+    if (!["auto", "manual"].includes(mode)) {
+      return res.status(400).json({ error: "INVALID_MODE" });
+    }
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    if (!ceoId) {
+      return res.status(403).json({ error: "UNAUTHORIZED_ROLE" });
+    }
+
+    const { CEO } = require("../models/CEO");
+    const updated = await CEO.findByIdAndUpdate(ceoId, { whatsAppSendMode: mode }, { new: true });
+    if (!updated) {
+      return res.status(404).json({ error: "CEO_NOT_FOUND" });
+    }
+
+    return res.json({ success: true, whatsAppSendMode: updated.whatsAppSendMode });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/whatsapp/sync-ceo", async (req, res) => {
+  try {
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    if (!ceoId) {
+      return res.status(403).json({ error: "UNAUTHORIZED_ROLE" });
+    }
+
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(ceoId);
+    if (!ceo) {
+      return res.status(404).json({ error: "CEO_NOT_FOUND" });
+    }
+
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
+
+    if (!apiBaseUrl || !partnerKey) {
+      return res.status(500).json({ error: "WHATS_AI_INTEGRATION_CONFIG_MISSING" });
+    }
+
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/partner/sync-client`,
+      {
+        name: ceo.name,
+        email: ceo.email || "",
+        phone: ceo.mobile,
+        businessName: ceo.company || ""
+      },
+      {
+        headers: {
+          "x-partner-key": partnerKey,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    // If success, return the configuration status (whatsappConfigured boolean)
+    const clientId = response.data?.data?.clientId;
+    const isConfigured = response.data?.data?.whatsappConfigured || false;
+
+    if (clientId) {
+      ceo.whatsAppClientId = clientId;
+      ceo.isWhatsAppConnected = isConfigured;
+      await ceo.save();
+    }
+
+    return res.json({
+      success: true,
+      message: "CEO synced successfully with Whats AI",
+      whatsappConfigured: isConfigured,
+      data: response.data
+    });
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-sync-ceo-error]", errorMsg);
+    
+    // Auto-cleanup database record if external API explicitly rejects or can't find the client/partner keys
+    if (err.response && [400, 401, 403, 404].includes(err.response.status)) {
+      try {
+        const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+        if (ceoId) {
+          const { CEO } = require("../models/CEO");
+          await CEO.findByIdAndUpdate(ceoId, {
+            whatsAppClientId: undefined,
+            isWhatsAppConnected: false
+          });
+          console.log("[whatsapp-sync-ceo-error] Auto-cleaned local DB config due to external API rejection.");
+        }
+      } catch (dbErr) {
+        console.error("[whatsapp-sync-ceo-error] Failed to auto-clean local DB:", dbErr.message);
+      }
+    }
+    
+    return res.status(500).json({ error: "SYNC_FAILED", message: errorMsg });
+  }
+});
+
+router.post("/whatsapp/sync-client", async (req, res) => {
+  try {
+    const { contactId } = req.body;
+    if (!contactId) {
+      return res.status(400).json({ error: "CONTACT_ID_REQUIRED" });
+    }
+
+    const { Contact } = require("../models/Contact");
+    const contact = await Contact.findById(contactId);
+    if (!contact) {
+      return res.status(404).json({ error: "CONTACT_NOT_FOUND" });
+    }
+
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
+
+    if (!apiBaseUrl || !partnerKey) {
+      return res.status(500).json({ error: "WHATS_AI_INTEGRATION_CONFIG_MISSING" });
+    }
+
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/partner/sync-client`,
+      {
+        name: contact.name,
+        email: contact.email || "",
+        phone: contact.phone,
+        businessName: contact.company || ""
+      },
+      {
+        headers: {
+          "x-partner-key": partnerKey,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    return res.json({ success: true, message: "Client synced successfully", data: response.data });
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-sync-client-error]", errorMsg);
+    return res.status(500).json({ error: "SYNC_FAILED", message: errorMsg });
+  }
+});
+
+router.post("/whatsapp/templates", async (req, res) => {
+  try {
+    const { clientEmail, templateName, category, language, headerText, bodyText, footerText, variables } = req.body;
+    if (!clientEmail || !templateName || !bodyText) {
+      return res.status(400).json({ error: "REQUIRED_FIELDS_MISSING" });
+    }
+
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
+
+    if (!apiBaseUrl || !partnerKey) {
+      return res.status(500).json({ error: "WHATS_AI_INTEGRATION_CONFIG_MISSING" });
+    }
+
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/partner/request-template`,
+      {
+        clientEmail,
+        templateName,
+        category: category || "MARKETING",
+        language: language || "en",
+        headerText,
+        bodyText,
+        footerText,
+        variables: variables || []
+      },
+      {
+        headers: {
+          "x-partner-key": partnerKey,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    return res.status(201).json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-request-template-error]", errorMsg);
+    return res.status(500).json({ error: "TEMPLATE_REQUEST_FAILED", message: errorMsg });
+  }
+});
+
+router.get("/whatsapp/templates", async (req, res) => {
+  try {
+    const { clientEmail, templateName } = req.query;
+    if (!clientEmail || !templateName) {
+      return res.status(400).json({ error: "CLIENT_EMAIL_AND_TEMPLATE_NAME_REQUIRED" });
+    }
+
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
+
+    if (!apiBaseUrl || !partnerKey) {
+      return res.status(500).json({ error: "WHATS_AI_INTEGRATION_CONFIG_MISSING" });
+    }
+
+    const response = await axios.get(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/partner/template-status`,
+      {
+        params: { clientEmail, templateName },
+        headers: {
+          "x-partner-key": partnerKey
+        }
+      }
+    );
+
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-template-status-error]", errorMsg);
+    return res.status(500).json({ error: "FETCH_STATUS_FAILED", message: errorMsg });
+  }
+});
+
+// Route to fetch all WhatsApp templates for the client
+router.get("/whatsapp/templates/list", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+
+    const response = await axios.get(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/templates`,
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-list-templates-error]", errorMsg);
+    return res.status(500).json({ error: "LIST_TEMPLATES_FAILED", message: errorMsg });
+  }
+});
+
+// Route to reset/disconnect WhatsApp connection details
+router.post("/whatsapp/reset-connection", async (req, res) => {
+  try {
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    if (!ceoId) {
+      return res.status(403).json({ error: "UNAUTHORIZED_ROLE" });
+    }
+
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(ceoId);
+    if (!ceo) {
+      return res.status(404).json({ error: "CEO_NOT_FOUND" });
+    }
+
+    ceo.whatsAppClientId = undefined;
+    ceo.isWhatsAppConnected = false;
+    await ceo.save();
+
+    return res.json({ success: true, message: "WhatsApp connection reset successfully" });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Helper to get Whats AI Client JWT Token by doing an API sharing handshake login
+const getWhatsAiClientToken = async () => {
+  const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+  const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
+  const clientToken = process.env.WHATS_AI_ACCESS_TOKEN;
+  const ref = process.env.WHATS_AI_REFERENCE_KEY;
+  const apiKey = process.env.WHATS_AI_API_KEY || "whatsai-core-master-secret-key-2026";
+
+  if (!apiBaseUrl || !partnerKey || !clientToken || !ref) {
+    throw new Error("WHATS_AI_INTEGRATION_CONFIG_MISSING");
+  }
+
+  const axios = require("axios");
+  const response = await axios.post(
+    `${apiBaseUrl.replace(/\/$/, "")}/api/auth/api-sharing-login`,
+    {
+      apiSharingKey: partnerKey,
+      accessToken: clientToken,
+      referenceKey: ref
+    },
+    {
+      headers: {
+        "x-api-key": apiKey,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  
+  if (response.data && response.data.token) {
+    return response.data.token;
+  } else if (response.data && response.data.data && response.data.data.token) {
+    return response.data.data.token;
+  }
+  throw new Error("FAILED_TO_GET_JWT_TOKEN");
+};
+
+// Helper to get headers pre-authorized with Whats AI Client JWT Token
+const getWhatsAiHeaders = async () => {
+  const token = await getWhatsAiClientToken();
+  const apiKey = process.env.WHATS_AI_API_KEY || "whatsai-core-master-secret-key-2026";
+  return {
+    "Authorization": `Bearer ${token}`,
+    "x-api-key": apiKey,
+    "Content-Type": "application/json"
+  };
+};
+
+// Route to configure/connect WhatsApp Business Account (WABA) for a client
+router.post("/whatsapp/waba", async (req, res) => {
+  try {
+    const { phoneNumberId, wabaId, accessToken } = req.body;
+    if (!phoneNumberId || !wabaId || !accessToken) {
+      return res.status(400).json({ error: "WABA_CONFIG_FIELDS_REQUIRED" });
+    }
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+    
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/settings/waba`,
+      { phoneNumberId, wabaId, accessToken },
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-connect-waba-error]", errorMsg);
+    return res.status(500).json({ error: "WABA_CONNECT_FAILED", message: errorMsg });
+  }
+});
+
+// Route to fetch all WhatsApp conversations
+router.get("/whatsapp/conversations", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+    
+    const response = await axios.get(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/inbox/conversations`,
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-get-conversations-error]", errorMsg);
+    return res.status(500).json({ error: "GET_CONVERSATIONS_FAILED", message: errorMsg });
+  }
+});
+
+// Route to fetch messages inside a specific WhatsApp conversation thread
+router.get("/whatsapp/conversations/:id/messages", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+    
+    const response = await axios.get(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/inbox/conversations/${id}/messages`,
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-get-messages-error]", errorMsg);
+    return res.status(500).json({ error: "GET_MESSAGES_FAILED", message: errorMsg });
+  }
+});
+
+// Route to send a manual WhatsApp text response
+router.post("/whatsapp/conversations/:id/reply", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: "MESSAGE_REQUIRED" });
+    }
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+    
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/inbox/conversations/${id}/reply`,
+      { message },
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-reply-error]", errorMsg);
+    return res.status(500).json({ error: "REPLY_FAILED", message: errorMsg });
+  }
+});
+
+// Route to toggle AI Agent auto-reply on/off for a specific chat conversation
+router.put("/whatsapp/conversations/:id/toggle-ai", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { aiEnabled } = req.body;
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+    
+    const response = await axios.put(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/inbox/conversations/${id}/toggle-ai`,
+      { aiEnabled },
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-toggle-ai-error]", errorMsg);
+    return res.status(500).json({ error: "TOGGLE_AI_FAILED", message: errorMsg });
+  }
+});
+
+// Route to fetch all contact groups from Whats AI
+router.get("/whatsapp/groups", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+    
+    const response = await axios.get(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-get-groups-error]", errorMsg);
+    return res.status(500).json({ error: "GET_GROUPS_FAILED", message: errorMsg });
+  }
+});
+
+// Route to create a new contact group in Whats AI
+router.post("/whatsapp/groups", async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "GROUP_NAME_REQUIRED" });
+    }
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+    
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+      { name },
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-create-group-error]", errorMsg);
+    return res.status(500).json({ error: "CREATE_GROUP_FAILED", message: errorMsg });
+  }
+});
+
+// Route to add a contact to a group in Whats AI
+router.post("/whatsapp/contacts", async (req, res) => {
+  try {
+    const { name, phone, groups, customAttributes } = req.body;
+    if (!name || !phone) {
+      return res.status(400).json({ error: "NAME_AND_PHONE_REQUIRED" });
+    }
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+    
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
+      { name, phone, groups, customAttributes },
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-create-contact-error]", errorMsg);
+    return res.status(500).json({ error: "CREATE_CONTACT_FAILED", message: errorMsg });
+  }
+});
+
+// Route to fetch campaign lists from Whats AI
+router.get("/whatsapp/campaigns", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+    
+    const response = await axios.get(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/campaigns`,
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-get-campaigns-error]", errorMsg);
+    return res.status(500).json({ error: "GET_CAMPAIGNS_FAILED", message: errorMsg });
+  }
+});
+
+// Route to create a new template campaign in Whats AI
+router.post("/whatsapp/campaigns", async (req, res) => {
+  try {
+    const { name, templateId, groupId, variablesMapping } = req.body;
+    if (!name || !templateId || !groupId) {
+      return res.status(400).json({ error: "REQUIRED_CAMPAIGN_FIELDS_MISSING" });
+    }
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+    
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/campaigns`,
+      { name, templateId, groupId, variablesMapping },
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-create-campaign-error]", errorMsg);
+    return res.status(500).json({ error: "CREATE_CAMPAIGN_FAILED", message: errorMsg });
+  }
+});
+
+// Route to trigger/send a campaign broadcast
+router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders();
+    
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/campaigns/${id}/send`,
+      {},
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-send-campaign-error]", errorMsg);
+    return res.status(500).json({ error: "SEND_CAMPAIGN_FAILED", message: errorMsg });
+  }
+});
+
+// adplifAI B2B Integration Proxy Routes
+router.post("/ads/launch", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+    const apiKey = process.env.ADPLIFAI_API_KEY;
+
+    if (!baseUrl || !apiKey) {
+      return res.status(500).json({ error: "ADPLIFAI_INTEGRATION_CONFIG_MISSING" });
+    }
+
+    const response = await axios.post(
+      `${baseUrl.replace(/\/$/, "")}/partner/campaigns/launch`,
+      req.body,
+      {
+        headers: {
+          "x-api-key": apiKey,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[adplifai-launch-error]", errorMsg);
+    return res.status(err.response?.status || 500).json({ error: "LAUNCH_FAILED", message: errorMsg });
+  }
+});
+
+router.post("/ads/:campaignId/pause", async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+    const apiKey = process.env.ADPLIFAI_API_KEY;
+
+    const response = await axios.post(
+      `${baseUrl.replace(/\/$/, "")}/partner/campaigns/${campaignId}/pause`,
+      {},
+      {
+        headers: { "x-api-key": apiKey }
+      }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    return res.status(err.response?.status || 500).json({ error: "PAUSE_FAILED", message: err.message });
+  }
+});
+
+router.post("/ads/:campaignId/resume", async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+    const apiKey = process.env.ADPLIFAI_API_KEY;
+
+    const response = await axios.post(
+      `${baseUrl.replace(/\/$/, "")}/partner/campaigns/${campaignId}/resume`,
+      {},
+      {
+        headers: { "x-api-key": apiKey }
+      }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    return res.status(err.response?.status || 500).json({ error: "RESUME_FAILED", message: err.message });
+  }
+});
+
+router.delete("/ads/:campaignId", async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+    const apiKey = process.env.ADPLIFAI_API_KEY;
+
+    const response = await axios.delete(
+      `${baseUrl.replace(/\/$/, "")}/partner/campaigns/${campaignId}`,
+      {
+        headers: { "x-api-key": apiKey }
+      }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    return res.status(err.response?.status || 500).json({ error: "DELETE_FAILED", message: err.message });
+  }
+});
+
+router.get("/ads/:campaignId/status", async (req, res) => {
+  try {
+    const { campaignId } = req.params;
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+    const apiKey = process.env.ADPLIFAI_API_KEY;
+
+    const response = await axios.get(
+      `${baseUrl.replace(/\/$/, "")}/partner/campaign-status/${campaignId}`,
+      {
+        headers: { "x-api-key": apiKey }
+      }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    return res.status(err.response?.status || 500).json({ error: "STATUS_FAILED", message: err.message });
+  }
+});
+
+router.post("/ads/upload", logoUpload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "NO_FILE_UPLOADED" });
+    }
+    const uploaded = await uploadToR2(req.file, "ads/media");
+    return res.json({ success: true, url: uploaded.url });
+  } catch (err) {
+    console.error("[ads-upload-error]", err.message);
+    return res.status(500).json({ error: "UPLOAD_FAILED", message: err.message });
   }
 });
 

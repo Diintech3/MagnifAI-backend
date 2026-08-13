@@ -559,6 +559,7 @@ router.get("/sessions", async (req, res) => {
 
     // Auto-sync resolved users into the workspace contacts database
     const appId = req.user.appId || req.user.sub;
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     if (appId) {
       try {
         const { Contact } = require("../models/Contact");
@@ -570,15 +571,21 @@ router.get("/sessions", async (req, res) => {
             const cleanPhone = group.phone_number.trim();
             const cleanName = group.user_name.trim();
 
-            const existing = await Contact.findOne({ appId, phone: cleanPhone });
+            const queryFilter = ceoId ? { appId, ceoId, phone: cleanPhone } : { appId, phone: cleanPhone };
+            const existing = await Contact.findOne(queryFilter);
             if (!existing) {
-              await Contact.create({
+              const createPayload = {
                 appId,
                 name: cleanName,
                 phone: cleanPhone,
-                lastConnected: sourceInfo
-              });
-              console.log(`[contact-auto-sync] Automatically added contact: ${cleanName} (${cleanPhone}) from ${sourceInfo}`);
+                lastConnected: sourceInfo,
+                contactType: "new"
+              };
+              if (ceoId) {
+                createPayload.ceoId = ceoId;
+              }
+              await Contact.create(createPayload);
+              console.log(`[contact-auto-sync] Automatically added contact: ${cleanName} (${cleanPhone}) from ${sourceInfo} for ceo: ${ceoId || 'none'}`);
             } else {
               if (existing.lastConnected !== sourceInfo || existing.name !== cleanName) {
                 existing.name = cleanName;

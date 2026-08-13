@@ -412,8 +412,14 @@ router.post("/google-login", async (req, res) => {
       return res.status(400).json({ error: "Invalid Google token" });
     }
 
-    // Verify client ID audience
-    if (payload.aud !== process.env.Google_Client_ID) {
+    // Verify client ID audience (accept either Web or Firebase/Mobile Client IDs)
+    const allowedClientIds = [
+      process.env.Google_Client_ID,
+      process.env.FIREBASE_GOOGLE_CLIENT_ID
+    ].filter(Boolean);
+
+    if (!allowedClientIds.includes(payload.aud)) {
+      console.error("[google-verify-error] Token audience mismatch. Expected one of:", allowedClientIds, "Got:", payload.aud);
       return res.status(400).json({ error: "Token audience mismatch" });
     }
 

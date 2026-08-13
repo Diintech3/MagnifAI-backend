@@ -25,6 +25,9 @@ const ceoSchema = new mongoose.Schema(
     agentId:      { type: String, trim: true },
     sendMode:     { type: String, enum: ["auto", "manual"], default: "auto" },
     adminReviewMode: { type: String, enum: ["auto", "manual"], default: "manual" },
+    whatsAppSendMode: { type: String, enum: ["auto", "manual"], default: "manual" },
+    whatsAppClientId: { type: String, trim: true },
+    isWhatsAppConnected: { type: Boolean, default: false },
     social: {
       instagram: {
         userId:   { type: String, trim: true },
@@ -40,6 +43,9 @@ const ceoSchema = new mongoose.Schema(
       youtube: {
         channelId:   { type: String, trim: true },
         channelName: { type: String, trim: true },
+        youtubeRefreshToken: { type: String, trim: true },
+        youtubeAccessToken: { type: String, trim: true },
+        youtubeTokenExpires: { type: Date }
       },
     },
   },
@@ -70,6 +76,9 @@ function toPublicCEO(doc) {
     ragToken:    doc.ragToken,
     sendMode:    doc.sendMode || "auto",
     adminReviewMode: doc.adminReviewMode || "manual",
+    whatsAppSendMode: doc.whatsAppSendMode || "manual",
+    whatsAppClientId: doc.whatsAppClientId,
+    isWhatsAppConnected: doc.isWhatsAppConnected || false,
     createdAt:   doc.createdAt,
     updatedAt:   doc.updatedAt,
   };
