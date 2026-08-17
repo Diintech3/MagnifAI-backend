@@ -63,6 +63,18 @@ const contactSchema = new mongoose.Schema(
       enum: ["new", "regular"],
       default: "regular"
     },
+    category: {
+      type: String,
+      default: "Business Person"
+    },
+    cardImageKey: {
+      type: String,
+      default: ""
+    },
+    cardImageUrl: {
+      type: String,
+      default: ""
+    },
     joinedAt: {
       type: Date,
       default: Date.now,

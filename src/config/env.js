@@ -37,6 +37,7 @@ const EnvSchema = z.object({
   YOUTUBE_API_KEY: z.string().optional(),
   UGC_AI_BASE_URL: z.string().url().optional(),
   UGC_AI_APP_TOKEN: z.string().optional(),
+  LANDING_AI_API_KEY: z.string().optional(),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
   WHATSAPP_ACCESS_TOKEN: z.string().optional(),
   WHATSAPP_VERIFY_TOKEN: z.string().optional(),
