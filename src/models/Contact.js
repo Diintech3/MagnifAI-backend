@@ -60,12 +60,17 @@ const contactSchema = new mongoose.Schema(
     },
     contactType: {
       type: String,
-      enum: ["new", "regular"],
+      enum: ["new", "regular", "card"],
       default: "regular"
     },
     category: {
       type: String,
       default: "Business Person"
+    },
+    isBusinessCard: {
+      type: Boolean,
+      default: false,
+      index: true
     },
     cardImageKey: {
       type: String,
