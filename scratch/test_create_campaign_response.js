@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { CEO } = require('../src/models/CEO');
 
-async function testSendTemplateBroadcast() {
+async function testCreateCampaignPayload() {
   await mongoose.connect(process.env.MONGODB_URI);
   const ceo = await CEO.findOne({ email: 'singhlakshmiraj@gmail.com' });
 
@@ -31,22 +31,27 @@ async function testSendTemplateBroadcast() {
     'Content-Type': 'application/json'
   };
 
-  console.log('Testing template send endpoint on Whats AI...');
-  try {
-    const res = await axios.post(`${baseUrl}/api/inbox/send-template`, {
-      phone: '918726525782',
-      templateName: 'ai_assistant',
-      language: 'en',
-      variables: [
-        { key: '1', value: 'Lakshmi Raj Singh' }
-      ]
-    }, { headers });
-    console.log('Send Template Result:', res.data);
-  } catch (e) {
-    console.log('Send Template Error:', e.response?.status, e.response?.data);
-  }
+  // Get Akkash group
+  const gRes = await axios.get(`${baseUrl}/api/contacts/groups`, { headers });
+  const akkashGroup = gRes.data?.data?.groups?.find(g => g.name.toLowerCase() === 'akkash');
+
+  // Get Ai Assistant template
+  const tRes = await axios.get(`${baseUrl}/api/templates`, { headers });
+  const aiTemplate = tRes.data?.data?.templates?.find(t => t.name.toLowerCase().includes('ai'));
+
+  console.log('Target Group ID:', akkashGroup?._id);
+  console.log('Template ID:', aiTemplate?._id);
+
+  const createRes = await axios.post(`${baseUrl}/api/campaigns`, {
+    name: 'test debug campaign',
+    template: aiTemplate._id,
+    targetGroup: akkashGroup._id
+  }, { headers });
+
+  console.log('\nCreate Campaign Full Response:');
+  console.log(JSON.stringify(createRes.data, null, 2));
 
   await mongoose.disconnect();
 }
 
-testSendTemplateBroadcast();
+testCreateCampaignPayload();

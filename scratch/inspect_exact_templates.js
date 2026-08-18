@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { CEO } = require('../src/models/CEO');
 
-async function testSendTemplateBroadcast() {
+async function inspectExactMetaTemplateNames() {
   await mongoose.connect(process.env.MONGODB_URI);
   const ceo = await CEO.findOne({ email: 'singhlakshmiraj@gmail.com' });
 
@@ -31,22 +31,14 @@ async function testSendTemplateBroadcast() {
     'Content-Type': 'application/json'
   };
 
-  console.log('Testing template send endpoint on Whats AI...');
-  try {
-    const res = await axios.post(`${baseUrl}/api/inbox/send-template`, {
-      phone: '918726525782',
-      templateName: 'ai_assistant',
-      language: 'en',
-      variables: [
-        { key: '1', value: 'Lakshmi Raj Singh' }
-      ]
-    }, { headers });
-    console.log('Send Template Result:', res.data);
-  } catch (e) {
-    console.log('Send Template Error:', e.response?.status, e.response?.data);
-  }
+  const res = await axios.get(`${baseUrl}/api/templates`, { headers });
+  const templates = res.data?.data?.templates || [];
+  console.log(`Found ${templates.length} templates:`);
+  templates.forEach(t => {
+    console.log(`- ID: ${t._id}, Name: "${t.name}", whatsappTemplateName: "${t.whatsappTemplateName}", Language: "${t.language}", Status: "${t.status}"`);
+  });
 
   await mongoose.disconnect();
 }
 
-testSendTemplateBroadcast();
+inspectExactMetaTemplateNames();

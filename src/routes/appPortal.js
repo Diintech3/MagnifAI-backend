@@ -3335,10 +3335,54 @@ router.get("/whatsapp/config", async (req, res) => {
       return res.status(404).json({ error: "CEO_NOT_FOUND" });
     }
 
+    let availableAgents = [];
+    if (ceo.ragToken) {
+      try {
+        const { listAgents } = require("../services/agentAiService");
+        const rawAgents = await listAgents(ceo.ragToken);
+        if (Array.isArray(rawAgents)) {
+          availableAgents = rawAgents
+            .filter(ag => ag.category !== "root_assistant")
+            .map(ag => ({
+              id: ag.agent_id || ag.id || ag._id,
+              agentId: ag.agent_id || ag.id || ag._id,
+              name: ag.agent_name || ag.name || "AI Agent",
+              category: ag.category || "Assistant"
+            }));
+        }
+      } catch (e) {
+        console.log("[fetch-available-agents-notice]", e.message);
+      }
+    }
+    if (availableAgents.length === 0 && ceo.agentId) {
+      availableAgents.push({
+        id: ceo.agentId,
+        agentId: ceo.agentId,
+        name: `${ceo.name}'s AI Agent`,
+        category: "Personal AI"
+      });
+    }
+
+    let activeAgentId = ceo.agentId;
+    if (availableAgents.length > 0) {
+      const matched = availableAgents.find(ag => ag.agentId === ceo.agentId || ag.id === ceo.agentId);
+      if (!matched) {
+        activeAgentId = availableAgents[0].agentId || availableAgents[0].id;
+        ceo.agentId = activeAgentId;
+        await ceo.save();
+      }
+    }
+
     return res.json({
       whatsAppSendMode: ceo.whatsAppSendMode || "manual",
-      isWhatsAppConnected: Boolean(ceo.whatsAppClientId),
-      isWhatsAppConfigured: ceo.isWhatsAppConnected || false
+      isWhatsAppConnected: Boolean(ceo.whatsAppClientId || ceo.whatsAppToken),
+      isWhatsAppConfigured: ceo.isWhatsAppConnected || false,
+      agentId: activeAgentId || "",
+      availableAgents,
+      whatsAppClientId: ceo.whatsAppClientId || "",
+      phoneNumberId: ceo.whatsAppPhoneId || process.env.WHATSAPP_PHONE_NUMBER_ID || "",
+      wabaId: ceo.whatsAppWabaId || process.env.WHATSAPP_PHONE_NUMBER_ID || "",
+      accessToken: ceo.whatsAppToken || process.env.WHATSAPP_ACCESS_TOKEN || ""
     });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -3365,6 +3409,52 @@ router.post("/whatsapp/toggle-mode", async (req, res) => {
     return res.json({ success: true, whatsAppSendMode: updated.whatsAppSendMode });
   } catch (err) {
     return res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/whatsapp/sync-agent", async (req, res) => {
+  try {
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    if (!ceoId) {
+      return res.status(403).json({ error: "UNAUTHORIZED_ROLE" });
+    }
+
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(ceoId);
+    if (!ceo) {
+      return res.status(404).json({ error: "CEO_NOT_FOUND" });
+    }
+
+    const agentId = req.body.agentId || ceo.agentId;
+    if (!agentId) {
+      return res.status(400).json({ error: "AGENT_ID_REQUIRED" });
+    }
+
+    if (req.body.agentId && req.body.agentId !== ceo.agentId) {
+      ceo.agentId = req.body.agentId;
+      await ceo.save();
+    }
+
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/settings/ai-agent`,
+      { agentId },
+      { headers }
+    );
+
+    return res.json({
+      success: true,
+      message: "AI Agent linked with WhatsApp successfully",
+      data: response.data,
+      agentId
+    });
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-sync-agent-error]", errorMsg);
+    return res.status(500).json({ error: "SYNC_AGENT_FAILED", message: errorMsg });
   }
 });
 
@@ -3413,12 +3503,33 @@ router.post("/whatsapp/sync-ceo", async (req, res) => {
       ceo.whatsAppClientId = clientId;
       ceo.isWhatsAppConnected = isConfigured;
       await ceo.save();
+
+      // Automatically sync agentId if available
+      if (ceo.agentId) {
+        try {
+          const token = await getWhatsAiClientToken();
+          await axios.post(
+            `${apiBaseUrl.replace(/\/$/, "")}/api/settings/ai-agent`,
+            { agentId: ceo.agentId },
+            {
+              headers: {
+                "Authorization": `Bearer ${token}`,
+                "x-api-key": partnerKey,
+                "x-client-id": clientId
+              }
+            }
+          );
+        } catch (agentErr) {
+          console.log("[whatsapp-auto-agent-sync-notice]", agentErr.message);
+        }
+      }
     }
 
     return res.json({
       success: true,
       message: "CEO synced successfully with Whats AI",
       whatsappConfigured: isConfigured,
+      agentId: ceo.agentId || "",
       data: response.data
     });
   } catch (err) {
@@ -3534,57 +3645,57 @@ router.post("/whatsapp/templates", async (req, res) => {
   }
 });
 
-router.get("/whatsapp/templates", async (req, res) => {
+// Shared handler to fetch all WhatsApp templates for the client (both approved & pending)
+async function handleListWhatsAppTemplates(req, res) {
   try {
-    const { clientEmail, templateName } = req.query;
-    if (!clientEmail || !templateName) {
-      return res.status(400).json({ error: "CLIENT_EMAIL_AND_TEMPLATE_NAME_REQUIRED" });
-    }
-
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
+    const baseHeaders = await getWhatsAiHeaders(req);
 
-    if (!apiBaseUrl || !partnerKey) {
-      return res.status(500).json({ error: "WHATS_AI_INTEGRATION_CONFIG_MISSING" });
+    // 1. Fetch partner / draft templates
+    let partnerTemplates = [];
+    try {
+      const partnerRes = await axios.get(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/templates`,
+        { headers: baseHeaders }
+      );
+      partnerTemplates = partnerRes.data?.data?.templates || partnerRes.data?.templates || [];
+    } catch (e) {
+      console.log("Partner templates fetch error:", e.message);
     }
 
-    const response = await axios.get(
-      `${apiBaseUrl.replace(/\/$/, "")}/api/partner/template-status`,
-      {
-        params: { clientEmail, templateName },
-        headers: {
-          "x-partner-key": partnerKey
+    // 2. Fetch client-scoped templates if CEO has whatsAppClientId
+    let clientTemplates = [];
+    if (req.user && req.user.role === "CEO") {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(req.user.sub);
+      if (ceo && ceo.whatsAppClientId) {
+        try {
+          const clientRes = await axios.get(
+            `${apiBaseUrl.replace(/\/$/, "")}/api/templates`,
+            { headers: { ...baseHeaders, "x-client-id": ceo.whatsAppClientId } }
+          );
+          clientTemplates = clientRes.data?.data?.templates || clientRes.data?.templates || [];
+        } catch (e) {
+          console.log("Client templates fetch error:", e.message);
         }
       }
-    );
+    }
 
-    return res.json(response.data);
-  } catch (err) {
-    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
-    console.error("[whatsapp-template-status-error]", errorMsg);
-    return res.status(500).json({ error: "FETCH_STATUS_FAILED", message: errorMsg });
-  }
-});
+    // 3. Merge & Deduplicate
+    const mergedMap = new Map();
+    [...clientTemplates, ...partnerTemplates].forEach(t => {
+      const key = (t._id || t.id || t.name || t.templateName || "").toString();
+      if (key && !mergedMap.has(key)) {
+        mergedMap.set(key, t);
+      }
+    });
 
-// Route to fetch all WhatsApp templates for the client
-router.get("/whatsapp/templates/list", async (req, res) => {
-  try {
-    const axios = require("axios");
-    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const headers = await getWhatsAiHeaders(req);
-
-    const response = await axios.get(
-      `${apiBaseUrl.replace(/\/$/, "")}/api/templates`,
-      { headers }
-    );
-
-    // Map response templates to keys expected by the frontend with full details
-    const rawList = response.data?.data?.templates || response.data?.templates || response.data?.data || [];
-    const templates = (Array.isArray(rawList) ? rawList : []).map(t => {
-      const body = t.bodyText || t.body || "";
+    const rawList = Array.from(mergedMap.values());
+    const templates = rawList.map(t => {
+      const body = t.bodyPreview || t.bodyText || t.body || "";
       const matches = body.match(/\{\{(\d+)\}\}/g) || [];
-      const varCount = (t.variables && t.variables.length) || (t.sampleParams && t.sampleParams.length) || matches.length || 0;
+      const varCount = (t.sampleParams && t.sampleParams.length) || (t.variables && t.variables.length) || matches.length || 0;
       return {
         id: t._id || t.id,
         name: t.name || t.templateName || t.whatsappTemplateName,
@@ -3593,8 +3704,14 @@ router.get("/whatsapp/templates/list", async (req, res) => {
         language: (t.language || t.languageCode || "en").toLowerCase(),
         status: t.metaStatus || t.status || "APPROVED",
         category: t.category || "UTILITY",
+        headerText: t.headerText || "",
         bodyText: body,
-        variables: t.variables || t.sampleParams || [],
+        bodyPreview: body,
+        footerText: t.footerText || "",
+        headerType: t.headerType || "TEXT",
+        parameterFormat: t.parameterFormat || "POSITIONAL",
+        variables: t.sampleParams || t.variables || [],
+        sampleParams: t.sampleParams || t.variables || [],
         variablesCount: varCount
       };
     });
@@ -3602,12 +3719,574 @@ router.get("/whatsapp/templates/list", async (req, res) => {
     return res.json({
       success: true,
       data: { templates },
-      message: response.data?.message || "Templates"
+      templates,
+      message: "Templates fetched successfully"
     });
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
     console.error("[whatsapp-list-templates-error]", errorMsg);
     return res.status(500).json({ error: "LIST_TEMPLATES_FAILED", message: errorMsg });
+  }
+}
+
+router.get("/whatsapp/templates", async (req, res) => {
+  const { clientEmail, templateName } = req.query;
+  if (clientEmail && templateName) {
+    try {
+      const axios = require("axios");
+      const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+      const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
+
+      if (!apiBaseUrl || !partnerKey) {
+        return res.status(500).json({ error: "WHATS_AI_INTEGRATION_CONFIG_MISSING" });
+      }
+
+      const response = await axios.get(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/partner/template-status`,
+        {
+          params: { clientEmail, templateName },
+          headers: {
+            "x-partner-key": partnerKey
+          }
+        }
+      );
+
+      return res.json(response.data);
+    } catch (err) {
+      const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+      console.error("[whatsapp-template-status-error]", errorMsg);
+      return res.status(500).json({ error: "FETCH_STATUS_FAILED", message: errorMsg });
+    }
+  }
+
+  return handleListWhatsAppTemplates(req, res);
+});
+
+router.get("/whatsapp/templates/list", handleListWhatsAppTemplates);
+
+// Route to fetch all WhatsApp Groups
+router.get("/whatsapp/groups", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+
+    const response = await axios.get(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+      { headers }
+    );
+    const liveGroups = response.data?.data?.groups || response.data?.groups || [];
+
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    const { Group } = require("../models/Group");
+    const mongoGroups = ceoId ? await Group.find({ ceoId }) : [];
+
+    const merged = [...liveGroups];
+    for (const mg of mongoGroups) {
+      const exists = merged.find(g => g.name.toLowerCase() === mg.name.toLowerCase() || (g._id && g._id.toString() === mg._id.toString()));
+      if (exists) {
+        if (Array.isArray(mg.members) && mg.members.length > 0) {
+          exists.contactCount = mg.members.length;
+        }
+      } else {
+        merged.push({
+          _id: mg._id.toString(),
+          id: mg._id.toString(),
+          name: mg.name,
+          description: "MagnifAI Workspace Group",
+          contactCount: mg.members?.length || 0
+        });
+      }
+    }
+
+    return res.json({ success: true, data: { groups: merged }, groups: merged });
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-list-groups-error]", errorMsg);
+    return res.status(500).json({ error: "LIST_GROUPS_FAILED", message: errorMsg });
+  }
+});
+
+// Route to create a WhatsApp Group
+router.post("/whatsapp/groups", async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "GROUP_NAME_REQUIRED" });
+    }
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+      { name, description: description || "WhatsApp Audience Group" },
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-create-group-error]", errorMsg);
+    return res.status(500).json({ error: "CREATE_GROUP_FAILED", message: errorMsg });
+  }
+});
+
+// Route to delete a WhatsApp Group
+router.delete("/whatsapp/groups/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+
+    const response = await axios.delete(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups/${id}`,
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-delete-group-error]", errorMsg);
+    return res.status(500).json({ error: "DELETE_GROUP_FAILED", message: errorMsg });
+  }
+});
+
+// Route to fetch members of a specific WhatsApp Group
+router.get("/whatsapp/groups/:id/members", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+
+    // 1. Fetch group details from Whats AI or MongoDB
+    const gListRes = await axios.get(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+      { headers }
+    );
+    const liveGroups = gListRes.data?.data?.groups || gListRes.data?.groups || [];
+    let group = liveGroups.find(g => g._id === id || g.name === id);
+
+    const { Group } = require("../models/Group");
+    const { Contact } = require("../models/Contact");
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    let mongoGroup = null;
+    if (/^[0-9a-fA-F]{24}$/.test(id)) {
+      mongoGroup = await Group.findById(id);
+    }
+    if (!mongoGroup && group) {
+      mongoGroup = await Group.findOne({ name: group.name, ...(ceoId ? { ceoId } : {}) });
+    }
+
+    const groupName = group?.name || mongoGroup?.name || id;
+    const groupId = group?._id || id;
+
+    // 2. Fetch all contacts from Whats AI
+    const cRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/contacts`, { headers });
+    const waContacts = cRes.data?.data?.contacts || cRes.data?.contacts || [];
+
+    // Filter contacts that are in this group
+    const memberPhones = new Set();
+    const members = [];
+
+    waContacts.forEach(c => {
+      const groupArr = Array.isArray(c.group) ? c.group : [c.group].filter(Boolean);
+      const isMember = groupArr.some(g => (g._id || g) === groupId || (g.name || g).toLowerCase() === groupName.toLowerCase());
+      if (isMember) {
+        const rawPhone = (c.phone || "").replace(/[^0-9]/g, "");
+        if (rawPhone && !memberPhones.has(rawPhone)) {
+          memberPhones.add(rawPhone);
+          members.push({
+            _id: c._id || c.id,
+            id: c._id || c.id,
+            name: c.name,
+            phone: c.phone,
+            email: c.email || "",
+            source: "WhatsAI"
+          });
+        }
+      }
+    });
+
+    // Also include MongoDB group members if any
+    if (mongoGroup && Array.isArray(mongoGroup.members) && mongoGroup.members.length > 0) {
+      const dbMembers = await Contact.find({ _id: { $in: mongoGroup.members } });
+      dbMembers.forEach(c => {
+        const rawPhone = (c.phone || "").replace(/[^0-9]/g, "");
+        if (rawPhone && !memberPhones.has(rawPhone)) {
+          memberPhones.add(rawPhone);
+          members.push({
+            _id: c._id.toString(),
+            id: c._id.toString(),
+            name: c.name,
+            phone: c.phone,
+            email: c.email || "",
+            source: "People Directory"
+          });
+        }
+      });
+    }
+
+    return res.json({
+      success: true,
+      group: {
+        _id: groupId,
+        id: groupId,
+        name: groupName,
+        contactCount: members.length
+      },
+      members,
+      memberPhones: Array.from(memberPhones)
+    });
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-group-members-error]", errorMsg);
+    return res.status(500).json({ error: "GET_GROUP_MEMBERS_FAILED", message: errorMsg });
+  }
+});
+
+// Route to sync / update members of a WhatsApp Group
+router.post("/whatsapp/groups/:id/sync-members", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { selectedContacts, removedPhones } = req.body;
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+
+    // 1. Resolve Whats AI Group ID
+    const gListRes = await axios.get(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+      { headers }
+    );
+    const liveGroups = gListRes.data?.data?.groups || gListRes.data?.groups || [];
+    let group = liveGroups.find(g => g._id === id || g.name === id);
+
+    const { Group } = require("../models/Group");
+    const { Contact } = require("../models/Contact");
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    let mongoGroup = null;
+    if (/^[0-9a-fA-F]{24}$/.test(id)) {
+      mongoGroup = await Group.findById(id);
+    }
+    if (!mongoGroup && group) {
+      mongoGroup = await Group.findOne({ name: group.name, ...(ceoId ? { ceoId } : {}) });
+    }
+
+    let resolvedGroupId = group?._id;
+    const groupName = group?.name || mongoGroup?.name || id;
+
+    if (!resolvedGroupId) {
+      const createG = await axios.post(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+        { name: groupName, description: "Auto-synced group" },
+        { headers }
+      );
+      resolvedGroupId = createG.data?.data?.group?._id || createG.data?.group?._id;
+    }
+
+    // 2. Fetch all contacts from Whats AI
+    const cRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/contacts`, { headers });
+    const waContacts = cRes.data?.data?.contacts || cRes.data?.contacts || [];
+
+    // 3. Add or update selected contacts
+    if (Array.isArray(selectedContacts)) {
+      for (const c of selectedContacts) {
+        const cleanPhone = String(c.phone || "").replace(/[^0-9]/g, "");
+        if (!cleanPhone) continue;
+
+        const existing = waContacts.find(wc => {
+          const p = (wc.phone || "").replace(/[^0-9]/g, "");
+          return p === cleanPhone || (cleanPhone.length >= 10 && p.endsWith(cleanPhone.slice(-10)));
+        });
+
+        if (existing) {
+          const currentGroups = Array.isArray(existing.group) ? existing.group.map(g => g._id || g) : [];
+          if (!currentGroups.includes(resolvedGroupId)) {
+            currentGroups.push(resolvedGroupId);
+            await axios.patch(
+              `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/${existing._id}`,
+              { group: currentGroups },
+              { headers }
+            ).catch(e => console.log("Patch error:", e.message));
+          }
+        } else {
+          await axios.post(
+            `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
+            { name: c.name || "Contact", phone: cleanPhone, group: [resolvedGroupId], tags: ["Lead"] },
+            { headers }
+          ).catch(e => console.log("Create error:", e.message));
+        }
+
+        // Sync to MongoDB
+        if (ceoId && mongoGroup) {
+          const dbC = await Contact.findOne({ ceoId, phone: new RegExp(cleanPhone.slice(-10) + "$") });
+          if (dbC && !mongoGroup.members.includes(dbC._id)) {
+            mongoGroup.members.push(dbC._id);
+          }
+        }
+      }
+    }
+
+    // 4. Remove unselected contacts
+    if (Array.isArray(removedPhones) && removedPhones.length > 0) {
+      for (const rawP of removedPhones) {
+        const cleanPhone = String(rawP || "").replace(/[^0-9]/g, "");
+        if (!cleanPhone) continue;
+
+        const existing = waContacts.find(wc => {
+          const p = (wc.phone || "").replace(/[^0-9]/g, "");
+          return p === cleanPhone || (cleanPhone.length >= 10 && p.endsWith(cleanPhone.slice(-10)));
+        });
+
+        if (existing) {
+          const currentGroups = Array.isArray(existing.group) ? existing.group.map(g => g._id || g) : [];
+          const updatedGroups = currentGroups.filter(gid => gid !== resolvedGroupId);
+          await axios.patch(
+            `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/${existing._id}`,
+            { group: updatedGroups },
+            { headers }
+          ).catch(e => console.log("Remove error:", e.message));
+        }
+
+        // Remove from MongoDB
+        if (ceoId && mongoGroup) {
+          const dbC = await Contact.findOne({ ceoId, phone: new RegExp(cleanPhone.slice(-10) + "$") });
+          if (dbC) {
+            mongoGroup.members = mongoGroup.members.filter(mid => mid.toString() !== dbC._id.toString());
+          }
+        }
+      }
+    }
+
+    if (mongoGroup) {
+      await mongoGroup.save();
+    }
+
+    return res.json({ success: true, message: "Group members synchronized successfully" });
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-sync-group-members-error]", errorMsg);
+    return res.status(500).json({ error: "SYNC_GROUP_MEMBERS_FAILED", message: errorMsg });
+  }
+});
+
+// Route to fetch contacts available for adding to groups
+router.get("/whatsapp/contacts", async (req, res) => {
+  try {
+    const { Contact } = require("../models/Contact");
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+
+    let app = req.appDoc;
+    if (!app && ceoId) {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(ceoId);
+      if (ceo) {
+        const { App } = require("../models/App");
+        app = await App.findById(ceo.appId);
+      }
+    }
+    const filter = ceoId ? { ceoId } : (app ? { appId: app._id } : {});
+
+    const allDbContacts = await Contact.find(filter).sort({ createdAt: -1 });
+
+    const formattedContacts = allDbContacts.map(c => ({
+      _id: c._id.toString(),
+      id: c._id.toString(),
+      name: c.name,
+      phone: c.phone || "",
+      company: c.company || "",
+      email: c.email || "",
+      isBusinessCard: Boolean(c.isBusinessCard === true || c.contactType === "card")
+    }));
+
+    return res.json({ success: true, contacts: formattedContacts });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Route to sync People Groups with WhatsApp Groups
+router.get("/people/groups", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+
+    const response = await axios.get(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+      { headers }
+    );
+    const groups = (response.data?.data?.groups || response.data?.groups || []).map(g => ({
+      id: g._id,
+      _id: g._id,
+      name: g.name,
+      color: "#FFD54F",
+      membersCount: g.contactCount !== undefined ? g.contactCount : (g.contactsCount || 0)
+    }));
+    return res.json({ success: true, groups });
+  } catch (err) {
+    console.error("[people-groups-error]", err.message);
+    return res.json({ success: true, groups: [] });
+  }
+});
+
+router.post("/people/groups", async (req, res) => {
+  try {
+    const { name, color } = req.body;
+    if (!name) return res.status(400).json({ error: "NAME_REQUIRED" });
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+      { name, description: "Created from People Directory" },
+      { headers }
+    );
+    const g = response.data?.data?.group || response.data?.group;
+    return res.json({
+      success: true,
+      group: {
+        id: g?._id,
+        _id: g?._id,
+        name: g?.name || name,
+        color: color || "#FFD54F",
+        membersCount: 0
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Route to add a contact into a WhatsApp Group
+router.post("/whatsapp/contacts", async (req, res) => {
+  try {
+    const { name, phone, email, groups, tags } = req.body;
+    if (!name || !phone) {
+      return res.status(400).json({ error: "NAME_AND_PHONE_REQUIRED" });
+    }
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+
+    // Resolve group name / id to valid Whats AI Group ObjectId
+    let groupIds = [];
+    if (Array.isArray(groups) && groups.length > 0) {
+      const target = groups[0];
+      const listRes = await axios.get(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+        { headers }
+      );
+      const liveGroups = listRes.data?.data?.groups || listRes.data?.groups || [];
+      
+      let found = liveGroups.find(g => g._id === target || g.name.toLowerCase() === target.toLowerCase());
+      let groupNameForCreation = target;
+
+      if (!found && /^[0-9a-fA-F]{24}$/.test(target)) {
+        const { Group } = require("../models/Group");
+        const mg = await Group.findById(target);
+        if (mg) {
+          groupNameForCreation = mg.name;
+          found = liveGroups.find(g => g.name.toLowerCase() === mg.name.toLowerCase());
+        }
+      }
+
+      if (found) {
+        groupIds = [found._id];
+      } else {
+        const createG = await axios.post(
+          `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+          { name: groupNameForCreation, description: "Auto-synced group" },
+          { headers }
+        );
+        const newGId = createG.data?.data?.group?._id || createG.data?.group?._id;
+        if (newGId) groupIds = [newGId];
+      }
+    }
+
+    const payload = {
+      name,
+      phone: phone.replace(/[^0-9]/g, ""),
+      email: email || undefined,
+      group: groupIds.length > 0 ? groupIds : undefined,
+      tags: tags || ["Lead"]
+    };
+
+    let response;
+    try {
+      const createRes = await axios.post(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
+        payload,
+        { headers }
+      );
+      if (createRes.data && createRes.data.success !== false) {
+        response = createRes;
+      } else {
+        throw new Error(createRes.data?.message || "CREATE_FAILED");
+      }
+    } catch (createErr) {
+      // If contact already exists on Whats AI, update their group using PATCH /api/contacts/:id
+      try {
+        const listC = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/contacts`, { headers });
+        const contactsList = listC.data?.data?.contacts || listC.data?.contacts || [];
+        const cleanPhone = payload.phone;
+        const existing = contactsList.find(c => {
+          const p = (c.phone || "").replace(/[^0-9]/g, "");
+          return p === cleanPhone || (cleanPhone.length >= 10 && p.endsWith(cleanPhone.slice(-10)));
+        });
+
+        if (existing) {
+          const currentGroups = Array.isArray(existing.group) ? existing.group.map(g => g._id || g) : [];
+          const updatedGroups = groupIds.length > 0 ? Array.from(new Set([...currentGroups, ...groupIds])) : currentGroups;
+          const patchRes = await axios.patch(
+            `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/${existing._id}`,
+            { group: updatedGroups },
+            { headers }
+          );
+          response = patchRes;
+        } else {
+          throw createErr;
+        }
+      } catch (fallbackErr) {
+        console.error("[whatsapp-fallback-patch-error]", fallbackErr.response ? fallbackErr.response.data : fallbackErr.message);
+        throw createErr;
+      }
+    }
+
+    // Also sync MongoDB Group members for this CEO
+    if (req.user && req.user.role === "CEO") {
+      try {
+        const { Group } = require("../models/Group");
+        const { Contact } = require("../models/Contact");
+        const targetGroupName = Array.isArray(groups) ? groups[0] : groups;
+        if (targetGroupName) {
+          let mGroup = await Group.findOne({ ceoId: req.user.sub, name: targetGroupName });
+          if (!mGroup && groupIds.length > 0) {
+            mGroup = await Group.findOne({ ceoId: req.user.sub, _id: groupIds[0] });
+          }
+          const mContact = await Contact.findOne({
+            ceoId: req.user.sub,
+            phone: new RegExp(payload.phone.slice(-10) + "$")
+          });
+          if (mGroup && mContact) {
+            if (!mGroup.members.includes(mContact._id)) {
+              mGroup.members.push(mContact._id);
+              await mGroup.save();
+            }
+          }
+        }
+      } catch (mongoSyncErr) {
+        console.error("[mongo-group-sync-error]", mongoSyncErr.message);
+      }
+    }
+
+    return res.json(response ? response.data : { success: true, message: "Contact added" });
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-create-contact-error]", errorMsg);
+    return res.status(500).json({ error: "CREATE_CONTACT_FAILED", message: errorMsg });
   }
 });
 
@@ -3636,7 +4315,7 @@ router.post("/whatsapp/reset-connection", async (req, res) => {
 });
 
 // Helper to get Whats AI Client JWT Token by doing an API sharing handshake login
-const getWhatsAiClientToken = async () => {
+async function getWhatsAiClientToken() {
   const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
   const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
   const clientToken = process.env.WHATS_AI_ACCESS_TOKEN;
@@ -3673,10 +4352,10 @@ const getWhatsAiClientToken = async () => {
     return response.data.accessToken;
   }
   throw new Error("FAILED_TO_GET_JWT_TOKEN");
-};
+}
 
 // Helper to get headers pre-authorized with Whats AI Client JWT Token
-const getWhatsAiHeaders = async (req) => {
+async function getWhatsAiHeaders(req) {
   const token = await getWhatsAiClientToken();
   const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
   const headers = {
@@ -3684,20 +4363,29 @@ const getWhatsAiHeaders = async (req) => {
     "x-api-key": partnerKey,
     "Content-Type": "application/json"
   };
+
   if (req && req.user && req.user.role === "CEO") {
-    const { CEO } = require("../models/CEO");
-    const ceo = await CEO.findById(req.user.sub);
-    if (ceo && ceo.whatsAppClientId) {
-      headers["x-client-id"] = ceo.whatsAppClientId;
+    try {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(req.user.sub);
+      if (ceo && ceo.whatsAppClientId) {
+        headers["x-client-id"] = ceo.whatsAppClientId;
+      }
+    } catch (e) {
+      console.warn("[getWhatsAiHeaders] Failed to attach x-client-id:", e.message);
     }
   }
+
   return headers;
-};
+}
 
 // Route to configure/connect WhatsApp Business Account (WABA) for a client
 router.post("/whatsapp/waba", async (req, res) => {
   try {
-    const { phoneNumberId, wabaId, accessToken } = req.body;
+    const phoneNumberId = req.body.phoneNumberId || req.body.whatsappPhoneNumberId;
+    const wabaId = req.body.wabaId || req.body.whatsappWabaId;
+    const accessToken = req.body.accessToken || req.body.whatsappAccessToken;
+
     if (!phoneNumberId || !wabaId || !accessToken) {
       return res.status(400).json({ error: "WABA_CONFIG_FIELDS_REQUIRED" });
     }
@@ -3705,11 +4393,37 @@ router.post("/whatsapp/waba", async (req, res) => {
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const headers = await getWhatsAiHeaders(req);
     
-    const response = await axios.post(
-      `${apiBaseUrl.replace(/\/$/, "")}/api/settings/waba`,
-      { phoneNumberId, wabaId, accessToken },
-      { headers }
-    );
+    // Connect to Whats AI live endpoint
+    let response;
+    try {
+      response = await axios.post(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/whatsapp/connect`,
+        {
+          whatsappPhoneNumberId: phoneNumberId,
+          whatsappAccessToken: accessToken,
+          whatsappWabaId: wabaId
+        },
+        { headers }
+      );
+    } catch (e1) {
+      // Fallback attempt to /api/settings/waba if legacy route exists
+      response = await axios.post(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/settings/waba`,
+        { phoneNumberId, wabaId, accessToken },
+        { headers }
+      );
+    }
+
+    if (req.user && req.user.role === "CEO") {
+      const { CEO } = require("../models/CEO");
+      await CEO.findByIdAndUpdate(req.user.sub, {
+        whatsAppPhoneId: phoneNumberId,
+        whatsAppWabaId: wabaId,
+        whatsAppToken: accessToken,
+        isWhatsAppConnected: true
+      });
+    }
+
     return res.json(response.data);
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
@@ -3724,6 +4438,14 @@ router.get("/whatsapp/conversations", async (req, res) => {
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const headers = await getWhatsAiHeaders(req);
+
+    if (req.user && req.user.role === "CEO") {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(req.user.sub);
+      if (ceo && ceo.whatsAppClientId) {
+        headers["x-client-id"] = ceo.whatsAppClientId;
+      }
+    }
     
     const response = await axios.get(
       `${apiBaseUrl.replace(/\/$/, "")}/api/inbox/conversations`,
@@ -3744,6 +4466,14 @@ router.get("/whatsapp/conversations/:id/messages", async (req, res) => {
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const headers = await getWhatsAiHeaders(req);
+
+    if (req.user && req.user.role === "CEO") {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(req.user.sub);
+      if (ceo && ceo.whatsAppClientId) {
+        headers["x-client-id"] = ceo.whatsAppClientId;
+      }
+    }
     
     const response = await axios.get(
       `${apiBaseUrl.replace(/\/$/, "")}/api/inbox/conversations/${id}/messages`,
@@ -3761,22 +4491,27 @@ router.get("/whatsapp/conversations/:id/messages", async (req, res) => {
 router.post("/whatsapp/conversations/:id/reply", async (req, res) => {
   try {
     const { id } = req.params;
-    const { message, text, body } = req.body;
-    const msgText = (text || message || body || "").trim();
-    if (!msgText) {
-      return res.status(400).json({ error: "MESSAGE_REQUIRED" });
+    const { text, message } = req.body;
+    const resolvedText = text || message;
+
+    if (!resolvedText) {
+      return res.status(400).json({ error: "REPLY_TEXT_REQUIRED" });
     }
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const headers = await getWhatsAiHeaders(req);
+
+    if (req.user && req.user.role === "CEO") {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(req.user.sub);
+      if (ceo && ceo.whatsAppClientId) {
+        headers["x-client-id"] = ceo.whatsAppClientId;
+      }
+    }
     
     const response = await axios.post(
       `${apiBaseUrl.replace(/\/$/, "")}/api/inbox/conversations/${id}/reply`,
-      {
-        message: msgText,
-        text: msgText,
-        body: msgText
-      },
+      { text: resolvedText },
       { headers }
     );
     return res.json(response.data);
@@ -3838,270 +4573,20 @@ router.put("/whatsapp/conversations/:id/toggle-ai", async (req, res) => {
   }
 });
 
-// Route to fetch all contact groups from Whats AI + accurately count contacts
-router.get("/whatsapp/groups", async (req, res) => {
-  try {
-    const appId = req.user?.appId || req.user?.sub;
-    const ceoId = req.user?.role === "CEO" ? req.user.sub : undefined;
-    const axios = require("axios");
-    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const headers = await getWhatsAiHeaders(req);
-    
-    // 1. Fetch from WhatsAI
-    let waGroups = [];
-    try {
-      const response = await axios.get(
-        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
-        { headers }
-      );
-      waGroups = response.data?.data?.groups || response.data?.groups || response.data?.data || (Array.isArray(response.data) ? response.data : []);
-    } catch (e) {
-      console.log("[whatsapp-groups-fetch-notice]", e.message);
-    }
 
-    // 2. Fetch contacts from WhatsAI to count real contacts per group
-    let waContacts = [];
-    try {
-      const contactsRes = await axios.get(
-        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
-        { headers }
-      );
-      waContacts = contactsRes.data?.data?.contacts || contactsRes.data?.contacts || contactsRes.data?.data || (Array.isArray(contactsRes.data) ? contactsRes.data : []);
-    } catch (e) {
-      console.log("[whatsapp-contacts-fetch-notice]", e.message);
-    }
-
-    // 3. Count contacts per group (checking both c.group and c.groups)
-    const countMap = {};
-    if (Array.isArray(waContacts)) {
-      waContacts.forEach(c => {
-        const groupArr = Array.isArray(c.group) ? c.group : (Array.isArray(c.groups) ? c.groups : [c.group || c.groups].filter(Boolean));
-        groupArr.forEach(g => {
-          const gName = (typeof g === "string" ? g : g?.name) || "";
-          if (gName) {
-            const key = gName.toLowerCase().trim();
-            countMap[key] = (countMap[key] || 0) + 1;
-          }
-        });
-      });
-    }
-
-    // 4. Fetch local MongoDB groups
-    let localGroups = [];
-    try {
-      const filter = ceoId ? { ceoId } : { appId };
-      localGroups = await Group.find(filter).lean();
-    } catch (e) {
-      console.log("[local-groups-fetch-notice]", e.message);
-    }
-
-    // 5. Merge groups uniquely by name with real counts
-    const mergedMap = new Map();
-    (Array.isArray(waGroups) ? waGroups : []).forEach(g => {
-      if (g && g.name) {
-        const groupKey = g.name.toLowerCase().trim();
-        mergedMap.set(groupKey, {
-          ...g,
-          contactsCount: countMap[groupKey] || 0,
-          source: "whatsAi"
-        });
-      }
-    });
-
-    localGroups.forEach(lg => {
-      const key = lg.name.toLowerCase().trim();
-      if (!mergedMap.has(key)) {
-        mergedMap.set(key, {
-          _id: lg._id.toString(),
-          id: lg._id.toString(),
-          name: lg.name,
-          contactsCount: countMap[key] || (lg.members ? lg.members.length : 0),
-          source: "peopleDirectory"
-        });
-      }
-    });
-
-    return res.json({ success: true, groups: Array.from(mergedMap.values()) });
-  } catch (err) {
-    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
-    console.error("[whatsapp-get-groups-error]", errorMsg);
-    return res.status(500).json({ error: "GET_GROUPS_FAILED", message: errorMsg });
-  }
-});
-
-// Route to create a new contact group in Whats AI and MongoDB People directory
-router.post("/whatsapp/groups", async (req, res) => {
-  try {
-    const { name } = req.body;
-    if (!name) {
-      return res.status(400).json({ error: "GROUP_NAME_REQUIRED" });
-    }
-    const appId = req.user?.appId || req.user?.sub;
-    const ceoId = req.user?.role === "CEO" ? req.user.sub : undefined;
-    const axios = require("axios");
-    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const headers = await getWhatsAiHeaders(req);
-    
-    // 1. Create in WhatsAI
-    let waGroup = null;
-    try {
-      const response = await axios.post(
-        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
-        { name: name.trim() },
-        { headers }
-      );
-      waGroup = response.data?.data || response.data;
-    } catch (e) {
-      console.log("[whats-ai-group-create-notice]", e.message);
-    }
-
-    // 2. Also create in MongoDB Group collection for People directory
-    try {
-      const existing = await Group.findOne({ name: name.trim(), appId });
-      if (!existing) {
-        await Group.create({
-          appId,
-          ceoId,
-          name: name.trim(),
-          colorHex: "#FFD54F",
-          members: []
-        });
-      }
-    } catch (e) {
-      console.log("[mongo-group-sync-notice]", e.message);
-    }
-
-    return res.json({ success: true, group: waGroup || { name: name.trim() } });
-  } catch (err) {
-    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
-    console.error("[whatsapp-create-group-error]", errorMsg);
-    return res.status(500).json({ error: "CREATE_GROUP_FAILED", message: errorMsg });
-  }
-});
-
-// Route to fetch all unified contacts for WhatsApp Workspace
-router.get("/whatsapp/contacts", async (req, res) => {
-  try {
-    const appId = req.user?.appId || req.user?.sub;
-    const ceoId = req.user?.role === "CEO" ? req.user.sub : undefined;
-    const axios = require("axios");
-    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const headers = await getWhatsAiHeaders(req);
-
-    // 1. Fetch WhatsAI contacts
-    let waContacts = [];
-    try {
-      const response = await axios.get(
-        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
-        { headers }
-      );
-      waContacts = response.data?.data?.contacts || response.data?.contacts || response.data?.data || (Array.isArray(response.data) ? response.data : []);
-    } catch (e) {
-      console.log("[whatsapp-contacts-fetch-notice]", e.message);
-    }
-
-    // 2. Fetch local MongoDB contacts (including newly scanned/added)
-    let localContacts = [];
-    try {
-      const filter = ceoId ? { ceoId } : { appId };
-      localContacts = await Contact.find(filter).limit(300).lean();
-    } catch (e) {
-      console.log("[mongo-contacts-fetch-notice]", e.message);
-    }
-
-    // 3. Merge seamlessly
-    const seen = new Set();
-    const all = [];
-
-    localContacts.forEach(c => {
-      const rawPhone = String(c.phone || "").replace(/[^0-9]/g, "");
-      if (rawPhone && !seen.has(rawPhone)) {
-        seen.add(rawPhone);
-        all.push({
-          _id: c._id.toString(),
-          name: c.name || "Contact",
-          phone: c.phone,
-          company: c.company || "",
-          isBusinessCard: !!c.isBusinessCard,
-          source: "People Directory"
-        });
-      }
-    });
-
-    waContacts.forEach(c => {
-      const rawPhone = String(c.phone || "").replace(/[^0-9]/g, "");
-      if (rawPhone && !seen.has(rawPhone)) {
-        seen.add(rawPhone);
-        all.push({
-          _id: c._id || c.id,
-          name: c.name || "WhatsApp Contact",
-          phone: c.phone,
-          company: "",
-          isBusinessCard: false,
-          source: "WhatsAI"
-        });
-      }
-    });
-
-    return res.json({ success: true, contacts: all });
-  } catch (err) {
-    console.error("[whatsapp-contacts-error]", err.message);
-    return res.status(500).json({ error: "FAILED_TO_FETCH_CONTACTS" });
-  }
-});
-
-// Route to add a contact to a group in Whats AI and MongoDB People directory
-router.post("/whatsapp/contacts", async (req, res) => {
-  try {
-    const { name, phone, groups, customAttributes } = req.body;
-    if (!name || !phone) {
-      return res.status(400).json({ error: "NAME_AND_PHONE_REQUIRED" });
-    }
-    const appId = req.user?.appId || req.user?.sub;
-    const ceoId = req.user?.role === "CEO" ? req.user.sub : undefined;
-    const axios = require("axios");
-    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const headers = await getWhatsAiHeaders(req);
-    
-    // 1. Add to WhatsAI
-    const response = await axios.post(
-      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
-      { name: name.trim(), phone: phone.trim(), groups, customAttributes },
-      { headers }
-    );
-
-    // 2. Also ensure contact is in MongoDB Contact collection for People Directory
-    try {
-      let contact = await Contact.findOne({ phone: phone.trim(), appId });
-      if (!contact) {
-        contact = await Contact.create({
-          appId,
-          ceoId,
-          name: name.trim(),
-          phone: phone.trim(),
-          source: "WHATSAPP_CAMPAIGN"
-        });
-      }
-      // If group is specified, link contact to MongoDB Group
-      if (groups && Array.isArray(groups) && groups.length > 0) {
-        const groupName = groups[0];
-        const groupDoc = await Group.findOne({ name: groupName, appId });
-        if (groupDoc && !groupDoc.members.includes(contact._id)) {
-          groupDoc.members.push(contact._id);
-          await groupDoc.save();
-        }
-      }
-    } catch (e) {
-      console.log("[mongo-contact-sync-notice]", e.message);
-    }
-
-    return res.json(response.data);
-  } catch (err) {
-    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
-    console.error("[whatsapp-create-contact-error]", errorMsg);
-    return res.status(500).json({ error: "CREATE_CONTACT_FAILED", message: errorMsg });
-  }
-});
+// Lightweight model for local WhatsApp Campaign execution logs
+const campaignLogSchema = new (require("mongoose").Schema)(
+  {
+    campaignId: { type: String, required: true, index: true },
+    ceoId: { type: require("mongoose").Schema.Types.ObjectId, ref: "CEO", required: true, index: true },
+    status: { type: String, default: "completed" },
+    sentCount: { type: Number, default: 0 },
+    totalContacts: { type: Number, default: 0 },
+    lastDispatchedAt: { type: Date, default: Date.now }
+  },
+  { timestamps: true }
+);
+const WhatsAppCampaignLog = require("mongoose").models.WhatsAppCampaignLog || require("mongoose").model("WhatsAppCampaignLog", campaignLogSchema);
 
 // Route to fetch campaign lists from Whats AI
 router.get("/whatsapp/campaigns", async (req, res) => {
@@ -4109,11 +4594,47 @@ router.get("/whatsapp/campaigns", async (req, res) => {
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const headers = await getWhatsAiHeaders(req);
+
+    if (req.user && req.user.role === "CEO") {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(req.user.sub);
+      if (ceo && ceo.whatsAppClientId) {
+        headers["x-client-id"] = ceo.whatsAppClientId;
+      }
+    }
     
     const response = await axios.get(
       `${apiBaseUrl.replace(/\/$/, "")}/api/campaigns`,
       { headers }
     );
+
+    const rawCampaigns = response.data?.data?.campaigns || response.data?.campaigns || [];
+    const ceoId = req.user?.role === "CEO" ? req.user.sub : undefined;
+    const logs = ceoId ? await WhatsAppCampaignLog.find({ ceoId }) : [];
+    const logMap = new Map(logs.map(l => [String(l.campaignId), l]));
+
+    const mergedCampaigns = rawCampaigns.map(c => {
+      const cid = String(c._id || c.id);
+      const log = logMap.get(cid);
+      if (log) {
+        return {
+          ...c,
+          status: log.status || "completed",
+          sent: log.sentCount ?? c.sent,
+          sentCount: log.sentCount ?? 0,
+          totalContacts: log.totalContacts ?? c.totalContacts,
+          lastSentAt: log.lastDispatchedAt
+        };
+      }
+      return c;
+    });
+
+    if (response.data && response.data.data && Array.isArray(response.data.data.campaigns)) {
+      response.data.data.campaigns = mergedCampaigns;
+    } else if (response.data && Array.isArray(response.data.campaigns)) {
+      response.data.campaigns = mergedCampaigns;
+    }
+
     return res.json(response.data);
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
@@ -4125,24 +4646,90 @@ router.get("/whatsapp/campaigns", async (req, res) => {
 // Route to create a new template campaign in Whats AI
 router.post("/whatsapp/campaigns", async (req, res) => {
   try {
-    const { name, templateId, groupId, variablesMapping } = req.body;
-    if (!name || !templateId || !groupId) {
+    const { name, templateId, template, groupId, targetGroup, variablesMapping, scheduledAt } = req.body;
+    const resolvedTemplate = template || templateId;
+    const resolvedGroup = targetGroup || groupId;
+
+    if (!name || !resolvedTemplate) {
       return res.status(400).json({ error: "REQUIRED_CAMPAIGN_FIELDS_MISSING" });
     }
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const headers = await getWhatsAiHeaders(req);
+
+    if (req.user && req.user.role === "CEO") {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(req.user.sub);
+      if (ceo && ceo.whatsAppClientId) {
+        headers["x-client-id"] = ceo.whatsAppClientId;
+      }
+    }
     
+    const payload = {
+      name,
+      template: resolvedTemplate,
+      templateId: resolvedTemplate,
+      targetGroup: resolvedGroup,
+      groupId: resolvedGroup,
+      variablesMapping: variablesMapping || {}
+    };
+
+    if (scheduledAt) {
+      payload.scheduledAt = scheduledAt;
+    }
+
     const response = await axios.post(
       `${apiBaseUrl.replace(/\/$/, "")}/api/campaigns`,
-      { name, templateId, groupId, variablesMapping },
+      payload,
+      { headers }
+    );
+    const cData = response.data?.data?.campaign || response.data?.campaign || response.data?.data || response.data;
+    const campaignId = cData?._id || cData?.id || response.data?.campaignId;
+    return res.json({
+      success: true,
+      campaignId,
+      _id: campaignId,
+      data: {
+        ...response.data?.data,
+        campaign: cData,
+        campaignId,
+        _id: campaignId
+      },
+      message: response.data?.message || "Campaign created"
+    });
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-create-campaign-error]", errorMsg);
+    return res.status(500).json({ error: "CREATE_CAMPAIGN_FAILED", message: errorMsg });
+  }
+});
+
+// Route to update/edit a WhatsApp campaign in Whats AI
+router.patch("/whatsapp/campaigns/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+
+    if (req.user && req.user.role === "CEO") {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(req.user.sub);
+      if (ceo && ceo.whatsAppClientId) {
+        headers["x-client-id"] = ceo.whatsAppClientId;
+      }
+    }
+    
+    const response = await axios.patch(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/campaigns/${id}`,
+      req.body,
       { headers }
     );
     return res.json(response.data);
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
-    console.error("[whatsapp-create-campaign-error]", errorMsg);
-    return res.status(500).json({ error: "CREATE_CAMPAIGN_FAILED", message: errorMsg });
+    console.error("[whatsapp-edit-campaign-error]", errorMsg);
+    return res.status(500).json({ error: "EDIT_CAMPAIGN_FAILED", message: errorMsg });
   }
 });
 
@@ -4153,13 +4740,171 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const headers = await getWhatsAiHeaders(req);
-    
-    const response = await axios.post(
-      `${apiBaseUrl.replace(/\/$/, "")}/api/campaigns/${id}/send`,
-      {},
-      { headers }
-    );
-    return res.json(response.data);
+
+    let ceo = null;
+    if (req.user && req.user.role === "CEO") {
+      const { CEO } = require("../models/CEO");
+      ceo = await CEO.findById(req.user.sub);
+      if (ceo && ceo.whatsAppClientId) {
+        headers["x-client-id"] = ceo.whatsAppClientId;
+      }
+    }
+
+    // 1. Fetch Campaign Details
+    const cRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/campaigns/${id}`, { headers });
+    const campaign = cRes.data?.data?.campaign;
+    if (!campaign) {
+      return res.status(404).json({ error: "CAMPAIGN_NOT_FOUND", message: "Campaign not found" });
+    }
+
+    // 2. Fetch Template Details to get meta template name
+    let templateName = "";
+    let language = "en";
+    try {
+      const tListRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/templates`, { headers });
+      const tList = tListRes.data?.data?.templates || tListRes.data?.templates || [];
+      const matchedTemplate = tList.find(t => t._id === campaign.template || t.name === campaign.template || t.whatsappTemplateName === campaign.template);
+      if (matchedTemplate) {
+        templateName = matchedTemplate.whatsappTemplateName || matchedTemplate.name.toLowerCase().replace(/\s+/g, "_");
+        language = (matchedTemplate.language || "en").toLowerCase();
+      }
+    } catch (e) {
+      console.warn("[whatsapp-send] Could not fetch templates list:", e.message);
+    }
+
+    if (!templateName) {
+      templateName = (campaign.template || "ai_assistant").toLowerCase().replace(/\s+/g, "_");
+    }
+
+    // 3. Fetch Contacts in the target group
+    const mongoose = require("mongoose");
+    const { Contact } = require("../models/Contact");
+    const { Group } = require("../models/Group");
+    let targetContacts = [];
+    let resolvedGroupName = campaign.targetGroup;
+
+    // Check MongoDB group
+    if (ceo) {
+      const groupDoc = await Group.findOne({
+        ceoId: ceo._id,
+        $or: [
+          { _id: mongoose.Types.ObjectId.isValid(campaign.targetGroup) ? campaign.targetGroup : null },
+          { name: new RegExp(`^${campaign.targetGroup}$`, "i") }
+        ]
+      });
+
+      if (groupDoc) {
+        resolvedGroupName = groupDoc.name;
+        if (Array.isArray(groupDoc.members) && groupDoc.members.length > 0) {
+          targetContacts = await Contact.find({ _id: { $in: groupDoc.members }, ceoId: ceo._id });
+        }
+      }
+    }
+
+    // Fallback: Check Whats AI Contacts with group matching
+    if (targetContacts.length === 0) {
+      try {
+        const contactsRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/contacts`, { headers });
+        const allContacts = contactsRes.data?.data?.contacts || contactsRes.data?.contacts || [];
+        targetContacts = allContacts.filter(c => {
+          if (Array.isArray(c.group)) {
+            return c.group.some(g => (g._id || g) === campaign.targetGroup || (g.name || g).toLowerCase() === String(resolvedGroupName).toLowerCase());
+          }
+          return false;
+        });
+      } catch (e) {
+        console.warn("[whatsapp-send] Could not fetch Whats AI contacts:", e.message);
+      }
+    }
+
+    // Fallback if still empty: fetch CEO contacts
+    if (targetContacts.length === 0 && ceo) {
+      targetContacts = await Contact.find({ ceoId: ceo._id });
+    }
+
+    console.log(`[whatsapp-send] Broadcasting campaign "${campaign.name}" to ${targetContacts.length} contacts using template "${templateName}"`);
+
+    // 4. Dispatch messages via POST /api/inbox/send-template
+    let sentCount = 0;
+    const errors = [];
+
+    for (const contact of targetContacts) {
+      const rawPhone = contact.phone || contact.customerPhone || "";
+      const cleanPhone = rawPhone.replace(/[^0-9]/g, "");
+      if (!cleanPhone || cleanPhone.length < 10) continue;
+
+      const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+      const contactName = contact.name || contact.customerName || "Customer";
+
+      // Map variables
+      const rawVars = campaign.variablesMapping || {};
+      const variablesArray = [];
+      Object.keys(rawVars).forEach(k => {
+        let v = rawVars[k];
+        if (v === "{{contact.name}}" || v === "Recipient Contact Name") {
+          v = contactName;
+        } else if (v === "{{ceo.name}}" || v === "Lakshmi Raj Singh") {
+          v = ceo?.name || "Lakshmi Raj Singh";
+        }
+        variablesArray.push({ key: String(k), value: String(v) });
+      });
+
+      if (variablesArray.length === 0) {
+        variablesArray.push({ key: "1", value: contactName });
+      }
+
+      try {
+        await axios.post(`${apiBaseUrl.replace(/\/$/, "")}/api/inbox/send-template`, {
+          phone: formattedPhone,
+          templateName,
+          language,
+          variables: variablesArray
+        }, { headers });
+        sentCount++;
+      } catch (errSend) {
+        const msg = errSend.response ? JSON.stringify(errSend.response.data) : errSend.message;
+        console.error(`[whatsapp-send-contact-error] ${formattedPhone}:`, msg);
+        errors.push({ phone: formattedPhone, error: msg });
+      }
+    }
+
+    // Persist campaign completion and sent metrics locally for CEO
+    if (ceo) {
+      try {
+        await WhatsAppCampaignLog.findOneAndUpdate(
+          { campaignId: String(id), ceoId: ceo._id },
+          {
+            status: "completed",
+            sentCount,
+            totalContacts: targetContacts.length,
+            lastDispatchedAt: new Date()
+          },
+          { upsert: true, new: true }
+        );
+      } catch (e) {
+        console.warn("[whatsapp-send] Failed to save local campaign log:", e.message);
+      }
+    }
+
+    // Update campaign status on Whats AI to completed
+    try {
+      await axios.patch(`${apiBaseUrl.replace(/\/$/, "")}/api/campaigns/${id}`, {
+        status: "completed",
+        totalContacts: targetContacts.length,
+        sent: sentCount
+      }, { headers });
+    } catch (e) {
+      console.warn("[whatsapp-send] Could not patch campaign status:", e.message);
+    }
+
+    return res.json({
+      success: true,
+      message: `Broadcast completed: ${sentCount}/${targetContacts.length} sent successfully.`,
+      sentCount,
+      totalContacts: targetContacts.length,
+      status: "completed",
+      errors: errors.length > 0 ? errors : undefined
+    });
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
     console.error("[whatsapp-send-campaign-error]", errorMsg);
@@ -4407,7 +5152,7 @@ router.get("/whatsapp/templates/:id", async (req, res) => {
 // Route to create a new draft template in Whats AI
 router.post("/whatsapp/templates/draft", async (req, res) => {
   try {
-    const { name, category, language, bodyText } = req.body;
+    const { name, category, language, headerText, bodyText, footerText, variables, sampleParams } = req.body;
     if (!name || !category || !language || !bodyText) {
       return res.status(400).json({ error: "REQUIRED_TEMPLATE_FIELDS_MISSING" });
     }
@@ -4417,7 +5162,16 @@ router.post("/whatsapp/templates/draft", async (req, res) => {
     
     const response = await axios.post(
       `${apiBaseUrl.replace(/\/$/, "")}/api/templates`,
-      { name, category, language, bodyText },
+      {
+        name,
+        category,
+        language,
+        headerText,
+        bodyText,
+        footerText,
+        variables: variables || sampleParams || [],
+        sampleParams: sampleParams || variables || []
+      },
       { headers }
     );
     return res.json(response.data);
@@ -4432,14 +5186,14 @@ router.post("/whatsapp/templates/draft", async (req, res) => {
 router.patch("/whatsapp/templates/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { sampleParams } = req.body;
+    const { sampleParams, variables } = req.body;
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const headers = await getWhatsAiHeaders(req);
     
     const response = await axios.patch(
       `${apiBaseUrl.replace(/\/$/, "")}/api/templates/${id}`,
-      { sampleParams },
+      { sampleParams: sampleParams || variables || [] },
       { headers }
     );
     return res.json(response.data);
@@ -4450,7 +5204,7 @@ router.patch("/whatsapp/templates/:id", async (req, res) => {
   }
 });
 
-// Route to delete a draft template in Whats AI
+// Route to delete a template draft in Whats AI
 router.delete("/whatsapp/templates/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -4470,27 +5224,217 @@ router.delete("/whatsapp/templates/:id", async (req, res) => {
   }
 });
 
+// Route to get AI Agent integration settings from Whats AI
+router.get("/whatsapp/settings/ai-agent", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+    
+    const response = await axios.get(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/settings/ai-agent`,
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-get-ai-agent-error]", errorMsg);
+    return res.status(500).json({ error: "GET_AI_AGENT_FAILED", message: errorMsg });
+  }
+});
+
+// Route to save/link AI Agent ID with Whats AI
+router.post("/whatsapp/settings/ai-agent", async (req, res) => {
+  try {
+    const { agentId } = req.body;
+    if (!agentId) {
+      return res.status(400).json({ error: "AGENT_ID_REQUIRED" });
+    }
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+    
+    const response = await axios.post(
+      `${apiBaseUrl.replace(/\/$/, "")}/api/settings/ai-agent`,
+      { agentId },
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-save-ai-agent-error]", errorMsg);
+    return res.status(500).json({ error: "SAVE_AI_AGENT_FAILED", message: errorMsg });
+  }
+});
+
+// Helper for dual-header client authorization
+async function getAdplifAiHeaders(req) {
+  const partnerSecret = process.env.ADPLIFAI_PARTNER_SECRET;
+  const ceo = await CEO.findById(req.user.sub);
+  const clientApiKey = ceo?.adplifAiApiKey || process.env.ADPLIFAI_API_KEY;
+
+  if (!clientApiKey) {
+    throw new Error("ADPLIFAI_CLIENT_KEY_MISSING");
+  }
+
+  const headers = {
+    "Content-Type": "application/json"
+  };
+
+  if (partnerSecret) {
+    headers["x-partner-secret"] = partnerSecret;
+    headers["x-api-key"] = clientApiKey;
+  } else {
+    headers["x-api-key"] = clientApiKey;
+  }
+  return headers;
+}
+
+// Helper for partner-only authorization
+function getAdplifAiPartnerHeaders() {
+  const partnerSecret = process.env.ADPLIFAI_PARTNER_SECRET || process.env.ADPLIFAI_API_KEY;
+  if (!partnerSecret) {
+    throw new Error("ADPLIFAI_PARTNER_SECRET_MISSING");
+  }
+  return {
+    "x-partner-secret": partnerSecret,
+    "Content-Type": "application/json"
+  };
+}
+
+// Route to register/sync client with AdplifAI B2B Server
+router.post("/ads/sync-client", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+    const headers = getAdplifAiPartnerHeaders();
+
+    if (!baseUrl) {
+      return res.status(500).json({ error: "ADPLIFAI_INTEGRATION_CONFIG_MISSING" });
+    }
+
+    const ceo = await CEO.findById(req.user.sub);
+    if (!ceo) {
+      return res.status(404).json({ error: "CEO_NOT_FOUND" });
+    }
+
+    const payload = {
+      name: ceo.name,
+      email: ceo.email,
+      phone: ceo.mobile,
+      businessName: ceo.company || ""
+    };
+
+    const response = await axios.post(
+      `${baseUrl.replace(/\/$/, "")}/partner/sync-client`,
+      payload,
+      { headers }
+    );
+
+    // Save clientId returned from external server
+    if (response.data && response.data.success && response.data.data?.clientId) {
+      ceo.adplifAiClientId = response.data.data.clientId;
+      await ceo.save();
+    }
+
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[adplifai-sync-client-error]", errorMsg);
+    return res.status(err.response?.status || 500).json({ error: "SYNC_CLIENT_FAILED", message: errorMsg });
+  }
+});
+
+// Route to manually save client's approved API Key in database
+router.post("/ads/save-client-key", async (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    if (!apiKey) {
+      return res.status(400).json({ error: "API_KEY_REQUIRED" });
+    }
+
+    const ceo = await CEO.findById(req.user.sub);
+    if (!ceo) {
+      return res.status(404).json({ error: "CEO_NOT_FOUND" });
+    }
+
+    ceo.adplifAiApiKey = apiKey;
+    await ceo.save();
+
+    return res.json({ success: true, message: "Client API Key saved successfully" });
+  } catch (err) {
+    return res.status(500).json({ error: "SAVE_CLIENT_KEY_FAILED", message: err.message });
+  }
+});
+
+// Route to register dynamic webhook URL
+router.put("/ads/webhook-url", async (req, res) => {
+  try {
+    const { webhookUrl } = req.body;
+    if (!webhookUrl) {
+      return res.status(400).json({ error: "WEBHOOK_URL_REQUIRED" });
+    }
+
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+    const headers = getAdplifAiPartnerHeaders();
+
+    const response = await axios.put(
+      `${baseUrl.replace(/\/$/, "")}/partner/webhook-url`,
+      { webhookUrl },
+      { headers }
+    );
+
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    return res.status(err.response?.status || 500).json({ error: "WEBHOOK_SETUP_FAILED", message: errorMsg });
+  }
+});
+
+// Route to fetch partners activity logs
+router.get("/ads/activities", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+    const headers = getAdplifAiPartnerHeaders();
+
+    const response = await axios.get(
+      `${baseUrl.replace(/\/$/, "")}/partner/activities`,
+      {
+        headers,
+        params: req.query
+      }
+    );
+
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    return res.status(err.response?.status || 500).json({ error: "GET_ACTIVITIES_FAILED", message: errorMsg });
+  }
+});
 
 // adplifAI B2B Integration Proxy Routes
 router.post("/ads/launch", async (req, res) => {
   try {
     const axios = require("axios");
     const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
-    const apiKey = process.env.ADPLIFAI_API_KEY;
 
-    if (!baseUrl || !apiKey) {
+    if (!baseUrl) {
       return res.status(500).json({ error: "ADPLIFAI_INTEGRATION_CONFIG_MISSING" });
+    }
+
+    let headers;
+    try {
+      headers = await getAdplifAiHeaders(req);
+    } catch (headErr) {
+      return res.status(400).json({ error: "AUTH_HEADERS_FAILED", message: headErr.message });
     }
 
     const response = await axios.post(
       `${baseUrl.replace(/\/$/, "")}/partner/campaigns/launch`,
       req.body,
-      {
-        headers: {
-          "x-api-key": apiKey,
-          "Content-Type": "application/json"
-        }
-      }
+      { headers }
     );
 
     return res.json(response.data);
@@ -4506,18 +5450,23 @@ router.post("/ads/:campaignId/pause", async (req, res) => {
     const { campaignId } = req.params;
     const axios = require("axios");
     const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
-    const apiKey = process.env.ADPLIFAI_API_KEY;
+
+    let headers;
+    try {
+      headers = await getAdplifAiHeaders(req);
+    } catch (headErr) {
+      return res.status(400).json({ error: "AUTH_HEADERS_FAILED", message: headErr.message });
+    }
 
     const response = await axios.post(
       `${baseUrl.replace(/\/$/, "")}/partner/campaigns/${campaignId}/pause`,
       {},
-      {
-        headers: { "x-api-key": apiKey }
-      }
+      { headers }
     );
     return res.json(response.data);
   } catch (err) {
-    return res.status(err.response?.status || 500).json({ error: "PAUSE_FAILED", message: err.message });
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    return res.status(err.response?.status || 500).json({ error: "PAUSE_FAILED", message: errorMsg });
   }
 });
 
@@ -4526,18 +5475,23 @@ router.post("/ads/:campaignId/resume", async (req, res) => {
     const { campaignId } = req.params;
     const axios = require("axios");
     const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
-    const apiKey = process.env.ADPLIFAI_API_KEY;
+
+    let headers;
+    try {
+      headers = await getAdplifAiHeaders(req);
+    } catch (headErr) {
+      return res.status(400).json({ error: "AUTH_HEADERS_FAILED", message: headErr.message });
+    }
 
     const response = await axios.post(
       `${baseUrl.replace(/\/$/, "")}/partner/campaigns/${campaignId}/resume`,
       {},
-      {
-        headers: { "x-api-key": apiKey }
-      }
+      { headers }
     );
     return res.json(response.data);
   } catch (err) {
-    return res.status(err.response?.status || 500).json({ error: "RESUME_FAILED", message: err.message });
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    return res.status(err.response?.status || 500).json({ error: "RESUME_FAILED", message: errorMsg });
   }
 });
 
@@ -4546,17 +5500,22 @@ router.delete("/ads/:campaignId", async (req, res) => {
     const { campaignId } = req.params;
     const axios = require("axios");
     const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
-    const apiKey = process.env.ADPLIFAI_API_KEY;
+
+    let headers;
+    try {
+      headers = await getAdplifAiHeaders(req);
+    } catch (headErr) {
+      return res.status(400).json({ error: "AUTH_HEADERS_FAILED", message: headErr.message });
+    }
 
     const response = await axios.delete(
       `${baseUrl.replace(/\/$/, "")}/partner/campaigns/${campaignId}`,
-      {
-        headers: { "x-api-key": apiKey }
-      }
+      { headers }
     );
     return res.json(response.data);
   } catch (err) {
-    return res.status(err.response?.status || 500).json({ error: "DELETE_FAILED", message: err.message });
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    return res.status(err.response?.status || 500).json({ error: "DELETE_FAILED", message: errorMsg });
   }
 });
 
@@ -4565,17 +5524,22 @@ router.get("/ads/:campaignId/status", async (req, res) => {
     const { campaignId } = req.params;
     const axios = require("axios");
     const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
-    const apiKey = process.env.ADPLIFAI_API_KEY;
+
+    let headers;
+    try {
+      headers = await getAdplifAiHeaders(req);
+    } catch (headErr) {
+      return res.status(400).json({ error: "AUTH_HEADERS_FAILED", message: headErr.message });
+    }
 
     const response = await axios.get(
       `${baseUrl.replace(/\/$/, "")}/partner/campaign-status/${campaignId}`,
-      {
-        headers: { "x-api-key": apiKey }
-      }
+      { headers }
     );
     return res.json(response.data);
   } catch (err) {
-    return res.status(err.response?.status || 500).json({ error: "STATUS_FAILED", message: err.message });
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    return res.status(err.response?.status || 500).json({ error: "STATUS_FAILED", message: errorMsg });
   }
 });
 

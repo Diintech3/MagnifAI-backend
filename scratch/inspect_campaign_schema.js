@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { CEO } = require('../src/models/CEO');
 
-async function testSendTemplateBroadcast() {
+async function inspectExistingCampaignSchema() {
   await mongoose.connect(process.env.MONGODB_URI);
   const ceo = await CEO.findOne({ email: 'singhlakshmiraj@gmail.com' });
 
@@ -24,29 +24,20 @@ async function testSendTemplateBroadcast() {
   });
   const token = loginRes.data.data.accessToken;
 
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    'x-api-key': partnerKey,
-    'x-client-id': ceo.whatsAppClientId,
-    'Content-Type': 'application/json'
-  };
+  const res = await axios.get(`${baseUrl}/api/campaigns`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'x-api-key': partnerKey,
+      'x-client-id': ceo.whatsAppClientId
+    }
+  });
 
-  console.log('Testing template send endpoint on Whats AI...');
-  try {
-    const res = await axios.post(`${baseUrl}/api/inbox/send-template`, {
-      phone: '918726525782',
-      templateName: 'ai_assistant',
-      language: 'en',
-      variables: [
-        { key: '1', value: 'Lakshmi Raj Singh' }
-      ]
-    }, { headers });
-    console.log('Send Template Result:', res.data);
-  } catch (e) {
-    console.log('Send Template Error:', e.response?.status, e.response?.data);
-  }
+  const campaigns = res.data?.data?.campaigns || [];
+  console.log(`Found ${campaigns.length} campaigns on Whats AI.`);
+  console.log('Sample campaign 1:', JSON.stringify(campaigns[0], null, 2));
+  console.log('\nSample campaign 2:', JSON.stringify(campaigns[1], null, 2));
 
   await mongoose.disconnect();
 }
 
-testSendTemplateBroadcast();
+inspectExistingCampaignSchema();

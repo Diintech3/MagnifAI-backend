@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { CEO } = require('../src/models/CEO');
 
-async function testSendTemplateBroadcast() {
+async function testDraftSendOnWhatsAi() {
   await mongoose.connect(process.env.MONGODB_URI);
   const ceo = await CEO.findOne({ email: 'singhlakshmiraj@gmail.com' });
 
@@ -31,22 +31,33 @@ async function testSendTemplateBroadcast() {
     'Content-Type': 'application/json'
   };
 
-  console.log('Testing template send endpoint on Whats AI...');
+  const cid = '6a8446ef5bccf706d7b7d600'; // anand camp
+
+  // Let's test what happens when we update status or scheduledAt or call send
+  console.log('Testing campaign triggers on Whats AI...');
+
+  // 1. PATCH status to scheduled or active
   try {
-    const res = await axios.post(`${baseUrl}/api/inbox/send-template`, {
-      phone: '918726525782',
-      templateName: 'ai_assistant',
-      language: 'en',
-      variables: [
-        { key: '1', value: 'Lakshmi Raj Singh' }
-      ]
+    const patchRes = await axios.patch(`${baseUrl}/api/campaigns/${cid}`, {
+      status: 'active'
     }, { headers });
-    console.log('Send Template Result:', res.data);
+    console.log('[PATCH status: active]:', patchRes.data);
   } catch (e) {
-    console.log('Send Template Error:', e.response?.status, e.response?.data);
+    console.log('[PATCH status: active error]:', e.response?.status, e.response?.data);
   }
+
+  // 2. Direct broadcast via inbox/send-template if needed
+  // Let's check template message endpoint for individual numbers in group
+  console.log('\nTesting group contacts for this campaign:');
+  const campRes = await axios.get(`${baseUrl}/api/campaigns/${cid}`, { headers });
+  const camp = campRes.data?.data?.campaign;
+  console.log('Campaign details:', camp);
+
+  const groupRes = await axios.get(`${baseUrl}/api/contacts/groups`, { headers });
+  const grp = groupRes.data?.data?.groups?.find(g => g._id === camp.targetGroup);
+  console.log('Target Group:', grp);
 
   await mongoose.disconnect();
 }
 
-testSendTemplateBroadcast();
+testDraftSendOnWhatsAi();

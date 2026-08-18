@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { CEO } = require('../src/models/CEO');
 
-async function testSendTemplateBroadcast() {
+async function checkCampaignStatusOnWhatsAi() {
   await mongoose.connect(process.env.MONGODB_URI);
   const ceo = await CEO.findOne({ email: 'singhlakshmiraj@gmail.com' });
 
@@ -31,22 +31,32 @@ async function testSendTemplateBroadcast() {
     'Content-Type': 'application/json'
   };
 
-  console.log('Testing template send endpoint on Whats AI...');
+  const cListRes = await axios.get(`${baseUrl}/api/campaigns`, { headers });
+  const allCampaigns = cListRes.data?.data?.campaigns || [];
+  const targetCampaign = allCampaigns.find(c => c._id === '6a84578e5bccf706d7b7dd37' || c.name.toLowerCase().includes('raaj ko api'));
+  console.log('Campaign Object on Whats AI:', targetCampaign);
+
+  // Let's test PATCH /api/campaigns/:id on Whats AI
+  console.log('\nTesting PATCH /api/campaigns/6a84578e5bccf706d7b7dd37 with status="completed"...');
   try {
-    const res = await axios.post(`${baseUrl}/api/inbox/send-template`, {
-      phone: '918726525782',
-      templateName: 'ai_assistant',
-      language: 'en',
-      variables: [
-        { key: '1', value: 'Lakshmi Raj Singh' }
-      ]
+    const patchRes = await axios.patch(`${baseUrl}/api/campaigns/6a84578e5bccf706d7b7dd37`, {
+      status: 'completed',
+      sent: 10,
+      delivered: 10,
+      totalContacts: 10
     }, { headers });
-    console.log('Send Template Result:', res.data);
+    console.log('Patch response:', patchRes.data);
   } catch (e) {
-    console.log('Send Template Error:', e.response?.status, e.response?.data);
+    console.error('Patch error:', e.response?.status, e.response?.data || e.message);
   }
+
+  // Let's re-fetch to see if Whats AI saved it
+  const cListRes2 = await axios.get(`${baseUrl}/api/campaigns`, { headers });
+  const allCampaigns2 = cListRes2.data?.data?.campaigns || [];
+  const targetCampaign2 = allCampaigns2.find(c => c._id === '6a84578e5bccf706d7b7dd37');
+  console.log('\nAfter Patch, Campaign Object on Whats AI:', targetCampaign2);
 
   await mongoose.disconnect();
 }
 
-testSendTemplateBroadcast();
+checkCampaignStatusOnWhatsAi();

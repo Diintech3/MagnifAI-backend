@@ -3,11 +3,14 @@ const mongoose = require('mongoose');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
+const { Group } = require('../src/models/Group');
 const { CEO } = require('../src/models/CEO');
 
-async function testSendTemplateBroadcast() {
+async function testPersonalGroupIssue() {
   await mongoose.connect(process.env.MONGODB_URI);
   const ceo = await CEO.findOne({ email: 'singhlakshmiraj@gmail.com' });
+  const mongoGroups = await Group.find({ ceoId: ceo._id });
+  console.log('MongoDB Groups:', mongoGroups.map(g => ({ name: g.name, id: g._id.toString() })));
 
   const baseUrl = 'https://w-a-backend.onrender.com';
   const partnerKey = 'wa_share_8c4b2a1d6bc29e75c0ce4466d109ea27d2957c01a911515b';
@@ -23,30 +26,31 @@ async function testSendTemplateBroadcast() {
     headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' }
   });
   const token = loginRes.data.data.accessToken;
-
   const headers = {
-    Authorization: `Bearer ${token}`,
+    'Authorization': `Bearer ${token}`,
     'x-api-key': partnerKey,
-    'x-client-id': ceo.whatsAppClientId,
     'Content-Type': 'application/json'
   };
 
-  console.log('Testing template send endpoint on Whats AI...');
+  const gRes = await axios.get(`${baseUrl}/api/contacts/groups`, { headers });
+  console.log('Whats AI Live Groups:', gRes.data?.data?.groups?.map(g => ({ name: g.name, id: g._id })));
+
+  // Simulate what happens when frontend sends group = "6a83f97d440257830ca87dc8" (MongoDB ID of 'personal')
+  const mongoPersonalId = mongoGroups.find(g => g.name === 'personal')._id.toString();
+  console.log('\nTesting POST to Whats AI with MongoDB personal ID:', mongoPersonalId);
+
   try {
-    const res = await axios.post(`${baseUrl}/api/inbox/send-template`, {
+    const postRes = await axios.post(`${baseUrl}/api/contacts`, {
+      name: 'raj',
       phone: '918726525782',
-      templateName: 'ai_assistant',
-      language: 'en',
-      variables: [
-        { key: '1', value: 'Lakshmi Raj Singh' }
-      ]
+      group: [mongoPersonalId]
     }, { headers });
-    console.log('Send Template Result:', res.data);
-  } catch (e) {
-    console.log('Send Template Error:', e.response?.status, e.response?.data);
+    console.log('POST Result:', postRes.data);
+  } catch (err) {
+    console.log('POST Error:', err.response ? err.response.data : err.message);
   }
 
   await mongoose.disconnect();
 }
 
-testSendTemplateBroadcast();
+testPersonalGroupIssue();

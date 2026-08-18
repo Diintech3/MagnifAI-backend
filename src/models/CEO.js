@@ -27,7 +27,12 @@ const ceoSchema = new mongoose.Schema(
     adminReviewMode: { type: String, enum: ["auto", "manual"], default: "manual" },
     whatsAppSendMode: { type: String, enum: ["auto", "manual"], default: "manual" },
     whatsAppClientId: { type: String, trim: true },
+    whatsAppPhoneId:  { type: String, trim: true },
+    whatsAppWabaId:   { type: String, trim: true },
+    whatsAppToken:    { type: String, trim: true },
     isWhatsAppConnected: { type: Boolean, default: false },
+    adplifAiClientId: { type: String, trim: true },
+    adplifAiApiKey:   { type: String, trim: true },
     social: {
       instagram: {
         userId:   { type: String, trim: true },
@@ -79,6 +84,8 @@ function toPublicCEO(doc) {
     whatsAppSendMode: doc.whatsAppSendMode || "manual",
     whatsAppClientId: doc.whatsAppClientId,
     isWhatsAppConnected: doc.isWhatsAppConnected || false,
+    adplifAiClientId: doc.adplifAiClientId,
+    adplifAiApiKey: doc.adplifAiApiKey,
     createdAt:   doc.createdAt,
     updatedAt:   doc.updatedAt,
   };

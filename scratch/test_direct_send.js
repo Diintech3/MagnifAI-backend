@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { CEO } = require('../src/models/CEO');
 
-async function testSendTemplateBroadcast() {
+async function testDirectSendEndpoint() {
   await mongoose.connect(process.env.MONGODB_URI);
   const ceo = await CEO.findOne({ email: 'singhlakshmiraj@gmail.com' });
 
@@ -24,29 +24,33 @@ async function testSendTemplateBroadcast() {
   });
   const token = loginRes.data.data.accessToken;
 
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    'x-api-key': partnerKey,
-    'x-client-id': ceo.whatsAppClientId,
-    'Content-Type': 'application/json'
-  };
-
-  console.log('Testing template send endpoint on Whats AI...');
+  // 1. Without x-client-id
+  console.log('Sending WITHOUT x-client-id:');
   try {
-    const res = await axios.post(`${baseUrl}/api/inbox/send-template`, {
-      phone: '918726525782',
-      templateName: 'ai_assistant',
-      language: 'en',
-      variables: [
-        { key: '1', value: 'Lakshmi Raj Singh' }
-      ]
-    }, { headers });
-    console.log('Send Template Result:', res.data);
+    const s1 = await axios.post(`${baseUrl}/api/campaigns/6a8443d15bccf706d7b7d420/send`, {}, {
+      headers: { Authorization: `Bearer ${token}`, 'x-api-key': partnerKey }
+    });
+    console.log('Success 1:', s1.data);
   } catch (e) {
-    console.log('Send Template Error:', e.response?.status, e.response?.data);
+    console.log('Error 1:', e.response ? e.response.data : e.message);
+  }
+
+  // 2. With x-client-id
+  console.log('\nSending WITH x-client-id:');
+  try {
+    const s2 = await axios.post(`${baseUrl}/api/campaigns/6a8443d15bccf706d7b7d420/send`, {}, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'x-api-key': partnerKey,
+        'x-client-id': ceo.whatsAppClientId
+      }
+    });
+    console.log('Success 2:', s2.data);
+  } catch (e) {
+    console.log('Error 2:', e.response ? e.response.data : e.message);
   }
 
   await mongoose.disconnect();
 }
 
-testSendTemplateBroadcast();
+testDirectSendEndpoint();

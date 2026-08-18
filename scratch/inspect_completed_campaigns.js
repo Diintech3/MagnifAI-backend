@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { CEO } = require('../src/models/CEO');
 
-async function testSendTemplateBroadcast() {
+async function inspectCompletedCampaigns() {
   await mongoose.connect(process.env.MONGODB_URI);
   const ceo = await CEO.findOne({ email: 'singhlakshmiraj@gmail.com' });
 
@@ -31,22 +31,15 @@ async function testSendTemplateBroadcast() {
     'Content-Type': 'application/json'
   };
 
-  console.log('Testing template send endpoint on Whats AI...');
-  try {
-    const res = await axios.post(`${baseUrl}/api/inbox/send-template`, {
-      phone: '918726525782',
-      templateName: 'ai_assistant',
-      language: 'en',
-      variables: [
-        { key: '1', value: 'Lakshmi Raj Singh' }
-      ]
-    }, { headers });
-    console.log('Send Template Result:', res.data);
-  } catch (e) {
-    console.log('Send Template Error:', e.response?.status, e.response?.data);
-  }
+  const cList = await axios.get(`${baseUrl}/api/campaigns`, { headers });
+  const campaigns = cList.data?.data?.campaigns || [];
+  const completed = campaigns.filter(c => c.status === 'completed' || c.sent > 0);
+  console.log(`Found ${completed.length} completed campaigns:`);
+  completed.slice(0, 3).forEach(c => {
+    console.log(JSON.stringify(c, null, 2));
+  });
 
   await mongoose.disconnect();
 }
 
-testSendTemplateBroadcast();
+inspectCompletedCampaigns();

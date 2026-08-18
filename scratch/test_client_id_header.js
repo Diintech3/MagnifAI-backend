@@ -5,9 +5,10 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { CEO } = require('../src/models/CEO');
 
-async function testSendTemplateBroadcast() {
+async function testClientIdHeaderIssue() {
   await mongoose.connect(process.env.MONGODB_URI);
   const ceo = await CEO.findOne({ email: 'singhlakshmiraj@gmail.com' });
+  console.log('CEO whatsAppClientId:', ceo.whatsAppClientId);
 
   const baseUrl = 'https://w-a-backend.onrender.com';
   const partnerKey = 'wa_share_8c4b2a1d6bc29e75c0ce4466d109ea27d2957c01a911515b';
@@ -24,29 +25,30 @@ async function testSendTemplateBroadcast() {
   });
   const token = loginRes.data.data.accessToken;
 
-  const headers = {
-    Authorization: `Bearer ${token}`,
+  // 1. Without x-client-id
+  const headersWithoutClient = {
+    'Authorization': `Bearer ${token}`,
     'x-api-key': partnerKey,
-    'x-client-id': ceo.whatsAppClientId,
     'Content-Type': 'application/json'
   };
+  const listWithout = await axios.get(`${baseUrl}/api/contacts`, { headers: headersWithoutClient });
+  console.log('Contacts count WITHOUT x-client-id:', (listWithout.data?.data?.contacts || listWithout.data?.contacts || []).length);
 
-  console.log('Testing template send endpoint on Whats AI...');
-  try {
-    const res = await axios.post(`${baseUrl}/api/inbox/send-template`, {
-      phone: '918726525782',
-      templateName: 'ai_assistant',
-      language: 'en',
-      variables: [
-        { key: '1', value: 'Lakshmi Raj Singh' }
-      ]
-    }, { headers });
-    console.log('Send Template Result:', res.data);
-  } catch (e) {
-    console.log('Send Template Error:', e.response?.status, e.response?.data);
+  // 2. With x-client-id
+  if (ceo.whatsAppClientId) {
+    const headersWithClient = {
+      ...headersWithoutClient,
+      'x-client-id': ceo.whatsAppClientId
+    };
+    try {
+      const listWith = await axios.get(`${baseUrl}/api/contacts`, { headers: headersWithClient });
+      console.log('Contacts count WITH x-client-id:', (listWith.data?.data?.contacts || listWith.data?.contacts || []).length);
+    } catch (e) {
+      console.log('Error with x-client-id:', e.response ? e.response.data : e.message);
+    }
   }
 
   await mongoose.disconnect();
 }
 
-testSendTemplateBroadcast();
+testClientIdHeaderIssue();

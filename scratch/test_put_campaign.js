@@ -5,7 +5,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const { CEO } = require('../src/models/CEO');
 
-async function testSendTemplateBroadcast() {
+async function testPutCampaign() {
   await mongoose.connect(process.env.MONGODB_URI);
   const ceo = await CEO.findOne({ email: 'singhlakshmiraj@gmail.com' });
 
@@ -31,22 +31,30 @@ async function testSendTemplateBroadcast() {
     'Content-Type': 'application/json'
   };
 
-  console.log('Testing template send endpoint on Whats AI...');
+  const cid = '6a84578e5bccf706d7b7dd37';
+
+  // Try PUT
   try {
-    const res = await axios.post(`${baseUrl}/api/inbox/send-template`, {
-      phone: '918726525782',
-      templateName: 'ai_assistant',
-      language: 'en',
-      variables: [
-        { key: '1', value: 'Lakshmi Raj Singh' }
-      ]
+    const putRes = await axios.put(`${baseUrl}/api/campaigns/${cid}`, {
+      status: 'completed',
+      sent: 10,
+      delivered: 10,
+      totalContacts: 10
     }, { headers });
-    console.log('Send Template Result:', res.data);
+    console.log('PUT Response:', putRes.data);
   } catch (e) {
-    console.log('Send Template Error:', e.response?.status, e.response?.data);
+    console.error('PUT Error:', e.response?.status, e.response?.data || e.message);
+  }
+
+  // Try POST /api/campaigns/:id/send on Whats AI
+  try {
+    const sRes = await axios.post(`${baseUrl}/api/campaigns/${cid}/send`, {}, { headers });
+    console.log('POST /send Response:', sRes.data);
+  } catch (e) {
+    console.error('POST /send Error:', e.response?.status, e.response?.data || e.message);
   }
 
   await mongoose.disconnect();
 }
 
-testSendTemplateBroadcast();
+testPutCampaign();
