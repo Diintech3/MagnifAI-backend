@@ -3791,15 +3791,9 @@ router.get("/whatsapp/groups", async (req, res) => {
   try {
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
-    const token = await getWhatsAiClientToken();
-
-    // Clean partner headers (no x-client-id) to match Whats AI server auth requirements
-    const headers = {
-      "Authorization": `Bearer ${token}`,
-      "x-api-key": partnerKey,
-      "Content-Type": "application/json"
-    };
+    const headers = await getWhatsAiHeaders(req);
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    const { Group } = require("../models/Group");
 
     let liveGroups = [];
     try {
@@ -3812,24 +3806,48 @@ router.get("/whatsapp/groups", async (req, res) => {
       console.warn("[whatsapp-groups-fetch-notice]", apiErr.response ? apiErr.response.data : apiErr.message);
     }
 
-    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
-    const { Group } = require("../models/Group");
     const mongoGroups = ceoId ? await Group.find({ ceoId }) : [];
+    const { Contact } = require("../models/Contact");
 
-    const merged = [...liveGroups];
+    const merged = [];
+    const seenNames = new Set();
+
+    // 1. Process Live Whats AI groups
+    for (const g of liveGroups) {
+      const gName = g.name || "Group";
+      seenNames.add(gName.toLowerCase());
+      const mg = mongoGroups.find(m => m.name.toLowerCase() === gName.toLowerCase());
+      let contactCount = g.contactCount ?? g.contactsCount ?? 0;
+      if (mg && Array.isArray(mg.members) && mg.members.length > 0) {
+        const validCount = await Contact.countDocuments({ _id: { $in: mg.members } });
+        contactCount = validCount;
+      }
+
+      merged.push({
+        _id: g._id || g.id,
+        id: g._id || g.id,
+        name: gName,
+        description: g.description || "WhatsApp Audience Group",
+        contactCount,
+        source: "WhatsAI"
+      });
+    }
+
+    // 2. Add any additional Mongo groups
     for (const mg of mongoGroups) {
-      const exists = merged.find(g => (g.name && g.name.toLowerCase() === mg.name.toLowerCase()) || ((g._id || g.id) && (g._id || g.id).toString() === mg._id.toString()));
-      if (exists) {
-        if (Array.isArray(mg.members) && mg.members.length > 0) {
-          exists.contactCount = mg.members.length;
-        }
-      } else {
+      if (!seenNames.has(mg.name.toLowerCase())) {
+        seenNames.add(mg.name.toLowerCase());
+        const validCount = Array.isArray(mg.members) && mg.members.length > 0
+          ? await Contact.countDocuments({ _id: { $in: mg.members } })
+          : 0;
+
         merged.push({
           _id: mg._id.toString(),
           id: mg._id.toString(),
           name: mg.name,
-          description: "MagnifAI Workspace Group",
-          contactCount: mg.members?.length || 0
+          description: "WhatsApp Audience Group",
+          contactCount: validCount,
+          source: "PeopleDirectory"
         });
       }
     }
@@ -3852,6 +3870,18 @@ router.post("/whatsapp/groups", async (req, res) => {
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const headers = await getWhatsAiHeaders(req);
+    const { Group } = require("../models/Group");
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    const app = await getAppForUser(req);
+
+    // Create locally in MongoDB
+    if (app) {
+      await Group.findOneAndUpdate(
+        { name: name.trim(), ...(ceoId ? { ceoId } : { appId: app._id }) },
+        { name: name.trim(), appId: app._id, ...(ceoId ? { ceoId } : {}) },
+        { upsert: true, new: true }
+      ).catch(() => null);
+    }
 
     const response = await axios.post(
       `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
@@ -3873,6 +3903,12 @@ router.delete("/whatsapp/groups/:id", async (req, res) => {
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const headers = await getWhatsAiHeaders(req);
+    const { Group } = require("../models/Group");
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+
+    if (/^[0-9a-fA-F]{24}$/.test(id)) {
+      await Group.deleteOne({ _id: id, ...(ceoId ? { ceoId } : {}) });
+    }
 
     const response = await axios.delete(
       `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups/${id}`,
@@ -3886,21 +3922,18 @@ router.delete("/whatsapp/groups/:id", async (req, res) => {
   }
 });
 
-// Route to fetch members of a specific WhatsApp Group
+// Route to fetch members of a WhatsApp Group
 router.get("/whatsapp/groups/:id/members", async (req, res) => {
   try {
     const { id } = req.params;
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
-    const token = await getWhatsAiClientToken();
-    const headers = {
-      "Authorization": `Bearer ${token}`,
-      "x-api-key": partnerKey,
-      "Content-Type": "application/json"
-    };
+    const headers = await getWhatsAiHeaders(req);
+    const { Group } = require("../models/Group");
+    const { Contact } = require("../models/Contact");
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
 
-    // 1. Fetch group details from Whats AI or MongoDB
+    // 1. Fetch group details from Whats AI
     let liveGroups = [];
     try {
       const gListRes = await axios.get(
@@ -3912,9 +3945,7 @@ router.get("/whatsapp/groups/:id/members", async (req, res) => {
 
     let group = liveGroups.find(g => (g._id && g._id.toString() === id) || (g.id && g.id.toString() === id) || (g.name && g.name.toLowerCase() === id.toLowerCase()));
 
-    const { Group } = require("../models/Group");
-    const { Contact } = require("../models/Contact");
-    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    // Also check MongoDB Group
     let mongoGroup = null;
     if (/^[0-9a-fA-F]{24}$/.test(id)) {
       mongoGroup = await Group.findById(id);
@@ -3924,7 +3955,7 @@ router.get("/whatsapp/groups/:id/members", async (req, res) => {
     }
 
     const groupName = group?.name || mongoGroup?.name || id;
-    const groupId = (group?._id || group?.id || id).toString();
+    const groupId = (group?._id || group?.id || mongoGroup?._id || id).toString();
 
     // 2. Fetch all contacts from Whats AI
     let waContacts = [];
@@ -3933,38 +3964,14 @@ router.get("/whatsapp/groups/:id/members", async (req, res) => {
       waContacts = cRes.data?.data?.contacts || cRes.data?.contacts || [];
     } catch (e) {}
 
-    // Filter contacts that are in this group
     const memberPhones = new Set();
     const members = [];
 
-    waContacts.forEach(c => {
-      const groupArr = Array.isArray(c.group) ? c.group : [c.group].filter(Boolean);
-      const isMember = groupArr.some(g => {
-        const gid = (g._id || g.id || g || "").toString();
-        const gname = (g.name || g || "").toString();
-        return gid === groupId || gname.toLowerCase() === groupName.toLowerCase();
-      });
-      if (isMember) {
-        const rawPhone = (c.phone || "").replace(/[^0-9]/g, "");
-        if (rawPhone && !memberPhones.has(rawPhone)) {
-          memberPhones.add(rawPhone);
-          members.push({
-            _id: c._id || c.id,
-            id: c._id || c.id,
-            name: c.name,
-            phone: c.phone,
-            email: c.email || "",
-            source: "WhatsAI"
-          });
-        }
-      }
-    });
-
-    // Also include MongoDB group members if any
+    // Include MongoDB group members first
     if (mongoGroup && Array.isArray(mongoGroup.members) && mongoGroup.members.length > 0) {
       const dbMembers = await Contact.find({ _id: { $in: mongoGroup.members } });
       dbMembers.forEach(c => {
-        const rawPhone = (c.phone || "").replace(/[^0-9]/g, "");
+        const rawPhone = String(c.phone || "").replace(/[^0-9]/g, "");
         if (rawPhone && !memberPhones.has(rawPhone)) {
           memberPhones.add(rawPhone);
           members.push({
@@ -3978,6 +3985,30 @@ router.get("/whatsapp/groups/:id/members", async (req, res) => {
         }
       });
     }
+
+    // Also include Whats AI group members
+    waContacts.forEach(c => {
+      const groupArr = Array.isArray(c.group) ? c.group : [c.group].filter(Boolean);
+      const isMember = groupArr.some(g => {
+        const gid = (g._id || g.id || g || "").toString();
+        const gname = (g.name || g || "").toString();
+        return gid === groupId || gname.toLowerCase() === groupName.toLowerCase();
+      });
+      if (isMember) {
+        const rawPhone = String(c.phone || "").replace(/[^0-9]/g, "");
+        if (rawPhone && !memberPhones.has(rawPhone)) {
+          memberPhones.add(rawPhone);
+          members.push({
+            _id: c._id || c.id,
+            id: c._id || c.id,
+            name: c.name,
+            phone: c.phone,
+            email: c.email || "",
+            source: "WhatsAI"
+          });
+        }
+      }
+    });
 
     return res.json({
       success: true,
@@ -4004,15 +4035,13 @@ router.post("/whatsapp/groups/:id/sync-members", async (req, res) => {
     const { selectedContacts, removedPhones } = req.body;
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
-    const token = await getWhatsAiClientToken();
-    const headers = {
-      "Authorization": `Bearer ${token}`,
-      "x-api-key": partnerKey,
-      "Content-Type": "application/json"
-    };
+    const headers = await getWhatsAiHeaders(req);
+    const { Group } = require("../models/Group");
+    const { Contact } = require("../models/Contact");
+    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    const app = await getAppForUser(req);
 
-    // 1. Resolve Whats AI Group ID
+    // 1. Resolve Whats AI Group & MongoDB Group
     let liveGroups = [];
     try {
       const gListRes = await axios.get(
@@ -4023,30 +4052,24 @@ router.post("/whatsapp/groups/:id/sync-members", async (req, res) => {
     } catch (e) {}
 
     let group = liveGroups.find(g => (g._id && g._id.toString() === id) || (g.id && g.id.toString() === id) || (g.name && g.name.toLowerCase() === id.toLowerCase()));
+    let resolvedGroupId = group?._id || group?.id || id;
+    const groupName = group?.name || id;
 
-    const { Group } = require("../models/Group");
-    const { Contact } = require("../models/Contact");
-    const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
+    // Find or create local MongoDB group
     let mongoGroup = null;
     if (/^[0-9a-fA-F]{24}$/.test(id)) {
       mongoGroup = await Group.findById(id);
     }
-    if (!mongoGroup && group) {
-      mongoGroup = await Group.findOne({ name: group.name, ...(ceoId ? { ceoId } : {}) });
+    if (!mongoGroup) {
+      mongoGroup = await Group.findOne({ name: groupName, ...(ceoId ? { ceoId } : {}) });
     }
-
-    let resolvedGroupId = group?._id || group?.id;
-    const groupName = group?.name || mongoGroup?.name || id;
-
-    if (!resolvedGroupId) {
-      try {
-        const createG = await axios.post(
-          `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
-          { name: groupName, description: "Auto-synced group" },
-          { headers, timeout: 8000 }
-        );
-        resolvedGroupId = createG.data?.data?.group?._id || createG.data?.group?._id;
-      } catch (e) {}
+    if (!mongoGroup && app) {
+      mongoGroup = await Group.create({
+        appId: app._id,
+        name: groupName,
+        ...(ceoId ? { ceoId } : {}),
+        members: []
+      });
     }
 
     // 2. Fetch all contacts from Whats AI
@@ -4056,81 +4079,80 @@ router.post("/whatsapp/groups/:id/sync-members", async (req, res) => {
       waContacts = cRes.data?.data?.contacts || cRes.data?.contacts || [];
     } catch (e) {}
 
-    // 3. Add or update selected contacts
+    // 3. Process Selected Contacts
+    const selectedContactIds = [];
+    const updatePromises = [];
+
     if (Array.isArray(selectedContacts)) {
       for (const c of selectedContacts) {
-        const cleanPhone = String(c.phone || "").replace(/[^0-9]/g, "");
+        const rawPhone = String(c.phone || "");
+        const cleanPhone = rawPhone.replace(/[^0-9]/g, "");
         if (!cleanPhone) continue;
 
+        // Ensure in MongoDB Contact collection
+        if (ceoId && app) {
+          const last10 = cleanPhone.slice(-10);
+          let dbContact = await Contact.findOne({ ceoId, phone: new RegExp(last10 + "$") });
+          if (!dbContact) {
+            dbContact = await Contact.create({
+              appId: app._id,
+              ceoId,
+              name: c.name || "Contact",
+              phone: cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone,
+              source: "manual"
+            });
+          }
+          if (dbContact && !selectedContactIds.includes(dbContact._id)) {
+            selectedContactIds.push(dbContact._id);
+          }
+        }
+
+        // Also attempt Whats AI contact sync
         const existing = waContacts.find(wc => {
-          const p = (wc.phone || "").replace(/[^0-9]/g, "");
+          const p = String(wc.phone || "").replace(/[^0-9]/g, "");
           return p === cleanPhone || (cleanPhone.length >= 10 && p.endsWith(cleanPhone.slice(-10)));
         });
 
-        if (existing) {
-          const currentGroups = Array.isArray(existing.group) ? existing.group.map(g => g._id || g.id || g) : [];
-          if (resolvedGroupId && !currentGroups.includes(resolvedGroupId)) {
-            currentGroups.push(resolvedGroupId);
-            await axios.patch(
-              `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/${existing._id || existing.id}`,
-              { group: currentGroups },
+        if (!existing && resolvedGroupId) {
+          updatePromises.push(
+            axios.post(
+              `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
+              { name: c.name || "Contact", phone: cleanPhone, group: [resolvedGroupId], tags: ["Lead"] },
               { headers, timeout: 8000 }
-            ).catch(e => console.log("Patch error:", e.message));
-          }
-        } else if (resolvedGroupId) {
-          await axios.post(
-            `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
-            { name: c.name || "Contact", phone: cleanPhone, group: [resolvedGroupId], tags: ["Lead"] },
-            { headers, timeout: 8000 }
-          ).catch(e => console.log("Create error:", e.message));
-        }
-
-        // Sync to MongoDB
-        if (ceoId && mongoGroup) {
-          const dbC = await Contact.findOne({ ceoId, phone: new RegExp(cleanPhone.slice(-10) + "$") });
-          if (dbC && !mongoGroup.members.includes(dbC._id)) {
-            mongoGroup.members.push(dbC._id);
-          }
+            ).catch(e => console.warn("[sync-post-warn]", e.message))
+          );
         }
       }
     }
 
-    // 4. Remove unselected contacts
-    if (Array.isArray(removedPhones) && removedPhones.length > 0) {
-      for (const rawP of removedPhones) {
-        const cleanPhone = String(rawP || "").replace(/[^0-9]/g, "");
-        if (!cleanPhone) continue;
-
-        const existing = waContacts.find(wc => {
-          const p = (wc.phone || "").replace(/[^0-9]/g, "");
-          return p === cleanPhone || (cleanPhone.length >= 10 && p.endsWith(cleanPhone.slice(-10)));
-        });
-
-        if (existing && resolvedGroupId) {
-          const currentGroups = Array.isArray(existing.group) ? existing.group.map(g => g._id || g.id || g) : [];
-          const updatedGroups = currentGroups.filter(gid => gid !== resolvedGroupId);
-          await axios.patch(
-            `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/${existing._id || existing.id}`,
-            { group: updatedGroups },
-            { headers, timeout: 8000 }
-          ).catch(e => console.log("Remove error:", e.message));
-        }
-
-        // Remove from MongoDB
-        if (ceoId && mongoGroup) {
-          const dbC = await Contact.findOne({ ceoId, phone: new RegExp(cleanPhone.slice(-10) + "$") });
-          if (dbC) {
-            mongoGroup.members = mongoGroup.members.filter(mid => mid.toString() !== dbC._id.toString());
-          }
-        }
-      }
-    }
-
+    // 4. Update MongoDB Group members
     if (mongoGroup) {
+      if (Array.isArray(removedPhones) && removedPhones.length > 0) {
+        const removedDigits = removedPhones.map(p => String(p).replace(/[^0-9]/g, "").slice(-10));
+        const keptMembers = [];
+        for (const mid of mongoGroup.members) {
+          const dbC = await Contact.findById(mid);
+          if (dbC) {
+            const pDigits = String(dbC.phone || "").replace(/[^0-9]/g, "").slice(-10);
+            if (!removedDigits.includes(pDigits)) {
+              keptMembers.push(mid);
+            }
+          }
+        }
+        mongoGroup.members = Array.from(new Set([...keptMembers, ...selectedContactIds]));
+      } else {
+        mongoGroup.members = Array.from(new Set([...mongoGroup.members, ...selectedContactIds]));
+      }
       await mongoGroup.save();
     }
 
-    return res.json({ success: true, message: "Group members synchronized successfully" });
+    await Promise.allSettled(updatePromises);
+
+    return res.json({
+      success: true,
+      message: "Group members synchronized successfully",
+      groupId: resolvedGroupId
+    });
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
     console.error("[whatsapp-sync-group-members-error]", errorMsg);
