@@ -3967,7 +3967,7 @@ router.get("/whatsapp/groups/:id/members", async (req, res) => {
     const memberPhones = new Set();
     const members = [];
 
-    // Include MongoDB group members first
+    // Include MongoDB group members if configured
     if (mongoGroup && Array.isArray(mongoGroup.members) && mongoGroup.members.length > 0) {
       const dbMembers = await Contact.find({ _id: { $in: mongoGroup.members } });
       dbMembers.forEach(c => {
@@ -3984,31 +3984,31 @@ router.get("/whatsapp/groups/:id/members", async (req, res) => {
           });
         }
       });
-    }
-
-    // Also include Whats AI group members
-    waContacts.forEach(c => {
-      const groupArr = Array.isArray(c.group) ? c.group : [c.group].filter(Boolean);
-      const isMember = groupArr.some(g => {
-        const gid = (g._id || g.id || g || "").toString();
-        const gname = (g.name || g || "").toString();
-        return gid === groupId || gname.toLowerCase() === groupName.toLowerCase();
-      });
-      if (isMember) {
-        const rawPhone = String(c.phone || "").replace(/[^0-9]/g, "");
-        if (rawPhone && !memberPhones.has(rawPhone)) {
-          memberPhones.add(rawPhone);
-          members.push({
-            _id: c._id || c.id,
-            id: c._id || c.id,
-            name: c.name,
-            phone: c.phone,
-            email: c.email || "",
-            source: "WhatsAI"
-          });
+    } else {
+      // Fallback to Whats AI group members
+      waContacts.forEach(c => {
+        const groupArr = Array.isArray(c.group) ? c.group : [c.group].filter(Boolean);
+        const isMember = groupArr.some(g => {
+          const gid = (g._id || g.id || g || "").toString();
+          const gname = (g.name || g || "").toString();
+          return gid === groupId || gname.toLowerCase() === groupName.toLowerCase();
+        });
+        if (isMember) {
+          const rawPhone = String(c.phone || "").replace(/[^0-9]/g, "");
+          if (rawPhone && !memberPhones.has(rawPhone)) {
+            memberPhones.add(rawPhone);
+            members.push({
+              _id: c._id || c.id,
+              id: c._id || c.id,
+              name: c.name,
+              phone: c.phone,
+              email: c.email || "",
+              source: "WhatsAI"
+            });
+          }
         }
-      }
-    });
+      });
+    }
 
     return res.json({
       success: true,
@@ -4125,8 +4125,11 @@ router.post("/whatsapp/groups/:id/sync-members", async (req, res) => {
       }
     }
 
-    // 4. Update MongoDB Group members
+    // 4. Update MongoDB Group members accurately
     if (mongoGroup) {
+      if (Array.isArray(selectedContacts)) {
+        mongoGroup.members = Array.from(new Set(selectedContactIds));
+      }
       if (Array.isArray(removedPhones) && removedPhones.length > 0) {
         const removedDigits = removedPhones.map(p => String(p).replace(/[^0-9]/g, "").slice(-10));
         const keptMembers = [];
@@ -4139,9 +4142,7 @@ router.post("/whatsapp/groups/:id/sync-members", async (req, res) => {
             }
           }
         }
-        mongoGroup.members = Array.from(new Set([...keptMembers, ...selectedContactIds]));
-      } else {
-        mongoGroup.members = Array.from(new Set([...mongoGroup.members, ...selectedContactIds]));
+        mongoGroup.members = keptMembers;
       }
       await mongoGroup.save();
     }
