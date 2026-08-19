@@ -3645,9 +3645,21 @@ router.post("/whatsapp/templates", async (req, res) => {
   }
 });
 
+// In-memory cache for WhatsApp templates
+let cachedWhatsAppTemplates = null;
+let cachedWhatsAppTemplatesExpiry = 0;
+
 // Shared handler to fetch all WhatsApp templates for the client (both approved & pending)
 async function handleListWhatsAppTemplates(req, res) {
   try {
+    const now = Date.now();
+    const isForce = req.query?.force === "true" || req.query?.refresh === "true";
+
+    // Return instant cached response if valid and not a force refresh
+    if (!isForce && cachedWhatsAppTemplates && now < cachedWhatsAppTemplatesExpiry) {
+      return res.json(cachedWhatsAppTemplates);
+    }
+
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const baseHeaders = await getWhatsAiHeaders(req);
@@ -3657,7 +3669,7 @@ async function handleListWhatsAppTemplates(req, res) {
     try {
       const partnerRes = await axios.get(
         `${apiBaseUrl.replace(/\/$/, "")}/api/templates`,
-        { headers: baseHeaders }
+        { headers: baseHeaders, timeout: 8000 }
       );
       partnerTemplates = partnerRes.data?.data?.templates || partnerRes.data?.templates || [];
     } catch (e) {
@@ -3673,7 +3685,7 @@ async function handleListWhatsAppTemplates(req, res) {
         try {
           const clientRes = await axios.get(
             `${apiBaseUrl.replace(/\/$/, "")}/api/templates`,
-            { headers: { ...baseHeaders, "x-client-id": ceo.whatsAppClientId } }
+            { headers: { ...baseHeaders, "x-client-id": ceo.whatsAppClientId }, timeout: 8000 }
           );
           clientTemplates = clientRes.data?.data?.templates || clientRes.data?.templates || [];
         } catch (e) {
@@ -3716,15 +3728,25 @@ async function handleListWhatsAppTemplates(req, res) {
       };
     });
 
-    return res.json({
+    const responsePayload = {
       success: true,
       data: { templates },
       templates,
       message: "Templates fetched successfully"
-    });
+    };
+
+    // Cache templates for 3 minutes
+    cachedWhatsAppTemplates = responsePayload;
+    cachedWhatsAppTemplatesExpiry = now + 3 * 60 * 1000;
+
+    return res.json(responsePayload);
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
     console.error("[whatsapp-list-templates-error]", errorMsg);
+    // If cache exists, gracefully return cache even if external call fails
+    if (cachedWhatsAppTemplates) {
+      return res.json(cachedWhatsAppTemplates);
+    }
     return res.status(500).json({ error: "LIST_TEMPLATES_FAILED", message: errorMsg });
   }
 }
@@ -3769,13 +3791,26 @@ router.get("/whatsapp/groups", async (req, res) => {
   try {
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const headers = await getWhatsAiHeaders(req);
+    const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
+    const token = await getWhatsAiClientToken();
 
-    const response = await axios.get(
-      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
-      { headers }
-    );
-    const liveGroups = response.data?.data?.groups || response.data?.groups || [];
+    // Clean partner headers (no x-client-id) to match Whats AI server auth requirements
+    const headers = {
+      "Authorization": `Bearer ${token}`,
+      "x-api-key": partnerKey,
+      "Content-Type": "application/json"
+    };
+
+    let liveGroups = [];
+    try {
+      const response = await axios.get(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+        { headers, timeout: 8000 }
+      );
+      liveGroups = response.data?.data?.groups || response.data?.groups || [];
+    } catch (apiErr) {
+      console.warn("[whatsapp-groups-fetch-notice]", apiErr.response ? apiErr.response.data : apiErr.message);
+    }
 
     const ceoId = req.user.role === "CEO" ? req.user.sub : undefined;
     const { Group } = require("../models/Group");
@@ -3783,7 +3818,7 @@ router.get("/whatsapp/groups", async (req, res) => {
 
     const merged = [...liveGroups];
     for (const mg of mongoGroups) {
-      const exists = merged.find(g => g.name.toLowerCase() === mg.name.toLowerCase() || (g._id && g._id.toString() === mg._id.toString()));
+      const exists = merged.find(g => (g.name && g.name.toLowerCase() === mg.name.toLowerCase()) || ((g._id || g.id) && (g._id || g.id).toString() === mg._id.toString()));
       if (exists) {
         if (Array.isArray(mg.members) && mg.members.length > 0) {
           exists.contactCount = mg.members.length;
@@ -4090,7 +4125,22 @@ router.get("/whatsapp/contacts", async (req, res) => {
 
     const allDbContacts = await Contact.find(filter).sort({ createdAt: -1 });
 
-    const formattedContacts = allDbContacts.map(c => ({
+    // Deduplicate contacts by clean 10-digit phone number
+    const seenPhones = new Set();
+    const uniqueContacts = [];
+
+    allDbContacts.forEach(c => {
+      const cleanPhone = (c.phone || "").replace(/[^0-9]/g, "");
+      const key = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+      if (key && !seenPhones.has(key)) {
+        seenPhones.add(key);
+        uniqueContacts.push(c);
+      } else if (!key) {
+        uniqueContacts.push(c);
+      }
+    });
+
+    const formattedContacts = uniqueContacts.map(c => ({
       _id: c._id.toString(),
       id: c._id.toString(),
       name: c.name,
@@ -4314,8 +4364,17 @@ router.post("/whatsapp/reset-connection", async (req, res) => {
   }
 });
 
-// Helper to get Whats AI Client JWT Token by doing an API sharing handshake login
+// In-memory token cache for Whats AI
+let cachedWhatsAiToken = null;
+let cachedWhatsAiTokenExpiry = 0;
+
+// Helper to get Whats AI Client JWT Token by doing an API sharing handshake login (with caching)
 async function getWhatsAiClientToken() {
+  const now = Date.now();
+  if (cachedWhatsAiToken && now < cachedWhatsAiTokenExpiry) {
+    return cachedWhatsAiToken;
+  }
+
   const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
   const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
   const clientToken = process.env.WHATS_AI_ACCESS_TOKEN;
@@ -4338,19 +4397,28 @@ async function getWhatsAiClientToken() {
       headers: {
         "x-api-key": apiKey,
         "Content-Type": "application/json"
-      }
+      },
+      timeout: 10000
     }
   );
   
+  let token = null;
   if (response.data && response.data.token) {
-    return response.data.token;
+    token = response.data.token;
   } else if (response.data && response.data.data && response.data.data.token) {
-    return response.data.data.token;
+    token = response.data.data.token;
   } else if (response.data && response.data.data && response.data.data.accessToken) {
-    return response.data.data.accessToken;
+    token = response.data.data.accessToken;
   } else if (response.data && response.data.accessToken) {
-    return response.data.accessToken;
+    token = response.data.accessToken;
   }
+
+  if (token) {
+    cachedWhatsAiToken = token;
+    cachedWhatsAiTokenExpiry = now + 45 * 60 * 1000; // Cache for 45 minutes
+    return token;
+  }
+
   throw new Error("FAILED_TO_GET_JWT_TOKEN");
 }
 
@@ -4574,21 +4642,27 @@ router.put("/whatsapp/conversations/:id/toggle-ai", async (req, res) => {
 });
 
 
-// Lightweight model for local WhatsApp Campaign execution logs
+// Complete model for local WhatsApp Campaign execution & metadata
 const campaignLogSchema = new (require("mongoose").Schema)(
   {
     campaignId: { type: String, required: true, index: true },
     ceoId: { type: require("mongoose").Schema.Types.ObjectId, ref: "CEO", required: true, index: true },
-    status: { type: String, default: "completed" },
+    name: { type: String, trim: true },
+    templateId: { type: String },
+    templateName: { type: String },
+    groupId: { type: String },
+    groupName: { type: String },
+    status: { type: String, default: "draft" },
     sentCount: { type: Number, default: 0 },
     totalContacts: { type: Number, default: 0 },
-    lastDispatchedAt: { type: Date, default: Date.now }
+    scheduledAt: { type: Date },
+    lastDispatchedAt: { type: Date }
   },
   { timestamps: true }
 );
 const WhatsAppCampaignLog = require("mongoose").models.WhatsAppCampaignLog || require("mongoose").model("WhatsAppCampaignLog", campaignLogSchema);
 
-// Route to fetch campaign lists from Whats AI
+// Route to fetch campaign lists from Whats AI with full name & log enrichment
 router.get("/whatsapp/campaigns", async (req, res) => {
   try {
     const axios = require("axios");
@@ -4603,9 +4677,10 @@ router.get("/whatsapp/campaigns", async (req, res) => {
       }
     }
     
+    // Fetch live campaigns from Whats AI
     const response = await axios.get(
       `${apiBaseUrl.replace(/\/$/, "")}/api/campaigns`,
-      { headers }
+      { headers, timeout: 8000 }
     );
 
     const rawCampaigns = response.data?.data?.campaigns || response.data?.campaigns || [];
@@ -4613,21 +4688,76 @@ router.get("/whatsapp/campaigns", async (req, res) => {
     const logs = ceoId ? await WhatsAppCampaignLog.find({ ceoId }) : [];
     const logMap = new Map(logs.map(l => [String(l.campaignId), l]));
 
-    const mergedCampaigns = rawCampaigns.map(c => {
+    // Fetch templates and groups lookup map to resolve names if not yet stored
+    let templatesList = [];
+    try {
+      const tRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/templates`, { headers: { ...headers, "x-client-id": undefined }, timeout: 5000 });
+      templatesList = tRes.data?.data?.templates || tRes.data?.templates || [];
+    } catch (e) {}
+
+    let groupsList = [];
+    try {
+      const gRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`, { headers: { ...headers, "x-client-id": undefined }, timeout: 5000 });
+      groupsList = gRes.data?.data?.groups || gRes.data?.groups || [];
+    } catch (e) {}
+
+    const { Group } = require("../models/Group");
+    const localGroups = ceoId ? await Group.find({ ceoId }) : [];
+
+    const isHexId = (str) => typeof str === "string" && /^[0-9a-fA-F]{24}$/.test(str);
+
+    const mergedCampaigns = await Promise.all(rawCampaigns.map(async (c) => {
       const cid = String(c._id || c.id);
       const log = logMap.get(cid);
-      if (log) {
-        return {
-          ...c,
-          status: log.status || "completed",
-          sent: log.sentCount ?? c.sent,
-          sentCount: log.sentCount ?? 0,
-          totalContacts: log.totalContacts ?? c.totalContacts,
-          lastSentAt: log.lastDispatchedAt
-        };
+
+      const rawT = c.template || c.templateId;
+      const rawTId = typeof rawT === "object" ? (rawT._id || rawT.id) : rawT;
+      const matchedT = templatesList.find(t => String(t._id || t.id) === String(rawTId) || t.name === rawTId || t.templateName === rawTId);
+      const validLogTemplateName = log?.templateName && !isHexId(log.templateName) ? log.templateName : null;
+      const resolvedTemplateName = validLogTemplateName || (typeof rawT === "object" ? (rawT.name || rawT.templateName) : null) || matchedT?.name || matchedT?.templateName || String(rawTId || "Template");
+
+      const rawG = c.targetGroup || c.groupId;
+      const rawGId = typeof rawG === "object" ? (rawG._id || rawG.id) : rawG;
+      const matchedG = groupsList.find(g => String(g._id || g.id) === String(rawGId)) || localGroups.find(g => String(g._id) === String(rawGId));
+      const validLogGroupName = log?.groupName && !isHexId(log.groupName) ? log.groupName : null;
+      const resolvedGroupName = validLogGroupName || (typeof rawG === "object" ? rawG.name : null) || matchedG?.name || String(rawGId || "Target Group");
+
+      // Auto-update or create log in MongoDB if missing full details or has raw Hex ID
+      if (ceoId && (!log || !log.templateName || !log.groupName || isHexId(log.groupName) || isHexId(log.templateName))) {
+        try {
+          await WhatsAppCampaignLog.findOneAndUpdate(
+            { campaignId: cid, ceoId },
+            {
+              campaignId: cid,
+              ceoId,
+              name: c.name || log?.name,
+              templateId: String(rawTId || ""),
+              templateName: resolvedTemplateName,
+              groupId: String(rawGId || ""),
+              groupName: resolvedGroupName,
+              status: log?.status || c.status || "draft",
+              sentCount: log?.sentCount ?? c.sent ?? 0,
+              totalContacts: log?.totalContacts ?? c.totalContacts ?? 0,
+              scheduledAt: c.scheduledAt || log?.scheduledAt
+            },
+            { upsert: true, new: true }
+          );
+        } catch (saveErr) {}
       }
-      return c;
-    });
+
+      return {
+        ...c,
+        templateId: String(rawTId || ""),
+        templateName: resolvedTemplateName,
+        groupId: String(rawGId || ""),
+        groupName: resolvedGroupName,
+        status: log?.status || c.status || "draft",
+        sent: log?.sentCount ?? c.sent ?? 0,
+        sentCount: log?.sentCount ?? c.sentCount ?? 0,
+        totalContacts: log?.totalContacts ?? c.totalContacts ?? 0,
+        lastSentAt: log?.lastDispatchedAt
+      };
+    }));
 
     if (response.data && response.data.data && Array.isArray(response.data.data.campaigns)) {
       response.data.data.campaigns = mergedCampaigns;
@@ -4643,10 +4773,10 @@ router.get("/whatsapp/campaigns", async (req, res) => {
   }
 });
 
-// Route to create a new template campaign in Whats AI
+// Route to create a new template campaign in Whats AI and persist full metadata in MongoDB
 router.post("/whatsapp/campaigns", async (req, res) => {
   try {
-    const { name, templateId, template, groupId, targetGroup, variablesMapping, scheduledAt } = req.body;
+    const { name, templateId, template, templateName, groupId, targetGroup, groupName, variablesMapping, scheduledAt } = req.body;
     const resolvedTemplate = template || templateId;
     const resolvedGroup = targetGroup || groupId;
 
@@ -4657,9 +4787,10 @@ router.post("/whatsapp/campaigns", async (req, res) => {
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
     const headers = await getWhatsAiHeaders(req);
 
+    let ceo = null;
     if (req.user && req.user.role === "CEO") {
       const { CEO } = require("../models/CEO");
-      const ceo = await CEO.findById(req.user.sub);
+      ceo = await CEO.findById(req.user.sub);
       if (ceo && ceo.whatsAppClientId) {
         headers["x-client-id"] = ceo.whatsAppClientId;
       }
@@ -4684,14 +4815,42 @@ router.post("/whatsapp/campaigns", async (req, res) => {
       { headers }
     );
     const cData = response.data?.data?.campaign || response.data?.campaign || response.data?.data || response.data;
-    const campaignId = cData?._id || cData?.id || response.data?.campaignId;
+    const campaignId = String(cData?._id || cData?.id || response.data?.campaignId || "");
+
+    // Persist full metadata (name, templateName, groupName) into MongoDB
+    if (ceo && campaignId) {
+      try {
+        await WhatsAppCampaignLog.findOneAndUpdate(
+          { campaignId, ceoId: ceo._id },
+          {
+            campaignId,
+            ceoId: ceo._id,
+            name,
+            templateId: String(resolvedTemplate || ""),
+            templateName: templateName || name,
+            groupId: String(resolvedGroup || ""),
+            groupName: groupName || "Target Group",
+            status: scheduledAt ? "scheduled" : "draft",
+            scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined
+          },
+          { upsert: true, new: true }
+        );
+      } catch (logErr) {
+        console.error("[whatsapp-campaign-log-save-error]", logErr.message);
+      }
+    }
+
     return res.json({
       success: true,
       campaignId,
       _id: campaignId,
       data: {
         ...response.data?.data,
-        campaign: cData,
+        campaign: {
+          ...cData,
+          templateName: templateName || name,
+          groupName: groupName || "Target Group"
+        },
         campaignId,
         _id: campaignId
       },
@@ -4733,6 +4892,43 @@ router.patch("/whatsapp/campaigns/:id", async (req, res) => {
   }
 });
 
+// Route to delete a WhatsApp campaign in Whats AI & local MongoDB
+router.delete("/whatsapp/campaigns/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const axios = require("axios");
+    const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
+    const headers = await getWhatsAiHeaders(req);
+
+    if (req.user && req.user.role === "CEO") {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(req.user.sub);
+      if (ceo && ceo.whatsAppClientId) {
+        headers["x-client-id"] = ceo.whatsAppClientId;
+      }
+    }
+
+    try {
+      await axios.delete(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/campaigns/${id}`,
+        { headers, timeout: 8000 }
+      );
+    } catch (apiErr) {
+      console.warn("[whatsapp-delete-campaign-external-notice]", apiErr.response ? apiErr.response.data : apiErr.message);
+    }
+
+    // Delete from MongoDB local log
+    const ceoId = req.user?.role === "CEO" ? req.user.sub : undefined;
+    await WhatsAppCampaignLog.deleteOne({ campaignId: id, ...(ceoId ? { ceoId } : {}) });
+
+    return res.json({ success: true, message: "Campaign deleted successfully" });
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    console.error("[whatsapp-delete-campaign-error]", errorMsg);
+    return res.status(500).json({ error: "DELETE_CAMPAIGN_FAILED", message: errorMsg });
+  }
+});
+
 // Route to trigger/send a campaign broadcast
 router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
   try {
@@ -4766,7 +4962,7 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
       const matchedTemplate = tList.find(t => t._id === campaign.template || t.name === campaign.template || t.whatsappTemplateName === campaign.template);
       if (matchedTemplate) {
         templateName = matchedTemplate.whatsappTemplateName || matchedTemplate.name.toLowerCase().replace(/\s+/g, "_");
-        language = (matchedTemplate.language || "en").toLowerCase();
+        language = (matchedTemplate.languageCode || matchedTemplate.language || "en").toLowerCase();
       }
     } catch (e) {
       console.warn("[whatsapp-send] Could not fetch templates list:", e.message);
@@ -5302,6 +5498,38 @@ function getAdplifAiPartnerHeaders() {
   };
 }
 
+// Route to get AdplifAI status and credentials configuration for CEO
+router.get("/ads/config", async (req, res) => {
+  try {
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+    if (!ceo) {
+      return res.status(404).json({ error: "CEO_NOT_FOUND" });
+    }
+
+    const isConnected = Boolean(ceo.adplifAiApiKey || ceo.adplifAiClientId);
+    const hasApiKey = Boolean(ceo.adplifAiApiKey);
+
+    return res.json({
+      success: true,
+      data: {
+        isConnected,
+        hasApiKey,
+        clientId: ceo.adplifAiClientId || null,
+        apiKeyConfigured: hasApiKey,
+        clientProfile: {
+          name: ceo.name,
+          email: ceo.email,
+          mobile: ceo.mobile,
+          company: ceo.company || ""
+        }
+      }
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "GET_ADS_CONFIG_FAILED", message: err.message });
+  }
+});
+
 // Route to register/sync client with AdplifAI B2B Server
 router.post("/ads/sync-client", async (req, res) => {
   try {
@@ -5553,6 +5781,18 @@ router.post("/ads/upload", logoUpload.single("file"), async (req, res) => {
   } catch (err) {
     console.error("[ads-upload-error]", err.message);
     return res.status(500).json({ error: "UPLOAD_FAILED", message: err.message });
+  }
+});
+
+// Webhook receiver for AdplifAI status changes
+router.post("/ads/webhook", async (req, res) => {
+  try {
+    const { eventType, campaignId, status, data } = req.body;
+    console.log(`[ads-webhook] Received ${eventType} for campaign ${campaignId}: ${status}`);
+    return res.json({ success: true, received: true });
+  } catch (err) {
+    console.error("[ads-webhook-error]", err.message);
+    return res.status(500).json({ error: "WEBHOOK_FAILED" });
   }
 });
 
