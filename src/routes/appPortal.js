@@ -3892,15 +3892,25 @@ router.get("/whatsapp/groups/:id/members", async (req, res) => {
     const { id } = req.params;
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const headers = await getWhatsAiHeaders(req);
+    const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
+    const token = await getWhatsAiClientToken();
+    const headers = {
+      "Authorization": `Bearer ${token}`,
+      "x-api-key": partnerKey,
+      "Content-Type": "application/json"
+    };
 
     // 1. Fetch group details from Whats AI or MongoDB
-    const gListRes = await axios.get(
-      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
-      { headers }
-    );
-    const liveGroups = gListRes.data?.data?.groups || gListRes.data?.groups || [];
-    let group = liveGroups.find(g => g._id === id || g.name === id);
+    let liveGroups = [];
+    try {
+      const gListRes = await axios.get(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+        { headers, timeout: 8000 }
+      );
+      liveGroups = gListRes.data?.data?.groups || gListRes.data?.groups || [];
+    } catch (e) {}
+
+    let group = liveGroups.find(g => (g._id && g._id.toString() === id) || (g.id && g.id.toString() === id) || (g.name && g.name.toLowerCase() === id.toLowerCase()));
 
     const { Group } = require("../models/Group");
     const { Contact } = require("../models/Contact");
@@ -3914,11 +3924,14 @@ router.get("/whatsapp/groups/:id/members", async (req, res) => {
     }
 
     const groupName = group?.name || mongoGroup?.name || id;
-    const groupId = group?._id || id;
+    const groupId = (group?._id || group?.id || id).toString();
 
     // 2. Fetch all contacts from Whats AI
-    const cRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/contacts`, { headers });
-    const waContacts = cRes.data?.data?.contacts || cRes.data?.contacts || [];
+    let waContacts = [];
+    try {
+      const cRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/contacts`, { headers, timeout: 8000 });
+      waContacts = cRes.data?.data?.contacts || cRes.data?.contacts || [];
+    } catch (e) {}
 
     // Filter contacts that are in this group
     const memberPhones = new Set();
@@ -3926,7 +3939,11 @@ router.get("/whatsapp/groups/:id/members", async (req, res) => {
 
     waContacts.forEach(c => {
       const groupArr = Array.isArray(c.group) ? c.group : [c.group].filter(Boolean);
-      const isMember = groupArr.some(g => (g._id || g) === groupId || (g.name || g).toLowerCase() === groupName.toLowerCase());
+      const isMember = groupArr.some(g => {
+        const gid = (g._id || g.id || g || "").toString();
+        const gname = (g.name || g || "").toString();
+        return gid === groupId || gname.toLowerCase() === groupName.toLowerCase();
+      });
       if (isMember) {
         const rawPhone = (c.phone || "").replace(/[^0-9]/g, "");
         if (rawPhone && !memberPhones.has(rawPhone)) {
@@ -3987,15 +4004,25 @@ router.post("/whatsapp/groups/:id/sync-members", async (req, res) => {
     const { selectedContacts, removedPhones } = req.body;
     const axios = require("axios");
     const apiBaseUrl = process.env.WHATS_AI_API_BASE_URL;
-    const headers = await getWhatsAiHeaders(req);
+    const partnerKey = process.env.WHATS_AI_PARTNER_KEY;
+    const token = await getWhatsAiClientToken();
+    const headers = {
+      "Authorization": `Bearer ${token}`,
+      "x-api-key": partnerKey,
+      "Content-Type": "application/json"
+    };
 
     // 1. Resolve Whats AI Group ID
-    const gListRes = await axios.get(
-      `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
-      { headers }
-    );
-    const liveGroups = gListRes.data?.data?.groups || gListRes.data?.groups || [];
-    let group = liveGroups.find(g => g._id === id || g.name === id);
+    let liveGroups = [];
+    try {
+      const gListRes = await axios.get(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+        { headers, timeout: 8000 }
+      );
+      liveGroups = gListRes.data?.data?.groups || gListRes.data?.groups || [];
+    } catch (e) {}
+
+    let group = liveGroups.find(g => (g._id && g._id.toString() === id) || (g.id && g.id.toString() === id) || (g.name && g.name.toLowerCase() === id.toLowerCase()));
 
     const { Group } = require("../models/Group");
     const { Contact } = require("../models/Contact");
@@ -4008,21 +4035,26 @@ router.post("/whatsapp/groups/:id/sync-members", async (req, res) => {
       mongoGroup = await Group.findOne({ name: group.name, ...(ceoId ? { ceoId } : {}) });
     }
 
-    let resolvedGroupId = group?._id;
+    let resolvedGroupId = group?._id || group?.id;
     const groupName = group?.name || mongoGroup?.name || id;
 
     if (!resolvedGroupId) {
-      const createG = await axios.post(
-        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
-        { name: groupName, description: "Auto-synced group" },
-        { headers }
-      );
-      resolvedGroupId = createG.data?.data?.group?._id || createG.data?.group?._id;
+      try {
+        const createG = await axios.post(
+          `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+          { name: groupName, description: "Auto-synced group" },
+          { headers, timeout: 8000 }
+        );
+        resolvedGroupId = createG.data?.data?.group?._id || createG.data?.group?._id;
+      } catch (e) {}
     }
 
     // 2. Fetch all contacts from Whats AI
-    const cRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/contacts`, { headers });
-    const waContacts = cRes.data?.data?.contacts || cRes.data?.contacts || [];
+    let waContacts = [];
+    try {
+      const cRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/contacts`, { headers, timeout: 8000 });
+      waContacts = cRes.data?.data?.contacts || cRes.data?.contacts || [];
+    } catch (e) {}
 
     // 3. Add or update selected contacts
     if (Array.isArray(selectedContacts)) {
@@ -4036,20 +4068,20 @@ router.post("/whatsapp/groups/:id/sync-members", async (req, res) => {
         });
 
         if (existing) {
-          const currentGroups = Array.isArray(existing.group) ? existing.group.map(g => g._id || g) : [];
-          if (!currentGroups.includes(resolvedGroupId)) {
+          const currentGroups = Array.isArray(existing.group) ? existing.group.map(g => g._id || g.id || g) : [];
+          if (resolvedGroupId && !currentGroups.includes(resolvedGroupId)) {
             currentGroups.push(resolvedGroupId);
             await axios.patch(
-              `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/${existing._id}`,
+              `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/${existing._id || existing.id}`,
               { group: currentGroups },
-              { headers }
+              { headers, timeout: 8000 }
             ).catch(e => console.log("Patch error:", e.message));
           }
-        } else {
+        } else if (resolvedGroupId) {
           await axios.post(
             `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
             { name: c.name || "Contact", phone: cleanPhone, group: [resolvedGroupId], tags: ["Lead"] },
-            { headers }
+            { headers, timeout: 8000 }
           ).catch(e => console.log("Create error:", e.message));
         }
 
@@ -4074,13 +4106,13 @@ router.post("/whatsapp/groups/:id/sync-members", async (req, res) => {
           return p === cleanPhone || (cleanPhone.length >= 10 && p.endsWith(cleanPhone.slice(-10)));
         });
 
-        if (existing) {
-          const currentGroups = Array.isArray(existing.group) ? existing.group.map(g => g._id || g) : [];
+        if (existing && resolvedGroupId) {
+          const currentGroups = Array.isArray(existing.group) ? existing.group.map(g => g._id || g.id || g) : [];
           const updatedGroups = currentGroups.filter(gid => gid !== resolvedGroupId);
           await axios.patch(
-            `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/${existing._id}`,
+            `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/${existing._id || existing.id}`,
             { group: updatedGroups },
-            { headers }
+            { headers, timeout: 8000 }
           ).catch(e => console.log("Remove error:", e.message));
         }
 
