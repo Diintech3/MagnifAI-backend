@@ -23,17 +23,24 @@ async function main() {
     "Content-Type": "application/json"
   };
 
-  console.log("=== Testing send-template with empty variables [] ===");
-  try {
-    const res = await axios.post(`${apiBaseUrl}/api/inbox/send-template`, {
-      phone: "917970906978",
-      templateName: "ai_assistant",
-      language: "en",
-      variables: []
-    }, { headers, timeout: 20000 });
-    console.log("Empty variables response:", res.data);
-  } catch (e) {
-    console.log("Empty variables error:", e.response?.data || e.message);
+  for (let count = 1; count <= 4; count++) {
+    const vars = [];
+    for (let i = 1; i <= count; i++) {
+      vars.push({ key: String(i), value: `TestValue${i}` });
+    }
+    console.log(`\n=== Testing with ${count} variables ===`);
+    try {
+      const res = await axios.post(`${apiBaseUrl}/api/inbox/send-template`, {
+        phone: "917970906978",
+        templateName: "ai_assistant",
+        language: "en",
+        variables: vars
+      }, { headers, timeout: 20000 });
+      console.log(`Success with ${count} variables:`, res.data);
+      break;
+    } catch (e) {
+      console.log(`Failed with ${count} variables:`, e.response?.data?.message || e.message);
+    }
   }
 }
 

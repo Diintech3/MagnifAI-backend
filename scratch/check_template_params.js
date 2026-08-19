@@ -23,17 +23,20 @@ async function main() {
     "Content-Type": "application/json"
   };
 
-  console.log("=== Testing send-template with empty variables [] ===");
-  try {
-    const res = await axios.post(`${apiBaseUrl}/api/inbox/send-template`, {
-      phone: "917970906978",
-      templateName: "ai_assistant",
-      language: "en",
-      variables: []
-    }, { headers, timeout: 20000 });
-    console.log("Empty variables response:", res.data);
-  } catch (e) {
-    console.log("Empty variables error:", e.response?.data || e.message);
+  console.log("=== Fetching All Templates from Whats AI ===");
+  const tRes = await axios.get(`${apiBaseUrl}/api/templates`, { headers, timeout: 20000 });
+  const templates = tRes.data?.data?.templates || tRes.data?.templates || tRes.data || [];
+  
+  console.log("Found", templates.length, "templates:\n");
+  for (const t of templates) {
+    console.log(`ID: ${t._id || t.id}`);
+    console.log(`Name: ${t.name}`);
+    console.log(`whatsappTemplateName: ${t.whatsappTemplateName}`);
+    console.log(`category: ${t.category}`);
+    console.log(`language: ${t.language || t.languageCode}`);
+    console.log(`body: ${t.body || t.content}`);
+    console.log(`variables: ${JSON.stringify(t.variables || t.bodyParams || t.params)}`);
+    console.log("---");
   }
 }
 

@@ -5062,10 +5062,21 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
 
     for (const contact of targetContacts) {
       const rawPhone = contact.phone || contact.customerPhone || "";
-      const cleanPhone = rawPhone.replace(/[^0-9]/g, "");
-      if (!cleanPhone || cleanPhone.length < 10) continue;
+      let digits = String(rawPhone).replace(/[^0-9]/g, "");
+      // If starts with 0 (e.g. 07970906978), strip all leading 0s
+      digits = digits.replace(/^0+/, "");
+      
+      let formattedPhone = "";
+      if (digits.length === 10) {
+        formattedPhone = `91${digits}`;
+      } else if (digits.length === 12 && digits.startsWith("91")) {
+        formattedPhone = digits;
+      } else if (digits.length > 10) {
+        // Handle any international or already formatted number
+        formattedPhone = digits;
+      }
+      if (!formattedPhone || formattedPhone.length < 10) continue;
 
-      const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
       const contactName = contact.name || contact.customerName || "Customer";
 
       // Map variables
