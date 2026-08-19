@@ -5004,50 +5004,54 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
       templateName = (campaign.template || "ai_assistant").toLowerCase().replace(/\s+/g, "_");
     }
 
-    // 3. Fetch Contacts in the target group
-    const mongoose = require("mongoose");
-    const { Contact } = require("../models/Contact");
-    const { Group } = require("../models/Group");
+    // 3. Fetch Contacts from Whats AI for the selected group ONLY
+    const partnerKeyForGroup = process.env.WHATS_AI_PARTNER_KEY;
+    const masterHeaders = {
+      "Authorization": `Bearer ${await getWhatsAiClientToken()}`,
+      "x-api-key": partnerKeyForGroup,
+      "Content-Type": "application/json"
+    };
+
     let targetContacts = [];
     let resolvedGroupName = campaign.targetGroup;
 
-    // Check MongoDB group
-    if (ceo) {
-      const groupDoc = await Group.findOne({
-        ceoId: ceo._id,
-        $or: [
-          { _id: mongoose.Types.ObjectId.isValid(campaign.targetGroup) ? campaign.targetGroup : null },
-          { name: new RegExp(`^${campaign.targetGroup}$`, "i") }
-        ]
+    // Fetch all contacts from Whats AI and filter by the campaign's targetGroup ID
+    try {
+      const contactsRes = await axios.get(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
+        { headers: masterHeaders, timeout: 15000 }
+      );
+      const allContacts = contactsRes.data?.data?.contacts || contactsRes.data?.contacts || [];
+
+      targetContacts = allContacts.filter(c => {
+        const groupArr = Array.isArray(c.group) ? c.group : [c.group].filter(Boolean);
+        return groupArr.some(g => {
+          const gid = (g._id || g.id || g || "").toString();
+          return gid === campaign.targetGroup;
+        });
       });
 
-      if (groupDoc) {
-        resolvedGroupName = groupDoc.name;
-        if (Array.isArray(groupDoc.members) && groupDoc.members.length > 0) {
-          targetContacts = await Contact.find({ _id: { $in: groupDoc.members }, ceoId: ceo._id });
-        }
+      // Try to resolve group name for logging
+      const gListRes = await axios.get(
+        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+        { headers: masterHeaders, timeout: 8000 }
+      ).catch(() => null);
+      if (gListRes) {
+        const groups = gListRes.data?.data?.groups || gListRes.data?.groups || [];
+        const matchedGroup = groups.find(g => (g._id || g.id || "").toString() === campaign.targetGroup);
+        if (matchedGroup) resolvedGroupName = matchedGroup.name;
       }
+    } catch (e) {
+      console.warn("[whatsapp-send] Could not fetch contacts from Whats AI:", e.message);
     }
 
-    // Fallback: Check Whats AI Contacts with group matching
+    // If group has no members, stop the campaign — do NOT fallback to all contacts
     if (targetContacts.length === 0) {
-      try {
-        const contactsRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/contacts`, { headers });
-        const allContacts = contactsRes.data?.data?.contacts || contactsRes.data?.contacts || [];
-        targetContacts = allContacts.filter(c => {
-          if (Array.isArray(c.group)) {
-            return c.group.some(g => (g._id || g) === campaign.targetGroup || (g.name || g).toLowerCase() === String(resolvedGroupName).toLowerCase());
-          }
-          return false;
-        });
-      } catch (e) {
-        console.warn("[whatsapp-send] Could not fetch Whats AI contacts:", e.message);
-      }
-    }
-
-    // Fallback if still empty: fetch CEO contacts
-    if (targetContacts.length === 0 && ceo) {
-      targetContacts = await Contact.find({ ceoId: ceo._id });
+      return res.status(400).json({
+        success: false,
+        error: "NO_CONTACTS_IN_GROUP",
+        message: `No contacts found in the selected group. Please add contacts to the group before sending the campaign.`
+      });
     }
 
     console.log(`[whatsapp-send] Broadcasting campaign "${campaign.name}" to ${targetContacts.length} contacts using template "${templateName}"`);
