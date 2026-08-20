@@ -1,5 +1,7 @@
 const axios = require("axios");
 const jwt = require("jsonwebtoken");
+require("dotenv").config({ path: require("path").join(__dirname, "../.env") });
+
 const secret = process.env.JWT_SECRET || "change_this_to_a_long_random_secret";
 
 const token = jwt.sign({
@@ -27,7 +29,7 @@ async function testCampaignDispatch() {
   });
 
   console.log("Create Campaign Response:", createRes.data);
-  const campaignId = createRes.data.campaignId;
+  const campaignId = createRes.data.campaignId || createRes.data.data?.campaignId || createRes.data.data?.campaign?._id;
 
   console.log(`\n=== 2. Send Campaign ${campaignId} ===`);
   const sendRes = await axios.post(`http://localhost:4000/api/app/whatsapp/campaigns/${campaignId}/send`, {}, {

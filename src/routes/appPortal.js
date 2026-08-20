@@ -5010,6 +5010,8 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
       return res.status(404).json({ error: "CAMPAIGN_NOT_FOUND", message: "Campaign not found" });
     }
 
+    const campaignLog = await WhatsAppCampaignLog.findOne({ campaignId: String(id) });
+
     // 2. Fetch Template Details to get meta template name
     let templateName = "";
     let language = "en";
@@ -5043,8 +5045,9 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
     if (/^[0-9a-fA-F]{24}$/.test(campaign.targetGroup)) {
       mongoGroup = await Group.findById(campaign.targetGroup);
     }
-    if (!mongoGroup) {
-      mongoGroup = await Group.findOne({ name: campaign.targetGroup, ...(ceoIdForGroup ? { ceoId: ceoIdForGroup } : {}) });
+    const searchGroupName = campaignLog?.groupName || campaign.targetGroup;
+    if (!mongoGroup && searchGroupName) {
+      mongoGroup = await Group.findOne({ name: searchGroupName, ...(ceoIdForGroup ? { ceoId: ceoIdForGroup } : {}) });
     }
 
     if (mongoGroup && Array.isArray(mongoGroup.members) && mongoGroup.members.length > 0) {
@@ -5141,7 +5144,6 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
         const contactName = contact.name || contact.customerName || "Customer";
 
         // Map variables
-        const campaignLog = await WhatsAppCampaignLog.findOne({ campaignId: String(id) });
         const rawVars = req.body?.variablesMapping || campaign.variablesMapping || campaignLog?.variablesMapping || {};
         const variablesArray = [];
         Object.keys(rawVars).forEach(k => {
@@ -5154,9 +5156,10 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
           variablesArray.push({ key: String(k), value: String(v) });
         });
 
-        // Fail-safe: If template expects parameters that weren't mapped, auto-fill from sampleParams or CEO name
-        if (matchedTemplate && Array.isArray(matchedTemplate.sampleParams) && matchedTemplate.sampleParams.length > 0) {
-          matchedTemplate.sampleParams.forEach(sp => {
+        // Fail-safe: If template expects parameters that weren't mapped, auto-fill from variables/sampleParams or CEO name
+        const expectedVars = matchedTemplate ? (matchedTemplate.sampleParams || matchedTemplate.variables || []) : [];
+        if (Array.isArray(expectedVars) && expectedVars.length > 0) {
+          expectedVars.forEach(sp => {
             const keyStr = String(sp.key || "");
             if (keyStr && !variablesArray.find(va => va.key === keyStr)) {
               let val = sp.value || "";
