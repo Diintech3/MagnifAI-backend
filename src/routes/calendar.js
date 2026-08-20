@@ -339,7 +339,7 @@ async function getPingStatsHandler(req, res) {
     }
 
     // 4. Fetch Agents
-    const { listAgents, getVisitorSessions, getSessionHistory } = require("../services/agentAiService");
+    const { listAgents, getVisitorSessions, getSessionHistory, listSubUsers } = require("../services/agentAiService");
     const rawAgentsList = await listAgents(token);
     const agentsList = Array.isArray(rawAgentsList) ? rawAgentsList : [];
 
@@ -457,31 +457,83 @@ async function getPingStatsHandler(req, res) {
 
     // Compute Growth helper
     function getGrowthMetrics(curr, prev, isOutcomeOrSource = false) {
+      const metric = {
+        count: curr,
+        is_positive: true
+      };
       if (prev === 0) {
         if (curr === 0) {
-          return {
-            count: curr,
-            growth: isOutcomeOrSource ? "0%" : "0%",
-            growth_text: isOutcomeOrSource ? "" : `0% ${suffix}`,
-            is_positive: true
-          };
+          metric.growth = "0%";
+          if (!isOutcomeOrSource) metric.growth_text = `0% ${suffix}`;
+        } else {
+          metric.growth = isOutcomeOrSource ? "100% ↑" : "↑ 100%";
+          if (!isOutcomeOrSource) metric.growth_text = `↑ 100% ${suffix}`;
         }
-        return {
-          count: curr,
-          growth: isOutcomeOrSource ? "100% ↑" : "↑ 100%",
-          growth_text: isOutcomeOrSource ? "" : `↑ 100% ${suffix}`,
-          is_positive: true
-        };
+      } else {
+        const pct = Math.round(((curr - prev) / prev) * 100);
+        const sign = pct >= 0 ? "↑" : "↓";
+        const absPct = Math.abs(pct);
+        metric.growth = isOutcomeOrSource ? `${absPct}% ${sign}` : `${sign} ${absPct}%`;
+        if (!isOutcomeOrSource) metric.growth_text = `${sign} ${absPct}% ${suffix}`;
+        metric.is_positive = pct >= 0;
       }
-      const pct = Math.round(((curr - prev) / prev) * 100);
-      const sign = pct >= 0 ? "↑" : "↓";
-      const absPct = Math.abs(pct);
-      return {
-        count: curr,
-        growth: isOutcomeOrSource ? `${absPct}% ${sign}` : `${sign} ${absPct}%`,
-        growth_text: isOutcomeOrSource ? "" : `${sign} ${absPct}% ${suffix}`,
-        is_positive: pct >= 0
-      };
+      return metric;
+    }
+
+    // Helper for sub-client metrics calculation
+    async function getClientStats(clientToken) {
+      let clientAgents = [];
+      try {
+        const rawAgentsList = await listAgents(clientToken);
+        clientAgents = Array.isArray(rawAgentsList) ? rawAgentsList : [];
+      } catch (err) {
+        console.error("[getClientStats-agents-error]", err.message);
+        return { meetingsCount: 0, totalPings: 0 };
+      }
+
+      let allCurrentSessions = [];
+      for (const agent of clientAgents) {
+        let agentSessions = [];
+        try {
+          const rawSessions = await getVisitorSessions(agent.agent_id, clientToken);
+          agentSessions = Array.isArray(rawSessions) ? rawSessions : [];
+        } catch (err) {
+          console.error(`[getClientStats-sessions-error] Agent: ${agent.agent_id}`, err.message);
+        }
+
+        // Filter current sessions
+        const current = agentSessions.filter(sess => {
+          if (!currentStart && !currentEnd) return true;
+          const t = new Date(sess.created_at || sess.updated_at || 0);
+          if (currentStart && t < currentStart) return false;
+          if (currentEnd && t > currentEnd) return false;
+          return true;
+        });
+        allCurrentSessions.push(...current);
+      }
+
+      // Calculate meetings_count
+      let meetingsCount = 0;
+      allCurrentSessions.forEach(sess => {
+        if (sess) {
+          if (classifyOutcome(sess) === "meetings") {
+            meetingsCount++;
+          }
+        }
+      });
+
+      // Calculate total_pings
+      let totalPings = 0;
+      const batchSize = 15;
+      for (let i = 0; i < allCurrentSessions.length; i += batchSize) {
+        const batch = allCurrentSessions.slice(i, i + batchSize);
+        const results = await Promise.all(
+          batch.map(s => getSessionHistory(s.session_id, clientToken).then(hist => (Array.isArray(hist) ? hist.length : 0)).catch(() => 0))
+        );
+        totalPings += results.reduce((a, b) => a + b, 0);
+      }
+
+      return { meetingsCount, totalPings };
     }
 
     const resAgents = agentsList.map(ag => ({
@@ -492,6 +544,58 @@ async function getPingStatsHandler(req, res) {
       is_root: ag.category === "root_assistant" || ag.is_root || false,
       total_visitors: agentVisitorsMap[ag.agent_id] || 0
     }));
+
+    // 6. Fetch reseller sub-clients breakdown
+    const clientsBreakdown = [];
+
+    // Add main owner client details
+    clientsBreakdown.push({
+      client_id: (ceo && ceo.ragClientId) ? ceo.ragClientId : "c_owner_123",
+      name: (ceo && ceo.name) ? ceo.name : "Main Office Admin",
+      business_name: (ceo && ceo.company) ? ceo.company : "Acme Corp",
+      meetings_count: currentOutcomes.meetings,
+      total_pings: currentPings
+    });
+
+    try {
+      const ragData = await listSubUsers();
+      if (ragData && ragData.success && Array.isArray(ragData.users)) {
+        // Filter out owner client if returned to prevent duplication
+        const subUsers = ragData.users.filter(u => {
+          if (!u.client_id) return false;
+          if (ceo && ceo.ragClientId && u.client_id === ceo.ragClientId) return false;
+          return true;
+        });
+
+        // Parallel stats retrieval for sub-clients
+        const subClientsStats = await Promise.all(
+          subUsers.map(async (u) => {
+            try {
+              const stats = await getClientStats(u.token);
+              return {
+                client_id: u.client_id,
+                name: u.name || "Sub-Client",
+                business_name: u.business_name || u.name || "",
+                meetings_count: stats.meetingsCount,
+                total_pings: stats.totalPings
+              };
+            } catch (err) {
+              console.error(`[ping-stats-subclient-error] Client: ${u.client_id}`, err.message);
+              return {
+                client_id: u.client_id,
+                name: u.name || "Sub-Client",
+                business_name: u.business_name || u.name || "",
+                meetings_count: 0,
+                total_pings: 0
+              };
+            }
+          })
+        );
+        clientsBreakdown.push(...subClientsStats);
+      }
+    } catch (err) {
+      console.error("[ping-stats-list-subusers-error]", err.message);
+    }
 
     return res.json({
       total_pings: getGrowthMetrics(currentPings, previousPings, false),
@@ -509,7 +613,8 @@ async function getPingStatsHandler(req, res) {
         feedback: getGrowthMetrics(currentOutcomes.feedback, previousOutcomes.feedback, true),
         others: getGrowthMetrics(currentOutcomes.others, previousOutcomes.others, true)
       },
-      agents: resAgents
+      agents: resAgents,
+      clients: clientsBreakdown
     });
 
   } catch (err) {

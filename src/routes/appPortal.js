@@ -4711,7 +4711,8 @@ const campaignLogSchema = new (require("mongoose").Schema)(
     sentCount: { type: Number, default: 0 },
     totalContacts: { type: Number, default: 0 },
     scheduledAt: { type: Date },
-    lastDispatchedAt: { type: Date }
+    lastDispatchedAt: { type: Date },
+    variablesMapping: { type: Object, default: {} }
   },
   { timestamps: true }
 );
@@ -4885,6 +4886,7 @@ router.post("/whatsapp/campaigns", async (req, res) => {
             templateName: templateName || name,
             groupId: String(resolvedGroup || ""),
             groupName: groupName || "Target Group",
+            variablesMapping: variablesMapping || {},
             status: scheduledAt ? "scheduled" : "draft",
             scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined
           },
@@ -5011,10 +5013,11 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
     // 2. Fetch Template Details to get meta template name
     let templateName = "";
     let language = "en";
+    let matchedTemplate = null;
     try {
       const tListRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/templates`, { headers });
       const tList = tListRes.data?.data?.templates || tListRes.data?.templates || [];
-      const matchedTemplate = tList.find(t => t._id === campaign.template || t.name === campaign.template || t.whatsappTemplateName === campaign.template);
+      matchedTemplate = tList.find(t => t._id === campaign.template || t.name === campaign.template || t.whatsappTemplateName === campaign.template);
       if (matchedTemplate) {
         templateName = matchedTemplate.whatsappTemplateName || matchedTemplate.name.toLowerCase().replace(/\s+/g, "_");
         language = (matchedTemplate.languageCode || matchedTemplate.language || "en").toLowerCase();
@@ -5027,45 +5030,70 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
       templateName = (campaign.template || "ai_assistant").toLowerCase().replace(/\s+/g, "_");
     }
 
-    // 3. Fetch Contacts from Whats AI for the selected group ONLY
-    const partnerKeyForGroup = process.env.WHATS_AI_PARTNER_KEY;
-    const masterHeaders = {
-      "Authorization": `Bearer ${await getWhatsAiClientToken()}`,
-      "x-api-key": partnerKeyForGroup,
-      "Content-Type": "application/json"
-    };
-
+    // 3. Fetch Contacts from Whats AI and local MongoDB for the selected group
     let targetContacts = [];
     let resolvedGroupName = campaign.targetGroup;
 
-    // Fetch all contacts from Whats AI and filter by the campaign's targetGroup ID
-    try {
-      const contactsRes = await axios.get(
-        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
-        { headers: masterHeaders, timeout: 15000 }
-      );
-      const allContacts = contactsRes.data?.data?.contacts || contactsRes.data?.contacts || [];
+    // Check if there is a local MongoDB Group
+    const { Group } = require("../models/Group");
+    const { Contact } = require("../models/Contact");
+    const ceoIdForGroup = req.user?.role === "CEO" ? req.user.sub : undefined;
 
-      targetContacts = allContacts.filter(c => {
-        const groupArr = Array.isArray(c.group) ? c.group : [c.group].filter(Boolean);
-        return groupArr.some(g => {
-          const gid = (g._id || g.id || g || "").toString();
-          return gid === campaign.targetGroup;
+    let mongoGroup = null;
+    if (/^[0-9a-fA-F]{24}$/.test(campaign.targetGroup)) {
+      mongoGroup = await Group.findById(campaign.targetGroup);
+    }
+    if (!mongoGroup) {
+      mongoGroup = await Group.findOne({ name: campaign.targetGroup, ...(ceoIdForGroup ? { ceoId: ceoIdForGroup } : {}) });
+    }
+
+    if (mongoGroup && Array.isArray(mongoGroup.members) && mongoGroup.members.length > 0) {
+      try {
+        const dbMembers = await Contact.find({ _id: { $in: mongoGroup.members } });
+        dbMembers.forEach(c => {
+          targetContacts.push({
+            id: c._id.toString(),
+            name: c.name,
+            phone: c.phone,
+            source: "People Directory"
+          });
         });
-      });
-
-      // Try to resolve group name for logging
-      const gListRes = await axios.get(
-        `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
-        { headers: masterHeaders, timeout: 8000 }
-      ).catch(() => null);
-      if (gListRes) {
-        const groups = gListRes.data?.data?.groups || gListRes.data?.groups || [];
-        const matchedGroup = groups.find(g => (g._id || g.id || "").toString() === campaign.targetGroup);
-        if (matchedGroup) resolvedGroupName = matchedGroup.name;
+        resolvedGroupName = mongoGroup.name;
+      } catch (dbErr) {
+        console.warn("[whatsapp-send] Failed to fetch MongoDB group members:", dbErr.message);
       }
-    } catch (e) {
-      console.warn("[whatsapp-send] Could not fetch contacts from Whats AI:", e.message);
+    }
+
+    // Fallback to fetch from Whats AI if local group has no members
+    if (targetContacts.length === 0) {
+      try {
+        const contactsRes = await axios.get(
+          `${apiBaseUrl.replace(/\/$/, "")}/api/contacts`,
+          { headers, timeout: 15000 }
+        );
+        const allContacts = contactsRes.data?.data?.contacts || contactsRes.data?.contacts || [];
+
+        targetContacts = allContacts.filter(c => {
+          const groupArr = Array.isArray(c.group) ? c.group : [c.group].filter(Boolean);
+          return groupArr.some(g => {
+            const gid = (g._id || g.id || g || "").toString();
+            return gid === campaign.targetGroup;
+          });
+        });
+
+        // Try to resolve group name for logging
+        const gListRes = await axios.get(
+          `${apiBaseUrl.replace(/\/$/, "")}/api/contacts/groups`,
+          { headers, timeout: 8000 }
+        ).catch(() => null);
+        if (gListRes) {
+          const groups = gListRes.data?.data?.groups || gListRes.data?.groups || [];
+          const matchedGroup = groups.find(g => (g._id || g.id || "").toString() === campaign.targetGroup);
+          if (matchedGroup) resolvedGroupName = matchedGroup.name;
+        }
+      } catch (e) {
+        console.warn("[whatsapp-send] Could not fetch contacts from Whats AI:", e.message);
+      }
     }
 
     // If group has no members, stop the campaign — do NOT fallback to all contacts
@@ -5079,98 +5107,119 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
 
     console.log(`[whatsapp-send] Broadcasting campaign "${campaign.name}" to ${targetContacts.length} contacts using template "${templateName}"`);
 
-    // 4. Dispatch messages via POST /api/inbox/send-template
-    let sentCount = 0;
-    const errors = [];
-
-    for (const contact of targetContacts) {
-      const rawPhone = contact.phone || contact.customerPhone || "";
-      let digits = String(rawPhone).replace(/[^0-9]/g, "");
-      // If starts with 0 (e.g. 07970906978), strip all leading 0s
-      digits = digits.replace(/^0+/, "");
-      
-      let formattedPhone = "";
-      if (digits.length === 10) {
-        formattedPhone = `91${digits}`;
-      } else if (digits.length === 12 && digits.startsWith("91")) {
-        formattedPhone = digits;
-      } else if (digits.length > 10) {
-        // Handle any international or already formatted number
-        formattedPhone = digits;
-      }
-      if (!formattedPhone || formattedPhone.length < 10) continue;
-
-      const contactName = contact.name || contact.customerName || "Customer";
-
-      // Map variables
-      const rawVars = campaign.variablesMapping || {};
-      const variablesArray = [];
-      Object.keys(rawVars).forEach(k => {
-        let v = rawVars[k];
-        if (v === "{{contact.name}}" || v === "Recipient Contact Name") {
-          v = contactName;
-        } else if (v === "{{ceo.name}}" || v === "Lakshmi Raj Singh") {
-          v = ceo?.name || "Lakshmi Raj Singh";
-        }
-        variablesArray.push({ key: String(k), value: String(v) });
-      });
-
-      if (variablesArray.length === 0) {
-        variablesArray.push({ key: "1", value: contactName });
-      }
-
-      try {
-        await axios.post(`${apiBaseUrl.replace(/\/$/, "")}/api/inbox/send-template`, {
-          phone: formattedPhone,
-          templateName,
-          language,
-          variables: variablesArray
-        }, { headers });
-        sentCount++;
-      } catch (errSend) {
-        const msg = errSend.response ? JSON.stringify(errSend.response.data) : errSend.message;
-        console.error(`[whatsapp-send-contact-error] ${formattedPhone}:`, msg);
-        errors.push({ phone: formattedPhone, error: msg });
-      }
-    }
-
-    // Persist campaign completion and sent metrics locally for CEO
-    if (ceo) {
-      try {
-        await WhatsAppCampaignLog.findOneAndUpdate(
-          { campaignId: String(id), ceoId: ceo._id },
-          {
-            status: "completed",
-            sentCount,
-            totalContacts: targetContacts.length,
-            lastDispatchedAt: new Date()
-          },
-          { upsert: true, new: true }
-        );
-      } catch (e) {
-        console.warn("[whatsapp-send] Failed to save local campaign log:", e.message);
-      }
-    }
-
-    // Update campaign status on Whats AI to completed
-    try {
-      await axios.patch(`${apiBaseUrl.replace(/\/$/, "")}/api/campaigns/${id}`, {
-        status: "completed",
-        totalContacts: targetContacts.length,
-        sent: sentCount
-      }, { headers });
-    } catch (e) {
-      console.warn("[whatsapp-send] Could not patch campaign status:", e.message);
-    }
-
-    return res.json({
+    // Return instant success response to client to prevent timeouts
+    res.json({
       success: true,
-      message: `Broadcast completed: ${sentCount}/${targetContacts.length} sent successfully.`,
-      sentCount,
+      message: `Broadcast initiated for ${targetContacts.length} contact(s).`,
+      sentCount: 0,
       totalContacts: targetContacts.length,
-      status: "completed",
-      errors: errors.length > 0 ? errors : undefined
+      status: "sending"
     });
+
+    // Run dispatch loop in background
+    (async () => {
+      let sentCount = 0;
+      const errors = [];
+
+      for (const contact of targetContacts) {
+        const rawPhone = contact.phone || contact.customerPhone || "";
+        let digits = String(rawPhone).replace(/[^0-9]/g, "");
+        // If starts with 0 (e.g. 07970906978), strip all leading 0s
+        digits = digits.replace(/^0+/, "");
+        
+        let formattedPhone = "";
+        if (digits.length === 10) {
+          formattedPhone = `91${digits}`;
+        } else if (digits.length === 12 && digits.startsWith("91")) {
+          formattedPhone = digits;
+        } else if (digits.length > 10) {
+          // Handle any international or already formatted number
+          formattedPhone = digits;
+        }
+        if (!formattedPhone || formattedPhone.length < 10) continue;
+
+        const contactName = contact.name || contact.customerName || "Customer";
+
+        // Map variables
+        const campaignLog = await WhatsAppCampaignLog.findOne({ campaignId: String(id) });
+        const rawVars = req.body?.variablesMapping || campaign.variablesMapping || campaignLog?.variablesMapping || {};
+        const variablesArray = [];
+        Object.keys(rawVars).forEach(k => {
+          let v = rawVars[k];
+          if (v === "{{contact.name}}" || v === "Recipient Contact Name") {
+            v = contactName;
+          } else if (v === "{{ceo.name}}" || v === "Lakshmi Raj Singh") {
+            v = ceo?.name || "Lakshmi Raj Singh";
+          }
+          variablesArray.push({ key: String(k), value: String(v) });
+        });
+
+        // Fail-safe: If template expects parameters that weren't mapped, auto-fill from sampleParams or CEO name
+        if (matchedTemplate && Array.isArray(matchedTemplate.sampleParams) && matchedTemplate.sampleParams.length > 0) {
+          matchedTemplate.sampleParams.forEach(sp => {
+            const keyStr = String(sp.key || "");
+            if (keyStr && !variablesArray.find(va => va.key === keyStr)) {
+              let val = sp.value || "";
+              if (keyStr === "1") val = contactName;
+              else if (keyStr === "2") val = ceo?.name || "Lakshmi Raj Singh";
+              variablesArray.push({ key: keyStr, value: String(val) });
+            }
+          });
+        }
+
+        if (variablesArray.length === 0) {
+          variablesArray.push({ key: "1", value: contactName });
+        }
+
+        try {
+          await axios.post(`${apiBaseUrl.replace(/\/$/, "")}/api/inbox/send-template`, {
+            phone: formattedPhone,
+            templateName,
+            language,
+            variables: variablesArray
+          }, { headers });
+          sentCount++;
+        } catch (errSend) {
+          const msg = errSend.response ? JSON.stringify(errSend.response.data) : errSend.message;
+          console.error(`[whatsapp-send-contact-error] ${formattedPhone}:`, msg);
+          errors.push({ phone: formattedPhone, error: msg });
+        }
+      }
+
+      // Persist campaign completion and sent metrics locally for CEO
+      if (ceo) {
+        try {
+          await WhatsAppCampaignLog.findOneAndUpdate(
+            { campaignId: String(id), ceoId: ceo._id },
+            {
+              status: "completed",
+              sentCount,
+              totalContacts: targetContacts.length,
+              lastDispatchedAt: new Date()
+            },
+            { upsert: true, new: true }
+          );
+        } catch (e) {
+          console.warn("[whatsapp-send] Failed to save local campaign log:", e.message);
+        }
+      }
+
+      // Update campaign status on Whats AI to completed
+      try {
+        const patchHeaders = { ...headers };
+        delete patchHeaders["x-client-id"];
+        await axios.patch(`${apiBaseUrl.replace(/\/$/, "")}/api/campaigns/${id}`, {
+          status: "completed",
+          totalContacts: targetContacts.length,
+          sent: sentCount
+        }, { headers: patchHeaders });
+      } catch (e) {
+        // Silent catch for Whats AI bug
+      }
+    })().catch(errBg => {
+      console.error("[whatsapp-send-bg-error]", errBg.message);
+    });
+
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
     console.error("[whatsapp-send-campaign-error]", errorMsg);
