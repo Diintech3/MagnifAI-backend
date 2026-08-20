@@ -5877,7 +5877,7 @@ router.get("/ads/:campaignId/status", async (req, res) => {
 
     let headers;
     try {
-      headers = await getAdplifAiHeaders(req);
+      headers = getAdplifAiPartnerHeaders();
     } catch (headErr) {
       return res.status(400).json({ error: "AUTH_HEADERS_FAILED", message: headErr.message });
     }
@@ -5890,6 +5890,106 @@ router.get("/ads/:campaignId/status", async (req, res) => {
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
     return res.status(err.response?.status || 500).json({ error: "STATUS_FAILED", message: errorMsg });
+  }
+});
+
+router.get("/ads/campaigns", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+    const headers = getAdplifAiPartnerHeaders();
+
+    if (!baseUrl) {
+      return res.status(500).json({ error: "ADPLIFAI_INTEGRATION_CONFIG_MISSING" });
+    }
+
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+    if (!ceo || !ceo.adplifAiClientId) {
+      return res.json({ success: true, data: { campaigns: [] } });
+    }
+
+    const response = await axios.get(
+      `${baseUrl.replace(/\/$/, "")}/partner/clients/${ceo.adplifAiClientId}/campaigns`,
+      { headers }
+    );
+
+    if (response.data && response.data.success && Array.isArray(response.data.data)) {
+      const mapped = response.data.data.map(c => ({
+        ...c,
+        campaignName: c.campaignName || c.name || "Ad Campaign"
+      }));
+      return res.json({
+        success: true,
+        data: {
+          campaigns: mapped
+        }
+      });
+    }
+
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    return res.status(err.response?.status || 500).json({ error: "GET_CAMPAIGNS_FAILED", message: errorMsg });
+  }
+});
+
+router.get("/ads/clients", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+
+    let headers;
+    try {
+      headers = getAdplifAiPartnerHeaders();
+    } catch (headErr) {
+      return res.status(400).json({ error: "AUTH_HEADERS_FAILED", message: headErr.message });
+    }
+
+    const response = await axios.get(
+      `${baseUrl.replace(/\/$/, "")}/partner/clients`,
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    return res.status(err.response?.status || 500).json({ error: "GET_CLIENTS_FAILED", message: errorMsg });
+  }
+});
+
+router.get("/ads/clients/:clientId/campaigns", async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+
+    let headers;
+    try {
+      headers = getAdplifAiPartnerHeaders();
+    } catch (headErr) {
+      return res.status(400).json({ error: "AUTH_HEADERS_FAILED", message: headErr.message });
+    }
+
+    const response = await axios.get(
+      `${baseUrl.replace(/\/$/, "")}/partner/clients/${clientId}/campaigns`,
+      { headers }
+    );
+
+    if (response.data && response.data.success && Array.isArray(response.data.data)) {
+      const mapped = response.data.data.map(c => ({
+        ...c,
+        campaignName: c.campaignName || c.name || "Ad Campaign"
+      }));
+      return res.json({
+        success: true,
+        data: mapped
+      });
+    }
+
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    return res.status(err.response?.status || 500).json({ error: "GET_CLIENT_CAMPAIGNS_FAILED", message: errorMsg });
   }
 });
 
