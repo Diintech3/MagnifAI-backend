@@ -505,14 +505,14 @@ async function getPingStatsHandler(req, res) {
           metric.growth = "0%";
           if (!isOutcomeOrSource) metric.growth_text = `0% ${suffix}`;
         } else {
-          metric.growth = isOutcomeOrSource ? "100% ↑" : "↑ 100%";
+          metric.growth = "↑ 100%";
           if (!isOutcomeOrSource) metric.growth_text = `↑ 100% ${suffix}`;
         }
       } else {
         const pct = Math.round(((curr - prev) / prev) * 100);
         const sign = pct >= 0 ? "↑" : "↓";
         const absPct = Math.abs(pct);
-        metric.growth = isOutcomeOrSource ? `${absPct}% ${sign}` : `${sign} ${absPct}%`;
+        metric.growth = `${sign} ${absPct}%`;
         if (!isOutcomeOrSource) metric.growth_text = `${sign} ${absPct}% ${suffix}`;
         metric.is_positive = pct >= 0;
       }
@@ -524,7 +524,8 @@ async function getPingStatsHandler(req, res) {
       let clientAgents = [];
       try {
         const rawAgentsList = await listAgents(clientToken);
-        clientAgents = Array.isArray(rawAgentsList) ? rawAgentsList : [];
+        clientAgents = (Array.isArray(rawAgentsList) ? rawAgentsList : [])
+          .filter(ag => ag.category !== "root_assistant" && !ag.is_root);
       } catch (err) {
         console.error("[getClientStats-agents-error]", err.message);
         return { meetingsCount: 0, totalPings: 0 };
