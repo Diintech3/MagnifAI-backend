@@ -3504,7 +3504,7 @@ router.post("/whatsapp/sync-ceo", async (req, res) => {
 
     if (clientId) {
       ceo.whatsAppClientId = clientId;
-      ceo.isWhatsAppConnected = isConfigured;
+      ceo.isWhatsAppConnected = (response.data?.data?.status === "active" || isConfigured);
       await ceo.save();
 
       // Automatically sync agentId if available
@@ -3531,7 +3531,7 @@ router.post("/whatsapp/sync-ceo", async (req, res) => {
     return res.json({
       success: true,
       message: "CEO synced successfully with Whats AI",
-      whatsappConfigured: isConfigured,
+      whatsappConfigured: ceo.isWhatsAppConnected,
       agentId: ceo.agentId || "",
       data: response.data
     });
@@ -5372,6 +5372,36 @@ router.get("/whatsapp/campaigns/:id", async (req, res) => {
       `${apiBaseUrl.replace(/\/$/, "")}/api/campaigns/${id}`,
       { headers }
     );
+
+    // Enrich campaign details if response is successful
+    if (response.data && response.data.success && response.data.data) {
+      const campaign = response.data.data.campaign;
+      const messages = response.data.data.messages || [];
+
+      // 1. Resolve Template details from local MongoDB logs
+      const log = await WhatsAppCampaignLog.findOne({ campaignId: String(id) });
+      if (log) {
+        campaign.templateName = log.templateName;
+        campaign.groupName = log.groupName;
+        campaign.variablesMapping = log.variablesMapping;
+      }
+
+      // 2. Resolve Contact Names from phone numbers
+      if (messages.length > 0) {
+        const { Contact } = require("../models/Contact");
+        const phones = messages.map(m => m.to.replace(/\D/g, "").replace(/^91/, ""));
+        const localContacts = await Contact.find({
+          phone: { $in: phones.map(p => new RegExp(p + "$")) }
+        });
+        
+        messages.forEach(msg => {
+          const rawPhone = msg.to.replace(/\D/g, "").replace(/^91/, "");
+          const matchedContact = localContacts.find(c => c.phone.replace(/\D/g, "").endsWith(rawPhone));
+          msg.contactName = matchedContact ? matchedContact.name : "Customer";
+        });
+      }
+    }
+
     return res.json(response.data);
   } catch (err) {
     const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
