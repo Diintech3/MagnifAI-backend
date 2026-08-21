@@ -6032,6 +6032,62 @@ router.get("/ads/clients/:clientId/campaigns", async (req, res) => {
   }
 });
 
+router.get("/ads/analytics-summary", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+    const headers = getAdplifAiPartnerHeaders();
+
+    if (!baseUrl) {
+      return res.status(500).json({ error: "ADPLIFAI_INTEGRATION_CONFIG_MISSING" });
+    }
+
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+    if (!ceo || !ceo.adplifAiClientId) {
+      return res.json({
+        success: true,
+        data: {
+          clientId: null,
+          metaSummary: { totalSpend: 0, totalImpressions: 0, totalClicks: 0, totalReach: 0, ctr: 0, cpc: 0 },
+          googleSummary: { totalSpend: 0, totalImpressions: 0, totalClicks: 0, totalReach: 0, ctr: 0, cpc: 0 }
+        }
+      });
+    }
+
+    const response = await axios.get(
+      `${baseUrl.replace(/\/$/, "")}/partner/clients/${ceo.adplifAiClientId}/analytics-summary`,
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    return res.status(err.response?.status || 500).json({ error: "GET_ANALYTICS_SUMMARY_FAILED", message: errorMsg });
+  }
+});
+
+router.get("/ads/clients/:clientId/analytics-summary", async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const axios = require("axios");
+    const baseUrl = process.env.ADPLIFAI_API_BASE_URL;
+    const headers = getAdplifAiPartnerHeaders();
+
+    if (!baseUrl) {
+      return res.status(500).json({ error: "ADPLIFAI_INTEGRATION_CONFIG_MISSING" });
+    }
+
+    const response = await axios.get(
+      `${baseUrl.replace(/\/$/, "")}/partner/clients/${clientId}/analytics-summary`,
+      { headers }
+    );
+    return res.json(response.data);
+  } catch (err) {
+    const errorMsg = err.response ? JSON.stringify(err.response.data) : err.message;
+    return res.status(err.response?.status || 500).json({ error: "GET_CLIENT_ANALYTICS_SUMMARY_FAILED", message: errorMsg });
+  }
+});
+
 router.post("/ads/upload", logoUpload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
