@@ -5386,6 +5386,24 @@ router.get("/whatsapp/campaigns/:id", async (req, res) => {
         campaign.variablesMapping = log.variablesMapping;
       }
 
+      // Fetch actual template text body and variable metadata from Whats AI
+      if (campaign.template) {
+        try {
+          const tempRes = await axios.get(
+            `${apiBaseUrl.replace(/\/$/, "")}/api/templates/${campaign.template}`,
+            { headers }
+          );
+          if (tempRes.data && tempRes.data.success && tempRes.data.data) {
+            campaign.templateBodyText = tempRes.data.data.bodyText || "";
+            campaign.templateHeaderText = tempRes.data.data.headerText || "";
+            campaign.templateFooterText = tempRes.data.data.footerText || "";
+            campaign.templateVariables = tempRes.data.data.variables || [];
+          }
+        } catch (tempErr) {
+          console.warn("Failed to fetch template detail for enrichment:", tempErr.message);
+        }
+      }
+
       // 2. Resolve Contact Names from phone numbers
       if (messages.length > 0) {
         const { Contact } = require("../models/Contact");

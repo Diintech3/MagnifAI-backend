@@ -341,7 +341,8 @@ async function getPingStatsHandler(req, res) {
     // 4. Fetch Agents
     const { listAgents, getVisitorSessions, getSessionHistory, listSubUsers } = require("../services/agentAiService");
     const rawAgentsList = await listAgents(token);
-    const agentsList = Array.isArray(rawAgentsList) ? rawAgentsList : [];
+    const agentsList = (Array.isArray(rawAgentsList) ? rawAgentsList : [])
+      .filter(ag => ag.category !== "root_assistant" && !ag.is_root);
 
     // Classifiers
     function classifySource(sess) {
