@@ -1255,7 +1255,7 @@ router.get("/ceos", async (req, res) => {
         if (!u.email) continue;
         const email = u.email.toLowerCase();
 
-        let ceo = await CEO.findOne({ email });
+        let ceo = await CEO.findOne({ $or: [{ ragClientId: u.client_id }, { email }] });
         let agentIdVal = ceo?.agentId;
 
         // Only query external RAG server if the CEO doesn't have an agentId mapped locally yet
@@ -1330,7 +1330,7 @@ router.get("/ceos", async (req, res) => {
   }
 
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
-  const filter = { appId: app._id };
+  const filter = { appId: app._id, isActive: { $ne: false } };
   if (q) {
     const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
     filter.$or = [{ name: re }, { company: re }, { email: re }, { mobile: re }, { industry: re }];
@@ -1478,7 +1478,10 @@ router.patch("/ceos/:id", ceoPhotoUpload, async (req, res) => {
 router.delete("/ceos/:id", async (req, res) => {
   const app = await getAppForUser(req);
   if (!app) return res.status(404).json({ error: "NOT_FOUND" });
-  const deleted = await CEO.findOneAndDelete({ _id: req.params.id, appId: app._id });
+  const deleted = await CEO.findOneAndUpdate(
+    { _id: req.params.id, appId: app._id },
+    { $set: { isActive: false } }
+  );
   if (!deleted) return res.status(404).json({ error: "NOT_FOUND" });
   return res.json({ ok: true });
 });
@@ -5019,7 +5022,13 @@ router.post("/whatsapp/campaigns/:id/send", async (req, res) => {
     try {
       const tListRes = await axios.get(`${apiBaseUrl.replace(/\/$/, "")}/api/templates`, { headers });
       const tList = tListRes.data?.data?.templates || tListRes.data?.templates || [];
-      matchedTemplate = tList.find(t => t._id === campaign.template || t.name === campaign.template || t.whatsappTemplateName === campaign.template);
+      const rawTemplate = campaign.template || campaign.templateId;
+      const campaignTemplateId = typeof rawTemplate === "object" ? (rawTemplate._id || rawTemplate.id) : rawTemplate;
+      matchedTemplate = tList.find(t => 
+        String(t._id || t.id || "") === String(campaignTemplateId || "") ||
+        String(t.name || "").toLowerCase() === String(campaignTemplateId || "").toLowerCase() ||
+        String(t.whatsappTemplateName || "").toLowerCase() === String(campaignTemplateId || "").toLowerCase()
+      );
       if (matchedTemplate) {
         templateName = matchedTemplate.whatsappTemplateName || matchedTemplate.name.toLowerCase().replace(/\s+/g, "_");
         language = (matchedTemplate.languageCode || matchedTemplate.language || "en").toLowerCase();
@@ -6003,6 +6012,19 @@ router.post("/ads/upload", logoUpload.single("file"), async (req, res) => {
   } catch (err) {
     console.error("[ads-upload-error]", err.message);
     return res.status(500).json({ error: "UPLOAD_FAILED", message: err.message });
+  }
+});
+
+router.post("/whatsapp/upload-media", logoUpload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: "No file uploaded" });
+    }
+    const uploaded = await uploadToR2(req.file, "whatsapp/media");
+    return res.json({ success: true, url: uploaded.url });
+  } catch (err) {
+    console.error("[whatsapp-upload-error]", err.message);
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
