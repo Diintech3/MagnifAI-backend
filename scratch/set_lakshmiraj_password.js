@@ -9,9 +9,9 @@ async function setPassword() {
     console.log("Connected to MongoDB.");
     const ceo = await CEO.findOne({ email: "singhlakshmiraj@gmail.com" });
     if (ceo) {
-      ceo.passwordHash = await hashPassword("password123");
+      ceo.passwordHash = await hashPassword("singhlakshmiraj@3210");
       await ceo.save();
-      console.log("SUCCESS: Password updated successfully to 'password123'!");
+      console.log("SUCCESS: Password updated successfully to 'singhlakshmiraj@3210'!");
     } else {
       console.log("ERROR: CEO not found.");
     }

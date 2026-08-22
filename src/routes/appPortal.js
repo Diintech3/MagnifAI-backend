@@ -5378,26 +5378,43 @@ router.get("/whatsapp/campaigns/:id", async (req, res) => {
       const campaign = response.data.data.campaign;
       const messages = response.data.data.messages || [];
 
-      // 1. Resolve Template details from local MongoDB logs
+      // 1. Resolve Template & Group details from local MongoDB logs
       const log = await WhatsAppCampaignLog.findOne({ campaignId: String(id) });
       if (log) {
-        campaign.templateName = log.templateName;
-        campaign.groupName = log.groupName;
-        campaign.variablesMapping = log.variablesMapping;
+        campaign.templateName = log.templateName || campaign.templateName;
+        campaign.groupName = log.groupName || campaign.groupName;
+        campaign.variablesMapping = log.variablesMapping || campaign.variablesMapping;
+        if (log.status) campaign.status = log.status;
+        if (log.sentCount != null) campaign.sent = log.sentCount;
+        if (log.totalContacts != null) campaign.totalContacts = log.totalContacts;
       }
 
-      // Fetch actual template text body and variable metadata from Whats AI
-      if (campaign.template) {
+      // If populated template object is present from W-A-backend
+      if (typeof campaign.template === "object" && campaign.template) {
+        campaign.templateName = campaign.templateName || campaign.template.name || campaign.template.whatsappTemplateName;
+        campaign.templateBodyText = campaign.template.bodyPreview || "";
+        campaign.templateHeaderText = campaign.template.headerText || "";
+        campaign.templateFooterText = campaign.template.footerText || "";
+        campaign.templateVariables = campaign.template.sampleParams || [];
+      }
+
+      if (typeof campaign.targetGroup === "object" && campaign.targetGroup) {
+        campaign.groupName = campaign.groupName || campaign.targetGroup.name;
+      }
+
+      // Fetch actual template text body and variable metadata from Whats AI if still needed
+      const rawTemplateId = typeof campaign.template === "object" ? (campaign.template._id || campaign.template.id) : campaign.template;
+      if (rawTemplateId && (!campaign.templateBodyText || !campaign.templateVariables?.length)) {
         try {
           const tempRes = await axios.get(
-            `${apiBaseUrl.replace(/\/$/, "")}/api/templates/${campaign.template}`,
+            `${apiBaseUrl.replace(/\/$/, "")}/api/templates/${rawTemplateId}`,
             { headers }
           );
           if (tempRes.data && tempRes.data.success && tempRes.data.data) {
-            campaign.templateBodyText = tempRes.data.data.bodyText || "";
-            campaign.templateHeaderText = tempRes.data.data.headerText || "";
-            campaign.templateFooterText = tempRes.data.data.footerText || "";
-            campaign.templateVariables = tempRes.data.data.variables || [];
+            campaign.templateBodyText = tempRes.data.data.bodyText || campaign.templateBodyText || "";
+            campaign.templateHeaderText = tempRes.data.data.headerText || campaign.templateHeaderText || "";
+            campaign.templateFooterText = tempRes.data.data.footerText || campaign.templateFooterText || "";
+            campaign.templateVariables = tempRes.data.data.variables || campaign.templateVariables || [];
           }
         } catch (tempErr) {
           console.warn("Failed to fetch template detail for enrichment:", tempErr.message);
