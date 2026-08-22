@@ -72,6 +72,9 @@ function createApp() {
   app.use("/api/root-agent", requireAuth, rootAgentRouter);
   app.use("/api/paai-chat", requireAuth, requireRole("CEO"), paaiChatRouter);
   app.use("/api/clients", requireAuth, clientsRouter);
+  
+  const { telephonyRouter } = require("./routes/telephony");
+  app.use("/api/telephony", telephonyRouter);
 
   // fallback
   app.use((_req, res) => res.status(404).json({ error: "NOT_FOUND" }));

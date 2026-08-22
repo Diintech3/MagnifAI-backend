@@ -201,6 +201,17 @@ router.get("/:agent_id/session-status", async (req, res) => {
   try {
     const { agent_id } = req.params;
     const { device_id, session_id } = req.query;
+    
+    const { CallSession } = require("../models/CallSession");
+    const query = { agent_id };
+    if (session_id) query.session_id = session_id;
+    else if (device_id) query.device_id = device_id;
+    
+    const localSession = await CallSession.findOne(query);
+    if (localSession) {
+      return res.json(localSession);
+    }
+    
     const clientToken = await resolveToken(req, agent_id);
     const data = await getPublicSessionStatus(agent_id, device_id, session_id, clientToken);
     return res.json(data);
@@ -744,9 +755,41 @@ router.delete("/:agent_id/sources/:source_id", async (req, res) => {
 router.get("/:agent_id/sessions", async (req, res) => {
   try {
     const { agent_id } = req.params;
-    const token = await resolveToken(req, agent_id);
-    const data = await getVisitorSessions(agent_id, token);
-    return res.json(data);
+    const { CallSession } = require("../models/CallSession");
+    
+    // 1. Query local CallSession collection
+    const localSessions = await CallSession.find({ agent_id }).sort({ created_at: -1 });
+    
+    // 2. Fetch remote sessions from Vectorize
+    let remoteSessions = [];
+    try {
+      const token = await resolveToken(req, agent_id);
+      const data = await getVisitorSessions(agent_id, token);
+      if (Array.isArray(data)) {
+        remoteSessions = data;
+      }
+    } catch (e) {
+      console.error("[getVisitorSessions-fallback-error]", e.message);
+    }
+    
+    // 3. Merge them, preventing duplicates (prioritizing local ones)
+    const mergedMap = new Map();
+    remoteSessions.forEach(s => {
+      if (s.session_id) mergedMap.set(s.session_id, s);
+    });
+    localSessions.forEach(s => {
+      if (s.session_id) {
+        mergedMap.set(s.session_id, s.toObject ? s.toObject() : s);
+      }
+    });
+    
+    const mergedList = Array.from(mergedMap.values()).sort((a, b) => {
+      const dateA = new Date(a.created_at || a.createdAt || 0);
+      const dateB = new Date(b.created_at || b.createdAt || 0);
+      return dateB - dateA;
+    });
+    
+    return res.json(mergedList);
   } catch (err) {
     return res.status(500).json({ error: "GET_SESSIONS_ERROR", message: err.message });
   }
@@ -774,9 +817,23 @@ router.get("/:agent_id/user-sessions", async (req, res) => {
 router.get("/sessions/:session_id/history", async (req, res) => {
   try {
     const { session_id } = req.params;
-    const token = await resolveToken(req);
-    const data = await getSessionHistory(session_id, token);
-    return res.json(data);
+    const { CallHistory } = require("../models/CallHistory");
+    
+    // Query local CallHistory collection
+    const localHistory = await CallHistory.find({ session_id }).sort({ created_at: 1 });
+    
+    if (localHistory.length === 0) {
+      try {
+        const token = await resolveToken(req);
+        const data = await getSessionHistory(session_id, token);
+        if (Array.isArray(data)) {
+          return res.json(data);
+        }
+      } catch (e) {
+        console.error("[getSessionHistory-fallback-error]", e.message);
+      }
+    }
+    return res.json(localHistory);
   } catch (err) {
     return res.status(500).json({ error: "GET_HISTORY_ERROR", message: err.message });
   }
@@ -789,6 +846,31 @@ router.get("/sessions/:session_id/history", async (req, res) => {
 router.post("/sessions/:session_id/analyze", async (req, res) => {
   try {
     const { session_id } = req.params;
+    const { CallSession } = require("../models/CallSession");
+    const { CallHistory } = require("../models/CallHistory");
+    
+    const session = await CallSession.findOne({ session_id });
+    if (session) {
+      const history = await CallHistory.find({ session_id }).sort({ created_at: 1 });
+      const userTurns = history.filter(h => h.role === "user").map(h => h.content);
+      const summaryText = userTurns.length > 0
+        ? `Call lasted for ${history.length} turns. User requested: "${userTurns.join(', ')}"`
+        : "Inbound call with no recorded voice response.";
+      const intentText = userTurns.length > 0 ? userTurns[0].substring(0, 50) : "No Response";
+      
+      const updated = await CallSession.findOneAndUpdate(
+        { session_id },
+        { 
+          analysis: {
+            intent: intentText,
+            summary: summaryText
+          }
+        },
+        { new: true }
+      );
+      return res.json(updated);
+    }
+    
     const token = await resolveToken(req);
     const data = await analyzeSession(session_id, token);
     return res.json(data);
