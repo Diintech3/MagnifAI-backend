@@ -2,6 +2,7 @@ const { Script } = require("../models/Script");
 const { checkJobStatus, isAiConfigured } = require("./ugcAiService");
 const { uploadToR2 } = require("../utils/r2");
 const axios = require("axios");
+const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
 
 let pollingInterval = null;
 const failedPollAttempts = {};
@@ -84,6 +85,43 @@ async function pollRealAiJobs() {
 
           await script.save();
           console.log(`[ugc-polling] Script "${script.title}" updated to status "Edited".`);
+
+          // YOVO AI Campaign auto-submission
+          if (script.campaignId && script.processedVideoUrl) {
+            console.log(`[ugc-polling] Script "${script.title}" is linked to campaign ${script.campaignId}. Triggering auto-submit to YOVO AI...`);
+            try {
+              const userIdStr = script.userId ? script.userId.toString() : "external-agent";
+              await axios.post(
+                `${yovoApiBaseUrl}/api/auth/user/campaign/register/${script.campaignId}`,
+                {
+                  userId: userIdStr,
+                  videoUrl: script.processedVideoUrl
+                },
+                { timeout: 8000 }
+              );
+              
+              await axios.post(
+                `${yovoApiBaseUrl}/api/auth/user/campaign/activeparticipants/${script.campaignId}`,
+                {
+                  userId: userIdStr
+                },
+                { timeout: 8000 }
+              );
+
+              // Also register the video response in YOVO AI's database so it shows up in dashboards
+              await axios.post(
+                `${yovoApiBaseUrl}/api/pools/user/response/${userIdStr}`,
+                {
+                  url: script.processedVideoUrl,
+                  campaignId: script.campaignId
+                },
+                { timeout: 8000 }
+              );
+              console.log(`[ugc-polling] YOVO AI submission successful for campaign ${script.campaignId}`);
+            } catch (submitErr) {
+              console.error(`[ugc-polling] YOVO AI submission failed for campaign ${script.campaignId}:`, submitErr.message);
+            }
+          }
         } else if (job.status === "failed") {
           console.error(`[ugc-polling] Script "${script.title}" AI editing failed on 3rdAI server:`, job.errorMessage);
           script.processingStatus = "failed";

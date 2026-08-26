@@ -19,6 +19,7 @@ const { rootAgentRouter } = require("./routes/calendar");
 const { paaiChatRouter } = require("./routes/paaiChat");
 const { clientsRouter } = require("./routes/clients");
 const { youtubeAuthRouter } = require("./routes/youtubeAuth");
+const { clientKeysRouter } = require("./routes/clientKeys");
 
 function createApp() {
   const app = express();
@@ -72,6 +73,7 @@ function createApp() {
   app.use("/api/root-agent", requireAuth, rootAgentRouter);
   app.use("/api/paai-chat", requireAuth, requireRole("CEO"), paaiChatRouter);
   app.use("/api/clients", requireAuth, clientsRouter);
+  app.use("/api/client", clientKeysRouter);
   
   const { telephonyRouter } = require("./routes/telephony");
   app.use("/api/telephony", telephonyRouter);

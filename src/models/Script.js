@@ -25,6 +25,11 @@ const scriptSchema = new mongoose.Schema(
     processedVideoUrl: { type: String, default: null },
     viralVideoUrl:     { type: String, default: null },
     aiJobId:           { type: String, default: null },
+    campaignId:        { type: String, default: null, index: true },
+    viewsCount:        { type: Number, default: 0 },
+    likesCount:        { type: Number, default: 0 },
+    sharesCount:       { type: Number, default: 0 },
+    commentsCount:     { type: Number, default: 0 },
     processingStatus: {
       type: String,
       enum: ["none", "uploading", "processing", "completed", "failed"],

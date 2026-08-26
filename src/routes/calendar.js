@@ -478,21 +478,34 @@ async function getPingStatsHandler(req, res) {
     });
 
     // Fetch message histories to calculate total pings (messages)
-    async function getMessagesCount(sessionsList) {
+    async function getMessagesCount(sessionsList, startLimit, endLimit) {
       let count = 0;
       const batchSize = 15;
       for (let i = 0; i < sessionsList.length; i += batchSize) {
         const batch = sessionsList.slice(i, i + batchSize);
         const results = await Promise.all(
-          batch.map(s => getSessionHistory(s.session_id, token).then(hist => (Array.isArray(hist) ? hist.length : 0)).catch(() => 0))
+          batch.map(s => 
+            getSessionHistory(s.session_id, token)
+              .then(hist => {
+                if (!Array.isArray(hist)) return 0;
+                if (!startLimit && !endLimit) return hist.length;
+                return hist.filter(msg => {
+                  const msgTime = new Date(msg.created_at || msg.timestamp || 0);
+                  if (startLimit && msgTime < startLimit) return false;
+                  if (endLimit && msgTime > endLimit) return false;
+                  return true;
+                }).length;
+              })
+              .catch(() => 0)
+          )
         );
         count += results.reduce((a, b) => a + b, 0);
       }
       return count;
     }
 
-    const currentPings = await getMessagesCount(allCurrentSessions);
-    const previousPings = await getMessagesCount(allPreviousSessions);
+    const currentPings = await getMessagesCount(allCurrentSessions, currentStart, currentEnd);
+    const previousPings = await getMessagesCount(allPreviousSessions, previousStart, previousEnd);
 
     // Compute Growth helper
     function getGrowthMetrics(curr, prev, isOutcomeOrSource = false) {
@@ -568,7 +581,20 @@ async function getPingStatsHandler(req, res) {
       for (let i = 0; i < allCurrentSessions.length; i += batchSize) {
         const batch = allCurrentSessions.slice(i, i + batchSize);
         const results = await Promise.all(
-          batch.map(s => getSessionHistory(s.session_id, clientToken).then(hist => (Array.isArray(hist) ? hist.length : 0)).catch(() => 0))
+          batch.map(s => 
+            getSessionHistory(s.session_id, clientToken)
+              .then(hist => {
+                if (!Array.isArray(hist)) return 0;
+                if (!currentStart && !currentEnd) return hist.length;
+                return hist.filter(msg => {
+                  const msgTime = new Date(msg.created_at || msg.timestamp || 0);
+                  if (currentStart && msgTime < currentStart) return false;
+                  if (currentEnd && msgTime > currentEnd) return false;
+                  return true;
+                }).length;
+              })
+              .catch(() => 0)
+          )
         );
         totalPings += results.reduce((a, b) => a + b, 0);
       }

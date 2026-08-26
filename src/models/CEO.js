@@ -34,6 +34,13 @@ const ceoSchema = new mongoose.Schema(
     isWhatsAppConnected: { type: Boolean, default: false },
     adplifAiClientId: { type: String, trim: true },
     adplifAiApiKey:   { type: String, trim: true },
+    clientKey:        { type: String, trim: true, default: null, unique: true, sparse: true },
+    gstNo:            { type: String, default: "NAN" },
+    panNo:            { type: String, default: "NAN" },
+    yovoClientId:     { type: String, trim: true, default: null },
+    isYovoConnected:  { type: Boolean, default: false },
+    yovoToken:        { type: String, default: null },
+    yovoClientInfo:   { type: mongoose.Schema.Types.Mixed, default: null },
     social: {
       instagram: {
         userId:   { type: String, trim: true },
@@ -88,6 +95,13 @@ function toPublicCEO(doc) {
     isWhatsAppConnected: doc.isWhatsAppConnected || false,
     adplifAiClientId: doc.adplifAiClientId,
     adplifAiApiKey: doc.adplifAiApiKey,
+    clientKey: doc.clientKey || null,
+    gstNo: doc.gstNo || "NAN",
+    panNo: doc.panNo || "NAN",
+    yovoClientId: doc.yovoClientId || null,
+    isYovoConnected: doc.isYovoConnected || false,
+    yovoToken: doc.yovoToken || null,
+    yovoClientInfo: doc.yovoClientInfo || null,
     createdAt:   doc.createdAt,
     updatedAt:   doc.updatedAt,
   };

@@ -259,6 +259,8 @@ router.get("/me", requireAuth, async (req, res) => {
         company: ceo.company,
         ragClientId: ceo.ragClientId || null,
         ragToken: ceo.ragToken || null,
+        isYovoConnected: ceo.isYovoConnected || false,
+        yovoClientId: ceo.yovoClientId || null,
         
         // Add missing profile fields
         mobile: publicCeo.mobile,
