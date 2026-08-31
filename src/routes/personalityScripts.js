@@ -137,7 +137,7 @@ router.get("/scripts", async (req, res) => {
       const ceo = await CEO.findById(userId);
       if (ceo && ceo.isYovoConnected && ceo.yovoClientId) {
         const axios = require("axios");
-        const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+        const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
         const headers = {};
         if (ceo.yovoToken) {
           headers["Authorization"] = `Bearer ${ceo.yovoToken}`;

@@ -6178,7 +6178,7 @@ router.post("/yovo/connect", async (req, res) => {
     }
 
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { clientKey } = req.body;
     if (!clientKey) {
       return res.status(400).json({ error: "CLIENT_KEY_REQUIRED" });
@@ -6276,7 +6276,7 @@ router.get("/yovo/status", async (req, res) => {
 router.get("/yovo/campaigns", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
     
@@ -6397,7 +6397,7 @@ router.delete("/yovo/campaigns/:campaignId/scripts/:scriptId", async (req, res) 
 router.get("/yovo/campaigns/:campaignId/data", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6428,7 +6428,7 @@ router.get("/yovo/campaigns/:campaignId/data", async (req, res) => {
 router.get("/yovo/campaigns/:campaignId/videos", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6459,7 +6459,7 @@ router.get("/yovo/campaigns/:campaignId/videos", async (req, res) => {
 router.get("/yovo/campaign-tasks/:campaignId", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6490,7 +6490,7 @@ router.get("/yovo/campaign-tasks/:campaignId", async (req, res) => {
 router.post("/yovo/campaign-tasks", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6522,7 +6522,7 @@ router.post("/yovo/campaign-tasks", async (req, res) => {
 router.put("/yovo/campaign-tasks/task/:taskId", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6554,7 +6554,7 @@ router.put("/yovo/campaign-tasks/task/:taskId", async (req, res) => {
 router.delete("/yovo/campaign-tasks/task/:taskId", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6585,7 +6585,7 @@ router.delete("/yovo/campaign-tasks/task/:taskId", async (req, res) => {
 router.post("/yovo/campaign-tasks/:campaignId/distribute", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6617,7 +6617,7 @@ router.post("/yovo/campaign-tasks/:campaignId/distribute", async (req, res) => {
 router.get("/yovo/campaign-tasks/:campaignId/participants", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6648,7 +6648,7 @@ router.get("/yovo/campaign-tasks/:campaignId/participants", async (req, res) => 
 router.get("/yovo/pools", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6679,7 +6679,7 @@ router.get("/yovo/pools", async (req, res) => {
 router.get("/yovo/pools/:poolId/reels", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6710,7 +6710,7 @@ router.get("/yovo/pools/:poolId/reels", async (req, res) => {
 router.post("/yovo/pools/:poolId/folders", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6742,7 +6742,7 @@ router.post("/yovo/pools/:poolId/folders", async (req, res) => {
 router.get("/yovo/pools/:poolId/folders", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6773,7 +6773,7 @@ router.get("/yovo/pools/:poolId/folders", async (req, res) => {
 router.get("/yovo/folders/:folderId/reels", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6804,7 +6804,7 @@ router.get("/yovo/folders/:folderId/reels", async (req, res) => {
 router.post("/yovo/campaign-tasks/task/:taskId/assign", async (req, res) => {
   try {
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6845,7 +6845,7 @@ router.post("/yovo/pools/:poolId/upload", logoUpload.single("video"), async (req
     const uploaded = await uploadToR2(req.file, "scripts/videos/raw");
 
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const { CEO } = require("../models/CEO");
     const ceo = await CEO.findById(req.user.sub);
 
@@ -6927,7 +6927,7 @@ router.post("/yovo/campaigns/:campaignId/upload-video", logoUpload.single("video
 
       // Submit to YOVO AI
       const axios = require("axios");
-      const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+      const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
       const { CEO } = require("../models/CEO");
       const ceo = await CEO.findById(userId);
       const headers = ceo && ceo.yovoToken ? { "Authorization": `Bearer ${ceo.yovoToken}` } : {};
@@ -7093,7 +7093,7 @@ router.post("/yovo/campaigns/:campaignId/select-from-pool", async (req, res) => 
     }
 
     const axios = require("axios");
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
 
     if (poolScript.processedVideoUrl) {
       script.rawVideoUrl = poolScript.rawVideoUrl;
@@ -7219,7 +7219,7 @@ router.post("/yovo/campaigns", logoUpload.fields([
       return res.status(400).json({ error: "IMAGE_REQUIRED", message: "Campaign main image file is required." });
     }
 
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
 
     // Build FormData to forward the request to YOVO AI
     const form = new FormData();
@@ -7294,7 +7294,7 @@ router.get("/yovo/categories", async (req, res) => {
       return res.json({ success: true, categories: [] });
     }
 
-    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
     const headers = {};
     if (ceo.yovoToken) {
       headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
