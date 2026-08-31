@@ -6254,6 +6254,25 @@ router.post("/yovo/disconnect", async (req, res) => {
   }
 });
 
+router.get("/yovo/status", async (req, res) => {
+  try {
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+    if (!ceo) {
+      return res.status(404).json({ error: "CEO_NOT_FOUND" });
+    }
+    return res.json({
+      success: true,
+      connected: ceo.isYovoConnected || false,
+      yovoClientId: ceo.yovoClientId || null,
+      yovoClientInfo: ceo.yovoClientInfo || null
+    });
+  } catch (err) {
+    console.error("[yovo-status-error]", err.message);
+    return res.status(500).json({ error: "STATUS_CHECK_FAILED", message: err.message });
+  }
+});
+
 router.get("/yovo/campaigns", async (req, res) => {
   try {
     const axios = require("axios");
