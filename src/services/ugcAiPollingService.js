@@ -86,6 +86,109 @@ async function pollRealAiJobs() {
           await script.save();
           console.log(`[ugc-polling] Script "${script.title}" updated to status "Edited".`);
 
+          // Sync to YovoAI Content Pools
+          if (script.processedVideoUrl && script.userId) {
+            try {
+              const { CEO } = require("../models/CEO");
+              const ceo = await CEO.findById(script.userId);
+              if (ceo && ceo.isYovoConnected && ceo.yovoClientId) {
+                console.log(`[ugc-polling] Syncing video "${script.title}" to YovoAI Content Pool for Client ID: ${ceo.yovoClientId}...`);
+                const headers = {};
+                if (ceo.yovoToken) {
+                  headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+                }
+                
+                // 1. Fetch existing pools
+                const poolsRes = await axios.get(
+                  `${yovoApiBaseUrl}/api/pools?clientId=${encodeURIComponent(ceo.yovoClientId)}`,
+                  { headers, timeout: 8000 }
+                );
+                
+                let targetPool = (poolsRes.data?.pools || []).find(
+                  (p) => p.name === "UGC Prompter Pool" || p.name === "UGC"
+                );
+                
+                // 2. Create pool if it doesn't exist
+                if (!targetPool) {
+                  console.log(`[ugc-polling] Pool "UGC Prompter Pool" not found. Creating it in YovoAI...`);
+                  const createRes = await axios.post(
+                    `${yovoApiBaseUrl}/api/pools`,
+                    {
+                      name: "UGC Prompter Pool",
+                      description: "AI-generated videos from MagnifAI prompter.",
+                      category: "ugc",
+                      clientId: ceo.yovoClientId
+                    },
+                    { headers, timeout: 8000 }
+                  );
+                  targetPool = createRes.data?.pool;
+                }
+                
+                if (targetPool && targetPool._id) {
+                  let folderId = null;
+
+                  // 3. If campaignId is present, check/create campaign folder in that pool
+                  if (script.campaignId) {
+                    try {
+                      // Fetch campaign details
+                      const campaignRes = await axios.get(
+                        `${yovoApiBaseUrl}/api/auth/user/campaign/${script.campaignId}`,
+                        { headers, timeout: 5000 }
+                      );
+                      const campaignName = campaignRes.data?.campaign?.campaignName || "Campaign Video Pool";
+
+                      // Fetch pool folders
+                      const foldersRes = await axios.get(
+                        `${yovoApiBaseUrl}/api/pools/${targetPool._id}/folders`,
+                        { headers, timeout: 5000 }
+                      );
+                      const folders = foldersRes.data?.folders || [];
+                      let folder = folders.find(f => f.name === campaignName);
+
+                      // Create folder if not exists
+                      if (!folder) {
+                        console.log(`[ugc-polling] Folder "${campaignName}" not found. Creating it in pool ${targetPool._id}...`);
+                        const createFolderRes = await axios.post(
+                          `${yovoApiBaseUrl}/api/pools/${targetPool._id}/folders`,
+                          { name: campaignName },
+                          { headers, timeout: 5000 }
+                        );
+                        folder = createFolderRes.data?.folder;
+                      }
+
+                      if (folder && folder._id) {
+                        folderId = folder._id;
+                      }
+                    } catch (folderErr) {
+                      console.error(`[ugc-polling] Failed to resolve campaign folder:`, folderErr.message);
+                    }
+                  }
+
+                  // 4. Save reel metadata in that pool (with folderId if resolved)
+                  await axios.post(
+                    `${yovoApiBaseUrl}/api/pools/${targetPool._id}/save-reels`,
+                    {
+                      reels: [
+                        {
+                          s3Key: script.processedVideoUrl,
+                          s3Url: script.processedVideoUrl,
+                          title: script.title || "UGC Reel",
+                          description: script.description || "UGC Prompter generated video",
+                          folderId: folderId
+                        }
+                      ],
+                      clientId: ceo.yovoClientId
+                    },
+                    { headers, timeout: 8000 }
+                  );
+                  console.log(`[ugc-polling] Successfully synced video "${script.title}" to YovoAI Content Pool "${targetPool.name}" inside folder ID: ${folderId}`);
+                }
+              }
+            } catch (syncErr) {
+              console.error(`[ugc-polling] Failed to sync video to YovoAI Content Pool:`, syncErr.message);
+            }
+          }
+
           // YOVO AI Campaign auto-submission
           if (script.campaignId && script.processedVideoUrl) {
             console.log(`[ugc-polling] Script "${script.title}" is linked to campaign ${script.campaignId}. Triggering auto-submit to YOVO AI...`);

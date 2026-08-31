@@ -6294,42 +6294,83 @@ router.get("/yovo/campaigns/:campaignId/scripts", async (req, res) => {
 
     let scripts = await Script.find({ campaignId, userId });
 
-    if (scripts.length === 0) {
-      const defaultTitles = [
-        "Introduction to Campaign",
-        "Key Benefits & Features",
-        "Why Choose Us?",
-        "User Experience Feedback",
-        "Final Call to Action"
-      ];
-      const defaultBodies = [
-        "Hey everyone! I am super excited to talk about this brand new campaign. Let's dive in and see how we can make a difference.",
-        "Here are the top three features that make this campaign stand out: quality, reliability, and modern design.",
-        "Why should you trust us? Because our team is dedicated to providing the absolute best experience for all participants.",
-        "Here is what other users are saying about our campaign. The reviews are incredibly positive!",
-        "Don't wait! Join the campaign today by clicking the link below. Let's get started right now!"
-      ];
-
-      const created = [];
-      for (let i = 0; i < defaultTitles.length; i++) {
-        const s = await Script.create({
-          userId,
-          title: defaultTitles[i],
-          body: defaultBodies[i],
-          category: "ugc",
-          campaignId,
-          approvalStatus: "Draft",
-          processingStatus: "none"
-        });
-        created.push(s);
-      }
-      scripts = created;
-    }
-
     return res.json({ success: true, scripts });
   } catch (err) {
     console.error("[yovo-scripts-error]", err.message);
     return res.status(500).json({ error: "GET_SCRIPTS_FAILED", message: err.message });
+  }
+});
+
+// POST /yovo/campaigns/:campaignId/scripts - Create custom script for campaign
+router.post("/yovo/campaigns/:campaignId/scripts", async (req, res) => {
+  try {
+    const { Script } = require("../models/Script");
+    const userId = req.user.sub;
+    const { campaignId } = req.params;
+    const { title, body, category } = req.body;
+
+    if (!title || !body) {
+      return res.status(400).json({ error: "TITLE_AND_BODY_REQUIRED", message: "Title and body are required." });
+    }
+
+    const script = await Script.create({
+      userId,
+      title,
+      body,
+      category: category || "ugc",
+      campaignId,
+      approvalStatus: "Draft",
+      processingStatus: "none"
+    });
+
+    return res.json({ success: true, script });
+  } catch (err) {
+    console.error("[yovo-scripts-create-error]", err.message);
+    return res.status(500).json({ error: "CREATE_SCRIPT_FAILED", message: err.message });
+  }
+});
+
+// PUT /yovo/campaigns/:campaignId/scripts/:scriptId - Update script
+router.put("/yovo/campaigns/:campaignId/scripts/:scriptId", async (req, res) => {
+  try {
+    const { Script } = require("../models/Script");
+    const userId = req.user.sub;
+    const { campaignId, scriptId } = req.params;
+    const { title, body, category } = req.body;
+
+    const script = await Script.findOne({ _id: scriptId, campaignId, userId });
+    if (!script) {
+      return res.status(404).json({ error: "SCRIPT_NOT_FOUND", message: "Script not found." });
+    }
+
+    if (title) script.title = title;
+    if (body) script.body = body;
+    if (category) script.category = category;
+    await script.save();
+
+    return res.json({ success: true, script });
+  } catch (err) {
+    console.error("[yovo-scripts-update-error]", err.message);
+    return res.status(500).json({ error: "UPDATE_SCRIPT_FAILED", message: err.message });
+  }
+});
+
+// DELETE /yovo/campaigns/:campaignId/scripts/:scriptId - Delete script
+router.delete("/yovo/campaigns/:campaignId/scripts/:scriptId", async (req, res) => {
+  try {
+    const { Script } = require("../models/Script");
+    const userId = req.user.sub;
+    const { campaignId, scriptId } = req.params;
+
+    const result = await Script.deleteOne({ _id: scriptId, campaignId, userId });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: "SCRIPT_NOT_FOUND", message: "Script not found." });
+    }
+
+    return res.json({ success: true, message: "Script deleted successfully." });
+  } catch (err) {
+    console.error("[yovo-scripts-delete-error]", err.message);
+    return res.status(500).json({ error: "DELETE_SCRIPT_FAILED", message: err.message });
   }
 });
 
@@ -6395,6 +6436,434 @@ router.get("/yovo/campaigns/:campaignId/videos", async (req, res) => {
   }
 });
 
+// Get campaign tasks from YOVO AI
+router.get("/yovo/campaign-tasks/:campaignId", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.get(
+      `${yovoApiBaseUrl}/api/campaign-tasks/${req.params.campaignId}`,
+      { headers, timeout: 8000 }
+    );
+
+    return res.json(response.data);
+  } catch (err) {
+    console.error("[yovo-campaign-tasks-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Create task in YOVO AI campaign
+router.post("/yovo/campaign-tasks", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.post(
+      `${yovoApiBaseUrl}/api/campaign-tasks/`,
+      req.body,
+      { headers, timeout: 8000 }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("[yovo-campaign-task-create-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Edit task in YOVO AI campaign
+router.put("/yovo/campaign-tasks/task/:taskId", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.put(
+      `${yovoApiBaseUrl}/api/campaign-tasks/task/${req.params.taskId}`,
+      req.body,
+      { headers, timeout: 8000 }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("[yovo-campaign-task-edit-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Delete task in YOVO AI campaign
+router.delete("/yovo/campaign-tasks/task/:taskId", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.delete(
+      `${yovoApiBaseUrl}/api/campaign-tasks/task/${req.params.taskId}`,
+      { headers, timeout: 8000 }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("[yovo-campaign-task-delete-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Distribute tasks in YOVO AI campaign
+router.post("/yovo/campaign-tasks/:campaignId/distribute", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.post(
+      `${yovoApiBaseUrl}/api/campaign-tasks/${req.params.campaignId}/distribute`,
+      req.body,
+      { headers, timeout: 8000 }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("[yovo-campaign-tasks-distribute-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Get campaign participants from YOVO AI
+router.get("/yovo/campaign-tasks/:campaignId/participants", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.get(
+      `${yovoApiBaseUrl}/api/campaign-tasks/${req.params.campaignId}/participants`,
+      { headers, timeout: 8000 }
+    );
+
+    return res.json(response.data);
+  } catch (err) {
+    console.error("[yovo-campaign-participants-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Get content pools from YOVO AI
+router.get("/yovo/pools", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.get(
+      `${yovoApiBaseUrl}/api/pools?clientId=${encodeURIComponent(ceo.yovoClientId)}`,
+      { headers, timeout: 8000 }
+    );
+
+    return res.json(response.data);
+  } catch (err) {
+    console.error("[yovo-pools-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Get reels of a pool from YOVO AI
+router.get("/yovo/pools/:poolId/reels", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.get(
+      `${yovoApiBaseUrl}/api/pools/${req.params.poolId}/reels`,
+      { headers, timeout: 8000 }
+    );
+
+    return res.json(response.data);
+  } catch (err) {
+    console.error("[yovo-pool-reels-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Proxy to create a folder in a pool in YOVO AI
+router.post("/yovo/pools/:poolId/folders", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.post(
+      `${yovoApiBaseUrl}/api/pools/${req.params.poolId}/folders`,
+      req.body,
+      { headers, timeout: 8000 }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("[yovo-create-folder-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Proxy to get folders of a pool in YOVO AI
+router.get("/yovo/pools/:poolId/folders", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.get(
+      `${yovoApiBaseUrl}/api/pools/${req.params.poolId}/folders`,
+      { headers, timeout: 8000 }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("[yovo-get-folders-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Proxy to get reels in a folder in YOVO AI
+router.get("/yovo/folders/:folderId/reels", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.get(
+      `${yovoApiBaseUrl}/api/pools/folders/${req.params.folderId}/reels`,
+      { headers, timeout: 8000 }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("[yovo-folder-reels-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Assign task to users with reel from pool in YOVO AI
+router.post("/yovo/campaign-tasks/task/:taskId/assign", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    const response = await axios.post(
+      `${yovoApiBaseUrl}/api/campaign-tasks/task/${req.params.taskId}/assign`,
+      req.body,
+      { headers, timeout: 8000 }
+    );
+
+    return res.status(response.status).json(response.data);
+  } catch (err) {
+    console.error("[yovo-task-assign-error]", err.message);
+    const statusCode = err.response?.status || 500;
+    const errData = err.response?.data || { success: false, message: err.message };
+    return res.status(statusCode).json(errData);
+  }
+});
+
+// Direct Upload to YovoAI Content Pools from MagnifAI Content Pool UI
+router.post("/yovo/pools/:poolId/upload", logoUpload.single("video"), async (req, res) => {
+  try {
+    const { poolId } = req.params;
+    const { folderId, title, description } = req.body;
+    if (!req.file) {
+      return res.status(400).json({ error: "No video file provided" });
+    }
+
+    const { uploadToR2 } = require("../utils/r2");
+    const uploaded = await uploadToR2(req.file, "scripts/videos/raw");
+
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.status(400).json({ error: "YOVO_AI_NOT_CONNECTED", message: "Connect to YOVO AI first." });
+    }
+
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    // Call save-reels API in YovoAI using synced storage R2
+    const response = await axios.post(
+      `${yovoApiBaseUrl}/api/pools/${poolId}/save-reels`,
+      {
+        reels: [
+          {
+            s3Key: uploaded.url,
+            s3Url: uploaded.url,
+            title: title || req.file.originalname || "Uploaded Reel",
+            description: description || "Direct upload from MagnifAI Content Pool",
+            folderId: folderId || null
+          }
+        ],
+        clientId: ceo.yovoClientId
+      },
+      { headers, timeout: 8000 }
+    );
+
+    return res.json({ success: true, reels: response.data?.reels || [] });
+  } catch (err) {
+    console.error("[yovo-pool-upload-error]", err.message);
+    return res.status(500).json({ error: "UPLOAD_FAILED", message: err.message });
+  }
+});
+
 router.post("/yovo/campaigns/:campaignId/upload-video", logoUpload.single("video"), async (req, res) => {
   try {
     const userId = req.user.sub;
@@ -6426,34 +6895,143 @@ router.post("/yovo/campaigns/:campaignId/upload-video", logoUpload.single("video
 
     const { uploadToR2 } = require("../utils/r2");
     const uploaded = await uploadToR2(req.file, "scripts/videos/raw");
-    script.rawVideoUrl = uploaded.url;
 
-    // Resolve adminReviewMode (auto vs manual)
-    const { CEO } = require("../models/CEO");
-    const { Candidate } = require("../models/Candidate");
-    let creatorObj = await CEO.findById(userId);
-    if (!creatorObj) {
-      creatorObj = await Candidate.findById(userId);
-    }
-    const resolvedAdminReviewMode = creatorObj?.adminReviewMode || "manual";
+    const sendTo = req.body.sendTo || "edit";
 
-    if (resolvedAdminReviewMode === "auto") {
-      script.approvalStatus = "Submitted";
+    if (sendTo === "pool") {
+      script.rawVideoUrl = uploaded.url;
+      script.processedVideoUrl = uploaded.url;
+      script.processingStatus = "completed";
+      script.processingProgress = 100;
+      script.approvalStatus = "Edited";
       await script.save();
 
-      const { triggerAiPipelineForScript } = require("../utils/ugcAiTrigger");
-      triggerAiPipelineForScript(script._id.toString()).catch(err => {
-        console.error("[yovo-pipeline-error]", err.message);
-      });
+      // Submit to YOVO AI
+      const axios = require("axios");
+      const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(userId);
+      const headers = ceo && ceo.yovoToken ? { "Authorization": `Bearer ${ceo.yovoToken}` } : {};
+
+      try {
+        await axios.post(
+          `${yovoApiBaseUrl}/api/auth/user/campaign/register/${campaignId}`,
+          { userId: userId.toString(), videoUrl: script.processedVideoUrl },
+          { timeout: 8000 }
+        );
+        await axios.post(
+          `${yovoApiBaseUrl}/api/auth/user/campaign/activeparticipants/${campaignId}`,
+          { userId: userId.toString() },
+          { timeout: 8000 }
+        );
+        await axios.post(
+          `${yovoApiBaseUrl}/api/pools/user/response/${userId.toString()}`,
+          { url: script.processedVideoUrl, campaignId: campaignId },
+          { timeout: 8000 }
+        );
+
+        // Sync to YovoAI Content Pool Folder
+        if (ceo && ceo.isYovoConnected && ceo.yovoClientId) {
+          const poolsRes = await axios.get(
+            `${yovoApiBaseUrl}/api/pools?clientId=${encodeURIComponent(ceo.yovoClientId)}`,
+            { headers, timeout: 8000 }
+          );
+          let targetPool = (poolsRes.data?.pools || []).find(
+            (p) => p.name === "UGC Prompter Pool" || p.name === "UGC"
+          );
+          if (!targetPool) {
+            const createRes = await axios.post(
+              `${yovoApiBaseUrl}/api/pools`,
+              {
+                name: "UGC Prompter Pool",
+                description: "AI-generated videos from MagnifAI prompter.",
+                category: "ugc",
+                clientId: ceo.yovoClientId
+              },
+              { headers, timeout: 8000 }
+            );
+            targetPool = createRes.data?.pool;
+          }
+
+          if (targetPool && targetPool._id) {
+            let folderId = null;
+            try {
+              const campaignRes = await axios.get(
+                `${yovoApiBaseUrl}/api/auth/user/campaign/${campaignId}`,
+                { headers, timeout: 5000 }
+              );
+              const campaignName = campaignRes.data?.campaign?.campaignName || "Campaign Video Pool";
+
+              const foldersRes = await axios.get(
+                `${yovoApiBaseUrl}/api/pools/${targetPool._id}/folders`,
+                { headers, timeout: 5000 }
+              );
+              const folders = foldersRes.data?.folders || [];
+              let folder = folders.find(f => f.name === campaignName);
+              if (!folder) {
+                const createFolderRes = await axios.post(
+                  `${yovoApiBaseUrl}/api/pools/${targetPool._id}/folders`,
+                  { name: campaignName },
+                  { headers, timeout: 5000 }
+                );
+                folder = createFolderRes.data?.folder;
+              }
+              if (folder) folderId = folder._id;
+            } catch (folderErr) {
+              console.error("[sync-pool-folder-error]", folderErr.message);
+            }
+
+            await axios.post(
+              `${yovoApiBaseUrl}/api/pools/${targetPool._id}/save-reels`,
+              {
+                reels: [
+                  {
+                    s3Key: script.processedVideoUrl,
+                    s3Url: script.processedVideoUrl,
+                    title: script.title || "UGC Reel",
+                    description: script.description || "UGC Prompter generated video",
+                    folderId
+                  }
+                ],
+                clientId: ceo.yovoClientId
+              },
+              { headers, timeout: 8000 }
+            );
+          }
+        }
+      } catch (submitErr) {
+        console.error(`[yovo-pool-direct-submit-error]`, submitErr.message);
+      }
     } else {
-      script.approvalStatus = "Recorded";
-      await script.save();
+      script.rawVideoUrl = uploaded.url;
+      // Resolve adminReviewMode (auto vs manual)
+      const { CEO } = require("../models/CEO");
+      const { Candidate } = require("../models/Candidate");
+      let creatorObj = await CEO.findById(userId);
+      if (!creatorObj) {
+        creatorObj = await Candidate.findById(userId);
+      }
+      const resolvedAdminReviewMode = creatorObj?.adminReviewMode || "manual";
+
+      if (resolvedAdminReviewMode === "auto") {
+        script.approvalStatus = "Submitted";
+        await script.save();
+
+        const { triggerAiPipelineForScript } = require("../utils/ugcAiTrigger");
+        triggerAiPipelineForScript(script._id.toString()).catch(err => {
+          console.error("[yovo-pipeline-error]", err.message);
+        });
+      } else {
+        script.approvalStatus = "Recorded";
+        await script.save();
+      }
     }
 
     return res.json({
       success: true,
       scriptId: script._id.toString(),
       rawVideoUrl: script.rawVideoUrl,
+      processedVideoUrl: script.processedVideoUrl,
       approvalStatus: script.approvalStatus
     });
   } catch (err) {
@@ -6528,31 +7106,61 @@ router.post("/yovo/campaigns/:campaignId/select-from-pool", async (req, res) => 
       } catch (submitErr) {
         console.error(`[yovo-pool-submit-error]`, submitErr.message);
       }
-    } 
-    else if (poolScript.rawVideoUrl) {
+    } else if (poolScript.rawVideoUrl) {
       script.rawVideoUrl = poolScript.rawVideoUrl;
-      script.processingStatus = "none";
-
-      // Resolve adminReviewMode (auto vs manual)
-      const { CEO } = require("../models/CEO");
-      const { Candidate } = require("../models/Candidate");
-      let creatorObj = await CEO.findById(userId);
-      if (!creatorObj) {
-        creatorObj = await Candidate.findById(userId);
-      }
-      const resolvedAdminReviewMode = creatorObj?.adminReviewMode || "manual";
-
-      if (resolvedAdminReviewMode === "auto") {
-        script.approvalStatus = "Submitted";
+      
+      const sendTo = req.body.sendTo || "edit";
+      if (sendTo === "pool") {
+        script.processedVideoUrl = poolScript.rawVideoUrl;
+        script.processingStatus = "completed";
+        script.processingProgress = 100;
+        script.approvalStatus = "Edited";
         await script.save();
 
-        const { triggerAiPipelineForScript } = require("../utils/ugcAiTrigger");
-        triggerAiPipelineForScript(script._id.toString()).catch(err => {
-          console.error("[yovo-pipeline-error-from-pool]", err.message);
-        });
+        try {
+          await axios.post(
+            `${yovoApiBaseUrl}/api/auth/user/campaign/register/${campaignId}`,
+            { userId: userId.toString(), videoUrl: script.processedVideoUrl },
+            { timeout: 8000 }
+          );
+          await axios.post(
+            `${yovoApiBaseUrl}/api/auth/user/campaign/activeparticipants/${campaignId}`,
+            { userId: userId.toString() },
+            { timeout: 8000 }
+          );
+          await axios.post(
+            `${yovoApiBaseUrl}/api/pools/user/response/${userId.toString()}`,
+            { url: script.processedVideoUrl, campaignId: campaignId },
+            { timeout: 8000 }
+          );
+          console.log(`[yovo-pool] Auto-submitted raw pool video as completed successfully`);
+        } catch (submitErr) {
+          console.error(`[yovo-pool-submit-error-raw-direct]`, submitErr.message);
+        }
       } else {
-        script.approvalStatus = "Recorded";
-        await script.save();
+        script.processingStatus = "none";
+
+        // Resolve adminReviewMode (auto vs manual)
+        const { CEO } = require("../models/CEO");
+        const { Candidate } = require("../models/Candidate");
+        let creatorObj = await CEO.findById(userId);
+        if (!creatorObj) {
+          creatorObj = await Candidate.findById(userId);
+        }
+        const resolvedAdminReviewMode = creatorObj?.adminReviewMode || "manual";
+
+        if (resolvedAdminReviewMode === "auto") {
+          script.approvalStatus = "Submitted";
+          await script.save();
+
+          const { triggerAiPipelineForScript } = require("../utils/ugcAiTrigger");
+          triggerAiPipelineForScript(script._id.toString()).catch(err => {
+            console.error("[yovo-pipeline-error-from-pool]", err.message);
+          });
+        } else {
+          script.approvalStatus = "Recorded";
+          await script.save();
+        }
       }
     } else {
       return res.status(400).json({ error: "Selected pool script contains no video" });

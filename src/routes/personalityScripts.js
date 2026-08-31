@@ -101,6 +101,9 @@ router.get("/scripts", async (req, res) => {
     if (category) filter.category = category;
     if (status) filter.approvalStatus = status;
 
+    // Exclude campaign-scoped scripts from the general page
+    filter.campaignId = { $in: [null, ""] };
+
     const scripts = await Script.find(filter).sort({ createdAt: -1 });
 
     const formatted = scripts.map(s => ({
@@ -127,7 +130,75 @@ router.get("/scripts", async (req, res) => {
       updatedAt: s.updatedAt
     }));
 
-    return res.json(formatted);
+    // Sync / Merge with YovoAI Content Pool reels
+    let yovoReelsScripts = [];
+    try {
+      const { CEO } = require("../models/CEO");
+      const ceo = await CEO.findById(userId);
+      if (ceo && ceo.isYovoConnected && ceo.yovoClientId) {
+        const axios = require("axios");
+        const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://app.yovoai.com";
+        const headers = {};
+        if (ceo.yovoToken) {
+          headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+        }
+        
+        // 1. Fetch client pools
+        const poolsRes = await axios.get(
+          `${yovoApiBaseUrl}/api/pools?clientId=${encodeURIComponent(ceo.yovoClientId)}`,
+          { headers, timeout: 5000 }
+        );
+        
+        const pools = poolsRes.data?.pools || [];
+        
+        // 2. Fetch reels for each pool in parallel
+        const reelsPromises = pools.map(async (pool) => {
+          try {
+            const reelsRes = await axios.get(
+              `${yovoApiBaseUrl}/api/pools/${pool._id}/reels`,
+              { headers, timeout: 5000 }
+            );
+            const reels = reelsRes.data?.reels || [];
+            return reels.map((reel) => ({
+              scriptId: reel._id.toString(),
+              userId: userId.toString(),
+              userIds: [],
+              title: reel.title || "Yovo Reel",
+              body: reel.description || "Video from YovoAI Content Pool",
+              description: reel.description || "Video from YovoAI Content Pool",
+              category: pool.name || "UGC",
+              duration: 0,
+              scheduledDate: null,
+              scheduledTime: null,
+              approvalStatus: "Edited",
+              imageUrl: null,
+              rawVideoUrl: null,
+              processedVideoUrl: reel.s3Url || "",
+              viralVideoUrl: null,
+              processingStatus: "completed",
+              processingProgress: 100,
+              objectionNote: null,
+              createdByAdmin: false,
+              createdAt: reel.createdAt || new Date(),
+              updatedAt: reel.createdAt || new Date()
+            }));
+          } catch (reelErr) {
+            console.error(`[scripts-sync] Failed to fetch reels for pool ${pool._id}:`, reelErr.message);
+            return [];
+          }
+        });
+        
+        const results = await Promise.all(reelsPromises);
+        yovoReelsScripts = results.flat();
+      }
+    } catch (yovoErr) {
+      console.error("[scripts-sync] YovoAI content pool integration failed:", yovoErr.message);
+    }
+
+    const combined = [...formatted, ...yovoReelsScripts];
+    combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    return res.json(combined);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
