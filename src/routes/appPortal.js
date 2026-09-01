@@ -6317,6 +6317,178 @@ router.get("/yovo/campaigns", async (req, res) => {
   }
 });
 
+// GET /api/app/yovo/campaigns/statistics - Workspace-wide aggregated campaign & engagement statistics
+router.get("/yovo/campaigns/statistics", async (req, res) => {
+  try {
+    const axios = require("axios");
+    const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
+    const { CEO } = require("../models/CEO");
+    const ceo = await CEO.findById(req.user.sub);
+
+    let { period = "today", from, to } = req.query;
+    const now = new Date();
+    let fromDate, toDate;
+
+    if (from && to) {
+      fromDate = new Date(from);
+      toDate = new Date(to);
+    } else {
+      switch (period) {
+        case "today": {
+          fromDate = new Date(now);
+          fromDate.setHours(0, 0, 0, 0);
+          toDate = new Date(now);
+          toDate.setHours(23, 59, 59, 999);
+          break;
+        }
+        case "yesterday": {
+          fromDate = new Date(now);
+          fromDate.setDate(fromDate.getDate() - 1);
+          fromDate.setHours(0, 0, 0, 0);
+          toDate = new Date(now);
+          toDate.setDate(toDate.getDate() - 1);
+          toDate.setHours(23, 59, 59, 999);
+          break;
+        }
+        case "this_week": {
+          const day = now.getDay();
+          fromDate = new Date(now);
+          fromDate.setDate(fromDate.getDate() - day);
+          fromDate.setHours(0, 0, 0, 0);
+          toDate = new Date(now);
+          toDate.setHours(23, 59, 59, 999);
+          break;
+        }
+        case "this_month": {
+          fromDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+          toDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+          break;
+        }
+        case "all":
+        default: {
+          fromDate = new Date(0);
+          toDate = new Date(now);
+          toDate.setHours(23, 59, 59, 999);
+          break;
+        }
+      }
+    }
+
+    // Safety Gate: return zero-state if not connected
+    if (!ceo || !ceo.isYovoConnected) {
+      return res.json({
+        success: true,
+        period,
+        from: fromDate.toISOString(),
+        to: toDate.toISOString(),
+        statistics: {
+          campaigns: { total: 0, active: 0, completed: 0 },
+          metrics: { totalVideos: 0, totalViews: 0, totalLikes: 0, totalComments: 0 }
+        }
+      });
+    }
+
+    const clientId = ceo.yovoClientId;
+    const headers = {};
+    if (ceo.yovoToken) {
+      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    }
+
+    let campaigns = [];
+    try {
+      const response = await axios.get(
+        `${yovoApiBaseUrl}/api/auth/user/campaign/active`,
+        { params: { clientId }, headers, timeout: 8000 }
+      );
+      campaigns = response.data?.campaigns || [];
+    } catch (cErr) {
+      console.warn("[yovo-stats-campaigns-warning]", cErr.message);
+    }
+
+    let activeCount = 0;
+    let completedCount = 0;
+
+    for (const c of campaigns) {
+      const isPastEnd = c.endDate && new Date(c.endDate) < now;
+      if (c.status === "Completed" || isPastEnd) {
+        completedCount++;
+      } else {
+        activeCount++;
+      }
+    }
+
+    // Query analytics for campaigns in parallel
+    let totalVideos = 0;
+    let totalViews = 0;
+    let totalLikes = 0;
+    let totalComments = 0;
+
+    if (campaigns.length > 0) {
+      const analyticsPromises = campaigns.map(c => 
+        axios.get(`${yovoApiBaseUrl}/api/auth/user/campaign/data/${c._id}`, {
+          params: { period, from: fromDate.toISOString(), to: toDate.toISOString() },
+          headers,
+          timeout: 5000
+        }).then(res => ({ id: c._id, data: res.data?.data || {} }))
+          .catch(() => ({ id: c._id, data: null }))
+      );
+
+      const results = await Promise.allSettled(analyticsPromises);
+      for (let i = 0; i < campaigns.length; i++) {
+        const c = campaigns[i];
+        const resObj = results[i]?.status === "fulfilled" ? results[i].value?.data : null;
+        if (resObj) {
+          totalVideos += Number(resObj.totalResponses ?? resObj.totalVideos ?? 0) || 0;
+          totalViews += Number(resObj.totalViews ?? 0) || 0;
+          totalLikes += Number(resObj.totalLikes ?? 0) || 0;
+          totalComments += Number(resObj.totalComments ?? 0) || 0;
+        } else {
+          // Fallback to campaign level estimates
+          totalVideos += Number(c.targetCount || (c.members ? c.members.length : 0)) || 0;
+          totalViews += Number(c.views || c.targetViews || 0) || 0;
+          totalLikes += Number(c.targetLikes || 0) || 0;
+          totalComments += Number(c.targetComments || 0) || 0;
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      period,
+      from: fromDate.toISOString(),
+      to: toDate.toISOString(),
+      statistics: {
+        campaigns: {
+          total: campaigns.length,
+          active: activeCount,
+          completed: completedCount
+        },
+        metrics: {
+          totalVideos,
+          totalViews,
+          totalLikes,
+          totalComments
+        }
+      }
+    });
+  } catch (err) {
+    console.error("[yovo-statistics-error]", err.message);
+    const now = new Date();
+    return res.status(500).json({
+      success: false,
+      error: "SERVER_ERROR",
+      message: err.message,
+      period: req.query.period || "today",
+      from: req.query.from || now.toISOString(),
+      to: req.query.to || now.toISOString(),
+      statistics: {
+        campaigns: { total: 0, active: 0, completed: 0 },
+        metrics: { totalVideos: 0, totalViews: 0, totalLikes: 0, totalComments: 0 }
+      }
+    });
+  }
+});
+
 router.get("/yovo/campaigns/:campaignId/scripts", async (req, res) => {
   try {
     const { Script } = require("../models/Script");
