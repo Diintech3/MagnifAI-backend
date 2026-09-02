@@ -130,75 +130,9 @@ router.get("/scripts", async (req, res) => {
       updatedAt: s.updatedAt
     }));
 
-    // Sync / Merge with YovoAI Content Pool reels
-    let yovoReelsScripts = [];
-    try {
-      const { CEO } = require("../models/CEO");
-      const ceo = await CEO.findById(userId);
-      if (ceo && ceo.isYovoConnected && ceo.yovoClientId) {
-        const axios = require("axios");
-        const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
-        const headers = {};
-        if (ceo.yovoToken) {
-          headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
-        }
-        
-        // 1. Fetch client pools
-        const poolsRes = await axios.get(
-          `${yovoApiBaseUrl}/api/pools?clientId=${encodeURIComponent(ceo.yovoClientId)}`,
-          { headers, timeout: 5000 }
-        );
-        
-        const pools = poolsRes.data?.pools || [];
-        
-        // 2. Fetch reels for each pool in parallel
-        const reelsPromises = pools.map(async (pool) => {
-          try {
-            const reelsRes = await axios.get(
-              `${yovoApiBaseUrl}/api/pools/${pool._id}/reels`,
-              { headers, timeout: 5000 }
-            );
-            const reels = reelsRes.data?.reels || [];
-            return reels.map((reel) => ({
-              scriptId: reel._id.toString(),
-              userId: userId.toString(),
-              userIds: [],
-              title: reel.title || "Yovo Reel",
-              body: reel.description || "Video from YovoAI Content Pool",
-              description: reel.description || "Video from YovoAI Content Pool",
-              category: pool.name || "UGC",
-              duration: 0,
-              scheduledDate: null,
-              scheduledTime: null,
-              approvalStatus: "Edited",
-              imageUrl: null,
-              rawVideoUrl: null,
-              processedVideoUrl: reel.s3Url || "",
-              viralVideoUrl: null,
-              processingStatus: "completed",
-              processingProgress: 100,
-              objectionNote: null,
-              createdByAdmin: false,
-              createdAt: reel.createdAt || new Date(),
-              updatedAt: reel.createdAt || new Date()
-            }));
-          } catch (reelErr) {
-            console.error(`[scripts-sync] Failed to fetch reels for pool ${pool._id}:`, reelErr.message);
-            return [];
-          }
-        });
-        
-        const results = await Promise.all(reelsPromises);
-        yovoReelsScripts = results.flat();
-      }
-    } catch (yovoErr) {
-      console.error("[scripts-sync] YovoAI content pool integration failed:", yovoErr.message);
-    }
+    formatted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    const combined = [...formatted, ...yovoReelsScripts];
-    combined.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    return res.json(combined);
+    return res.json(formatted);
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
@@ -588,27 +522,42 @@ Target Duration: ${targetDuration}
 Topic/Title: ${title ? title.trim() : "Any creative trending topic under the category"}
 Context/Description: ${description || "No specific description provided"}`;
 
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        max_tokens: 1500,
-        temperature: 0.7,
-        response_format: { type: "json_object" },
-      }),
-    });
+    const candidateModels = ["openai/gpt-oss-20b", "groq/compound-mini", "allam-2-7b"];
+    let result = null;
+    let lastError = null;
 
-    const data = await groqRes.json();
-    if (data.error) {
-      throw new Error(data.error.message);
+    for (const modelName of candidateModels) {
+      try {
+        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: modelName,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            max_tokens: 1500,
+            temperature: 0.7,
+            response_format: { type: "json_object" },
+          }),
+        });
+
+        const data = await groqRes.json();
+        if (data.choices && data.choices[0]?.message?.content) {
+          result = JSON.parse(data.choices[0].message.content);
+          if (result && (result.title || result.body)) break;
+        } else if (data.error) {
+          lastError = data.error.message;
+        }
+      } catch (err) {
+        lastError = err.message;
+      }
     }
 
-    const result = JSON.parse(data.choices[0].message.content);
+    if (!result) {
+      throw new Error(lastError || "Failed to generate script with AI");
+    }
     const finalTitle = (result.title || title || "Untitled AI Script").trim();
     const finalBody = (result.body || "").trim();
 

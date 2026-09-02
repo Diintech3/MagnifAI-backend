@@ -170,7 +170,7 @@ function buildTwitterThread(title, content, tags, sig = "") {
 }
 
 async function callGroq(apiKey, userPrompt, maxTokens = 4096) {
-  const models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"];
+  const models = ["openai/gpt-oss-20b", "groq/compound-mini", "allam-2-7b"];
   let lastError;
   for (const model of models) {
     try {
@@ -280,7 +280,7 @@ Respond with ONLY valid JSON:
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-20b",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 150,
         temperature: 0.3,

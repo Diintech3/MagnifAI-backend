@@ -1194,7 +1194,7 @@ router.post("/ai/chat", async (req, res) => {
     const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages, max_tokens: 1024 }),
+      body: JSON.stringify({ model: "openai/gpt-oss-20b", messages, max_tokens: 1024 }),
     });
     const data = await r.json();
     const reply = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
@@ -2117,7 +2117,7 @@ Do NOT include section headers, bracket tags, or labels like [HOOK], [MAIN CONTE
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-20b",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 1500,
         temperature: 0.7
