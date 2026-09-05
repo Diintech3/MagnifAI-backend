@@ -43,6 +43,18 @@ const scriptSchema = new mongoose.Schema(
       enum: ["auto", "manual"],
       default: "auto"
     },
+    brollSource: {
+      type: String,
+      default: "pexels"
+    },
+    hasScriptReference: {
+      type: Boolean,
+      default: false
+    },
+    aiPrompts: {
+      type: Array,
+      default: []
+    },
     statusHistory: [
       {
         status:    { type: String },

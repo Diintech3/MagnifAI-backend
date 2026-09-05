@@ -21,6 +21,7 @@ const candidateSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     sendMode: { type: String, enum: ["auto", "manual"], default: "auto" },
     adminReviewMode: { type: String, enum: ["auto", "manual"], default: "manual" },
+    brollSource: { type: String, default: "pexels" },
   },
   { timestamps: true },
 );

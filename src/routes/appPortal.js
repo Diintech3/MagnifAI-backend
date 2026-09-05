@@ -1583,6 +1583,9 @@ router.get("/scripts", async (req, res) => {
         objectionNote: s.objectionNote,
         statusHistory: s.statusHistory,
         createdByAdmin: s.createdByAdmin || false,
+        campaignId: s.campaignId || null,
+        isCampaign: Boolean(s.campaignId || s.title?.toLowerCase().includes("campaign")),
+        brollSource: s.brollSource || "pexels",
         createdAt: s.createdAt,
         updatedAt: s.updatedAt
       };
@@ -1604,8 +1607,8 @@ router.get("/creators", async (req, res) => {
     const candidates = await Candidate.find({ appId: app._id, isActive: true }).sort({ name: 1 });
 
     const creators = [
-      ...ceos.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "CEO", sendMode: c.sendMode || "auto", adminReviewMode: c.adminReviewMode || "manual" })),
-      ...candidates.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "Candidate", sendMode: c.sendMode || "auto", adminReviewMode: c.adminReviewMode || "manual" }))
+      ...ceos.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "CEO", sendMode: c.sendMode || "auto", adminReviewMode: c.adminReviewMode || "manual", brollSource: c.brollSource || "pexels" })),
+      ...candidates.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "Candidate", sendMode: c.sendMode || "auto", adminReviewMode: c.adminReviewMode || "manual", brollSource: c.brollSource || "pexels" }))
     ];
 
     return res.json({ creators });
@@ -1690,13 +1693,49 @@ router.put("/creators/:creatorId/admin-review-mode", async (req, res) => {
   }
 });
 
+// PUT update a creator's brollSource preference
+router.put("/creators/:creatorId/broll-source", async (req, res) => {
+  try {
+    const app = await getAppForUser(req);
+    if (!app) return res.status(404).json({ error: "NOT_FOUND" });
+
+    const { creatorId } = req.params;
+    const { brollSource } = req.body;
+    if (!["pexels", "google_flow"].includes(brollSource)) {
+      return res.status(400).json({ error: "invalid brollSource. Must be pexels or google_flow" });
+    }
+
+    let creator = await CEO.findOneAndUpdate(
+      { _id: creatorId, appId: app._id },
+      { brollSource },
+      { new: true }
+    );
+
+    if (!creator) {
+      creator = await Candidate.findOneAndUpdate(
+        { _id: creatorId, appId: app._id },
+        { brollSource },
+        { new: true }
+      );
+    }
+
+    if (!creator) {
+      return res.status(404).json({ error: "CREATOR_NOT_FOUND" });
+    }
+
+    return res.json({ success: true, brollSource: creator.brollSource });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // POST create script (creatorId is optional) - handles image upload
 router.post("/scripts", logoUpload.single("image"), async (req, res) => {
   try {
     const app = await getAppForUser(req);
     if (!app) return res.status(404).json({ error: "NOT_FOUND" });
 
-    const { title, body, description, category, duration, scheduledDate, scheduledTime, sendMode } = req.body;
+    const { title, body, description, category, duration, scheduledDate, scheduledTime, sendMode, brollSource } = req.body;
     if (!title?.trim() || !body?.trim() || !category?.trim()) {
       return res.status(400).json({ error: "title, body, and category are required" });
     }
@@ -6168,6 +6207,54 @@ router.post("/ads/webhook", async (req, res) => {
   }
 });
 
+// Helper: Ensure YOVO JWT token is valid (Auto-refreshes daily via saved yovoClientKey)
+async function ensureValidYovoToken(ceo) {
+  if (!ceo || !ceo.isYovoConnected) return null;
+  const yovoApiBaseUrl = process.env.YOVOAI_API_BASE_URL || "https://yovoaiapi.diintech.com";
+  
+  let needsRefresh = false;
+  if (!ceo.yovoToken) {
+    needsRefresh = true;
+  } else {
+    try {
+      const jwt = require("jsonwebtoken");
+      const decoded = jwt.decode(ceo.yovoToken);
+      if (decoded && decoded.exp) {
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        // If expired or will expire within 10 minutes, refresh automatically
+        if (decoded.exp - nowSeconds < 600) {
+          needsRefresh = true;
+        }
+      }
+    } catch (_) {
+      needsRefresh = true;
+    }
+  }
+
+  if (needsRefresh && ceo.yovoClientKey) {
+    try {
+      const axios = require("axios");
+      const resp = await axios.post(
+        `${yovoApiBaseUrl}/api/client/login-with-key`,
+        { clientKey: ceo.yovoClientKey },
+        { timeout: 8000 }
+      );
+      if (resp.data && resp.data.success && resp.data.token) {
+        ceo.yovoToken = resp.data.token;
+        if (resp.data.client?._id) {
+          ceo.yovoClientId = resp.data.client._id;
+        }
+        await ceo.save();
+        console.log(`[yovo-auto-refresh] Auto-refreshed 1-day JWT token for CEO "${ceo.name}"`);
+      }
+    } catch (err) {
+      console.error("[yovo-auto-refresh-error]", err.message);
+    }
+  }
+
+  return ceo.yovoToken;
+}
+
 // ── YOVO AI Campaign Connection & Sync Proxy Endpoints ───────────────────────
 router.post("/yovo/connect", async (req, res) => {
   try {
@@ -6195,6 +6282,7 @@ router.post("/yovo/connect", async (req, res) => {
         ceo.isYovoConnected = true;
         ceo.yovoClientId = response.data.client._id || `yovo_${ceo._id.toString()}`;
         ceo.yovoToken = response.data.token;
+        ceo.yovoClientKey = clientKey;
         ceo.yovoClientInfo = response.data.client;
         await ceo.save();
 
@@ -6285,10 +6373,11 @@ router.get("/yovo/campaigns", async (req, res) => {
       return res.json({ success: true, connected: false, campaigns: [] });
     }
 
+    const token = await ensureValidYovoToken(ceo);
     const clientId = ceo.yovoClientId;
     const headers = {};
-    if (ceo.yovoToken) {
-      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
     const response = await axios.get(
@@ -6934,12 +7023,12 @@ router.post("/yovo/campaign-tasks/:campaignId/distribute", async (req, res) => {
     const response = await axios.post(
       `${yovoApiBaseUrl}/api/campaign-tasks/${req.params.campaignId}/distribute`,
       req.body,
-      { headers, timeout: 8000 }
+      { headers, timeout: 60000 }
     );
 
     return res.status(response.status).json(response.data);
   } catch (err) {
-    console.error("[yovo-campaign-tasks-distribute-error]", err.message);
+    console.error("[yovo-campaign-tasks-distribute-error]", err.message, err.response?.data || "");
     const statusCode = err.response?.status || 500;
     const errData = err.response?.data || { success: false, message: err.message };
     return res.status(statusCode).json(errData);
@@ -7153,12 +7242,12 @@ router.post("/yovo/campaign-tasks/task/:taskId/assign", async (req, res) => {
     const response = await axios.post(
       `${yovoApiBaseUrl}/api/campaign-tasks/task/${req.params.taskId}/assign`,
       req.body,
-      { headers, timeout: 8000 }
+      { headers, timeout: 60000 }
     );
 
     return res.status(response.status).json(response.data);
   } catch (err) {
-    console.error("[yovo-task-assign-error]", err.message);
+    console.error("[yovo-task-assign-error]", err.message, err.response?.data || "");
     const statusCode = err.response?.status || 500;
     const errData = err.response?.data || { success: false, message: err.message };
     return res.status(statusCode).json(errData);
@@ -7675,17 +7764,45 @@ router.post("/yovo/campaigns", logoUpload.fields([
     const headers = {
       ...form.getHeaders()
     };
-    if (ceo.yovoToken) {
-      headers["Authorization"] = `Bearer ${ceo.yovoToken}`;
+    const token = await ensureValidYovoToken(ceo);
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await axios.post(
-      `${yovoApiBaseUrl}/api/auth/user/campaign/`,
-      form,
-      { headers, timeout: 60000 }
-    );
-
-    return res.json(response.data);
+    try {
+      const response = await axios.post(
+        `${yovoApiBaseUrl}/api/auth/user/campaign/`,
+        form,
+        { headers, timeout: 60000 }
+      );
+      return res.json(response.data);
+    } catch (apiPostErr) {
+      // If token expired (401), auto-refresh via clientKey and retry once!
+      if (apiPostErr.response?.status === 401 && ceo.yovoClientKey) {
+        console.log(`[yovo-campaign-create] Got 401, auto-refreshing 1-day token via clientKey...`);
+        try {
+          const refreshResp = await axios.post(
+            `${yovoApiBaseUrl}/api/client/login-with-key`,
+            { clientKey: ceo.yovoClientKey },
+            { timeout: 8000 }
+          );
+          if (refreshResp.data?.success && refreshResp.data?.token) {
+            ceo.yovoToken = refreshResp.data.token;
+            await ceo.save();
+            headers["Authorization"] = `Bearer ${refreshResp.data.token}`;
+            const retryResp = await axios.post(
+              `${yovoApiBaseUrl}/api/auth/user/campaign/`,
+              form,
+              { headers, timeout: 60000 }
+            );
+            return res.json(retryResp.data);
+          }
+        } catch (retryErr) {
+          console.error("[yovo-campaign-create-retry-error]", retryErr.message);
+        }
+      }
+      throw apiPostErr;
+    }
   } catch (err) {
     console.error("[yovo-campaign-create-error]", err.message);
     const statusCode = err.response?.status || 500;

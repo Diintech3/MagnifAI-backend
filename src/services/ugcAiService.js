@@ -47,11 +47,14 @@ function isAiConfigured() {
 /**
  * 1. Upload raw video to 3rdAI server
  * @param {Buffer} buffer - Video file buffer
+ * @param {Buffer} buffer - Video file buffer
  * @param {string} filename - Filename (e.g. video.mp4)
  * @param {string} mimetype - Content type of video
+ * @param {string} [scriptText] - Optional reference script plain text
+ * @param {string} [source] - Optional source identifier (e.g. dashboard, magnifai)
  * @returns {Promise<string>} - Returns the unique job_id
  */
-async function uploadVideoToAi(buffer, filename = "video.mp4", mimetype = "video/mp4") {
+async function uploadVideoToAi(buffer, filename = "video.mp4", mimetype = "video/mp4", scriptText = "", source = "magnifai") {
   if (!isAiConfigured()) {
     throw new Error("3rdAI configuration is missing");
   }
@@ -61,6 +64,13 @@ async function uploadVideoToAi(buffer, filename = "video.mp4", mimetype = "video
 
   const form = new FormData();
   form.append("file", buffer, { filename, contentType: mimetype });
+
+  if (scriptText && typeof scriptText === "string" && scriptText.trim()) {
+    form.append("script_text", scriptText.trim());
+  }
+  if (source) {
+    form.append("source", source);
+  }
 
   try {
     const uploadRes = await axios.post(`${baseUrl}/api/ugc/upload`, form, {
@@ -88,9 +98,11 @@ async function uploadVideoToAi(buffer, filename = "video.mp4", mimetype = "video
 /**
  * 2. Start processing raw video with default UGC settings
  * @param {string} jobId - The job_id returned by upload
+ * @param {string} [sendMode="auto"] - Send mode preference ("auto" | "manual")
+ * @param {string} [brollSource="pexels"] - B-roll provider source ("pexels" | "google_flow")
  * @returns {Promise<boolean>}
  */
-async function triggerProcessing(jobId, sendMode = "auto") {
+async function triggerProcessing(jobId, sendMode = "auto", brollSource = "pexels") {
   if (!isAiConfigured()) {
     throw new Error("3rdAI configuration is missing");
   }
@@ -102,7 +114,7 @@ async function triggerProcessing(jobId, sendMode = "auto") {
     caption: true,
     subtitle_style: "two_line_zoom_in",
     broll: true,
-    broll_source: "pexels",
+    broll_source: brollSource || "pexels",
     music: true,
     bgm_mood: "Motivational",
     sfx: true,
@@ -167,9 +179,76 @@ async function checkJobStatus(jobId) {
   }
 }
 
+/**
+ * 4. Dedicated script upload/update for an existing job
+ * @param {string} jobId - The job_id
+ * @param {{ scriptText?: string, fileBuffer?: Buffer, filename?: string }} scriptData
+ * @returns {Promise<object>}
+ */
+async function uploadScriptToAi(jobId, scriptData = {}) {
+  if (!isAiConfigured()) {
+    throw new Error("3rdAI configuration is missing");
+  }
+
+  const baseUrl = env.UGC_AI_BASE_URL.replace(/\/$/, "");
+  const token = env.UGC_AI_APP_TOKEN;
+
+  const form = new FormData();
+  if (scriptData.fileBuffer) {
+    form.append("file", scriptData.fileBuffer, { filename: scriptData.filename || "script.txt" });
+  } else if (scriptData.scriptText) {
+    form.append("script_text", scriptData.scriptText);
+  } else {
+    throw new Error("No script text or script file provided");
+  }
+
+  try {
+    const res = await axios.post(`${baseUrl}/api/ugc/upload-script/${jobId}`, form, {
+      headers: {
+        "X-App-Token": token,
+        ...form.getHeaders()
+      },
+      timeout: 30000
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[3rdAI-upload-script-error]", getCleanErrorMessage(err));
+    throw err;
+  }
+}
+
+/**
+ * 5. Preview AI generated Image & Video B-Roll Prompts
+ * @param {string} jobId - The job_id
+ * @returns {Promise<object>}
+ */
+async function getAiBrollPrompts(jobId) {
+  if (!isAiConfigured()) {
+    throw new Error("3rdAI configuration is missing");
+  }
+
+  const baseUrl = env.UGC_AI_BASE_URL.replace(/\/$/, "");
+  const token = env.UGC_AI_APP_TOKEN;
+
+  try {
+    const res = await axios.get(`${baseUrl}/api/ugc/analyze-broll/${jobId}`, {
+      headers: {
+        "X-App-Token": token
+      },
+      timeout: 30000
+    });
+    return res.data;
+  } catch (err) {
+    console.error("[3rdAI-analyze-broll-error]", getCleanErrorMessage(err));
+    throw err;
+  }
+}
+
 module.exports = {
   isAiConfigured,
   uploadVideoToAi,
   triggerProcessing,
-  checkJobStatus
+  checkJobStatus,
+  uploadScriptToAi,
+  getAiBrollPrompts
 };

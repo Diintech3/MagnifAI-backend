@@ -67,11 +67,12 @@ async function triggerAiPipelineForScript(scriptId) {
       throw new Error("Unsupported R2 stream format");
     }
 
-    // 3. Upload to 3rdAI server
-    console.log(`[ugc-pipeline] Uploading raw video to 3rdAI server for script "${script.title}"...`);
-    const jobId = await uploadVideoToAi(buffer, `${script._id}_raw.mp4`, "video/mp4");
+    // 3. Upload to 3rdAI server (attaching script.body as reference script)
+    const scriptText = (script.body && typeof script.body === "string") ? script.body.trim() : "";
+    console.log(`[ugc-pipeline] Uploading raw video to 3rdAI server for script "${script.title}" (hasScript: ${Boolean(scriptText)})...`);
+    const jobId = await uploadVideoToAi(buffer, `${script._id}_raw.mp4`, "video/mp4", scriptText, "magnifai");
 
-    // 4. Trigger AI video editing based on creator's sendMode preference
+    // 4. Trigger AI video editing based on creator's sendMode preference and brollSource
     let resolvedSendMode = "auto";
     if (script.userId) {
       const { CEO } = require("../models/CEO");
@@ -87,14 +88,18 @@ async function triggerAiPipelineForScript(scriptId) {
       resolvedSendMode = script.sendMode || "auto";
     }
 
-    console.log(`[ugc-pipeline] Triggering 3rdAI editing process for script "${script.title}" (jobId: ${jobId}, sendMode: ${resolvedSendMode})...`);
-    await triggerProcessing(jobId, resolvedSendMode);
+    const resolvedBrollSource = script.brollSource || "pexels";
+    console.log(`[ugc-pipeline] Triggering 3rdAI editing process for script "${script.title}" (jobId: ${jobId}, sendMode: ${resolvedSendMode}, brollSource: ${resolvedBrollSource})...`);
+    await triggerProcessing(jobId, resolvedSendMode, resolvedBrollSource);
 
     // 5. Update DB
     script.aiJobId = jobId;
     script.processingStatus = "processing";
     script.processingProgress = 20;
     script.approvalStatus = "Editing";
+    if (scriptText) {
+      script.hasScriptReference = true;
+    }
     await script.save();
 
     console.log(`[ugc-pipeline] 3rdAI processing successfully triggered for script "${script.title}".`);
