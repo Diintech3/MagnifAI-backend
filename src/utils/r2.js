@@ -46,14 +46,16 @@ async function uploadToR2(file, folder = "apps/logos") {
   return { key, url: buildPublicUrl(key) };
 }
 
-async function getObjectFromR2(key) {
+async function getObjectFromR2(key, range = null) {
   const client = getR2Client();
-  const result = await client.send(
-    new GetObjectCommand({
-      Bucket: env.R2_BUCKET,
-      Key: key,
-    }),
-  );
+  const params = {
+    Bucket: env.R2_BUCKET,
+    Key: key,
+  };
+  if (range) {
+    params.Range = range;
+  }
+  const result = await client.send(new GetObjectCommand(params));
   return result;
 }
 

@@ -26,11 +26,29 @@ async function serveLogo(req, res, key) {
   if (!isR2Configured()) return res.status(503).json({ error: "R2_NOT_CONFIGURED" });
 
   try {
-    const object = await getObjectFromR2(key);
-    res.setHeader("Content-Type", object.ContentType || "image/jpeg");
+    const range = req.headers.range;
+    const object = await getObjectFromR2(key, range);
+
+    const isVideo = key.endsWith(".mp4") || key.endsWith(".webm") || key.endsWith(".mov");
+    let contentType = object.ContentType;
+    if (!contentType || contentType === "application/octet-stream") {
+      contentType = isVideo ? "video/mp4" : "image/jpeg";
+    }
+
+    res.setHeader("Content-Type", contentType);
     res.setHeader("Cache-Control", "public, max-age=86400");
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    res.setHeader("Accept-Ranges", "bytes");
+
+    if (object.ContentLength) {
+      res.setHeader("Content-Length", object.ContentLength);
+    }
+    if (object.ContentRange) {
+      res.setHeader("Content-Range", object.ContentRange);
+      res.status(206);
+    }
+
     if (object.Body?.pipe) {
       object.Body.pipe(res);
       return;
