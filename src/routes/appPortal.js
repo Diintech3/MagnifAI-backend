@@ -1585,7 +1585,7 @@ router.get("/scripts", async (req, res) => {
         createdByAdmin: s.createdByAdmin || false,
         campaignId: s.campaignId || null,
         isCampaign: Boolean(s.campaignId || s.title?.toLowerCase().includes("campaign")),
-        brollSource: s.brollSource || "pexels",
+        brollSource: s.brollSource || "google_flow",
         createdAt: s.createdAt,
         updatedAt: s.updatedAt
       };
@@ -1607,8 +1607,8 @@ router.get("/creators", async (req, res) => {
     const candidates = await Candidate.find({ appId: app._id, isActive: true }).sort({ name: 1 });
 
     const creators = [
-      ...ceos.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "CEO", sendMode: c.sendMode || "auto", adminReviewMode: c.adminReviewMode || "manual", brollSource: c.brollSource || "pexels" })),
-      ...candidates.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "Candidate", sendMode: c.sendMode || "auto", adminReviewMode: c.adminReviewMode || "manual", brollSource: c.brollSource || "pexels" }))
+      ...ceos.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "CEO", sendMode: c.sendMode || "auto", adminReviewMode: c.adminReviewMode || "manual", brollSource: c.brollSource || "google_flow" })),
+      ...candidates.map(c => ({ creatorId: c._id.toString(), name: c.name, role: "Candidate", sendMode: c.sendMode || "auto", adminReviewMode: c.adminReviewMode || "manual", brollSource: c.brollSource || "google_flow" }))
     ];
 
     return res.json({ creators });
@@ -1789,6 +1789,7 @@ router.post("/scripts", logoUpload.single("image"), async (req, res) => {
           approvalStatus: "Draft",
           createdByAdmin: true,
           sendMode: sendMode || "auto",
+          brollSource: brollSource || "google_flow",
           statusHistory: [
             {
               status: "Draft",
@@ -1815,6 +1816,7 @@ router.post("/scripts", logoUpload.single("image"), async (req, res) => {
         approvalStatus: "Draft",
         createdByAdmin: true,
         sendMode: sendMode || "auto",
+        brollSource: brollSource || "google_flow",
         statusHistory: [
           {
             status: "Draft",

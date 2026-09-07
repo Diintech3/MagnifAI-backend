@@ -99,10 +99,10 @@ async function uploadVideoToAi(buffer, filename = "video.mp4", mimetype = "video
  * 2. Start processing raw video with default UGC settings
  * @param {string} jobId - The job_id returned by upload
  * @param {string} [sendMode="auto"] - Send mode preference ("auto" | "manual")
- * @param {string} [brollSource="pexels"] - B-roll provider source ("pexels" | "google_flow")
+ * @param {string} [brollSource="google_flow"] - B-roll provider source ("pexels" | "google_flow")
  * @returns {Promise<boolean>}
  */
-async function triggerProcessing(jobId, sendMode = "auto", brollSource = "pexels") {
+async function triggerProcessing(jobId, sendMode = "auto", brollSource = "google_flow") {
   if (!isAiConfigured()) {
     throw new Error("3rdAI configuration is missing");
   }
@@ -114,7 +114,7 @@ async function triggerProcessing(jobId, sendMode = "auto", brollSource = "pexels
     caption: true,
     subtitle_style: "two_line_zoom_in",
     broll: true,
-    broll_source: brollSource || "pexels",
+    broll_source: brollSource || "google_flow",
     music: true,
     bgm_mood: "Motivational",
     sfx: true,

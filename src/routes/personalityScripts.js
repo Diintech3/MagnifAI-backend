@@ -169,7 +169,8 @@ router.post("/scripts", async (req, res) => {
       duration,
       scheduledDate: scheduledDate || "Self-scheduled",
       scheduledTime: scheduledTime || "Self-scheduled",
-      approvalStatus: "Draft"
+      approvalStatus: "Draft",
+      brollSource: req.body.brollSource || creator?.brollSource || "google_flow"
     });
 
     // Sync script to Daily Planner
@@ -582,7 +583,8 @@ Context/Description: ${description || "No specific description provided"}`;
       duration: finalDuration,
       scheduledDate: "Self-scheduled",
       scheduledTime: "Self-scheduled",
-      approvalStatus: "Draft"
+      approvalStatus: "Draft",
+      brollSource: creator?.brollSource || "google_flow"
     });
 
     return res.status(201).json({
@@ -623,6 +625,7 @@ router.put("/scripts/:id", async (req, res) => {
     if (duration !== undefined) script.duration = duration;
     if (scheduledDate !== undefined) script.scheduledDate = scheduledDate;
     if (scheduledTime !== undefined) script.scheduledTime = scheduledTime;
+    if (req.body.brollSource !== undefined) script.brollSource = req.body.brollSource;
     await script.save();
 
     // Sync updated script schedule to Daily Planner

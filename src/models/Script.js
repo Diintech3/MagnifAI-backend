@@ -45,7 +45,7 @@ const scriptSchema = new mongoose.Schema(
     },
     brollSource: {
       type: String,
-      default: "pexels"
+      default: "google_flow"
     },
     hasScriptReference: {
       type: Boolean,

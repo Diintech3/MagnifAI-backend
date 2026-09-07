@@ -74,6 +74,8 @@ async function triggerAiPipelineForScript(scriptId) {
 
     // 4. Trigger AI video editing based on creator's sendMode preference and brollSource
     let resolvedSendMode = "auto";
+    let resolvedBrollSource = script.brollSource || "google_flow";
+
     if (script.userId) {
       const { CEO } = require("../models/CEO");
       const { Candidate } = require("../models/Candidate");
@@ -81,14 +83,21 @@ async function triggerAiPipelineForScript(scriptId) {
       if (!creatorObj) {
         creatorObj = await Candidate.findById(script.userId);
       }
-      if (creatorObj && creatorObj.sendMode) {
-        resolvedSendMode = creatorObj.sendMode;
+      if (creatorObj) {
+        if (creatorObj.sendMode) {
+          resolvedSendMode = creatorObj.sendMode;
+        }
+        if (creatorObj.brollSource) {
+          resolvedBrollSource = creatorObj.brollSource;
+        }
       }
     } else {
       resolvedSendMode = script.sendMode || "auto";
+      if (script.brollSource) {
+        resolvedBrollSource = script.brollSource;
+      }
     }
 
-    const resolvedBrollSource = script.brollSource || "pexels";
     console.log(`[ugc-pipeline] Triggering 3rdAI editing process for script "${script.title}" (jobId: ${jobId}, sendMode: ${resolvedSendMode}, brollSource: ${resolvedBrollSource})...`);
     await triggerProcessing(jobId, resolvedSendMode, resolvedBrollSource);
 
@@ -97,6 +106,7 @@ async function triggerAiPipelineForScript(scriptId) {
     script.processingStatus = "processing";
     script.processingProgress = 20;
     script.approvalStatus = "Editing";
+    script.brollSource = resolvedBrollSource;
     if (scriptText) {
       script.hasScriptReference = true;
     }

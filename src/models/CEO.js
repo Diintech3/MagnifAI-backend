@@ -26,7 +26,7 @@ const ceoSchema = new mongoose.Schema(
     sendMode:     { type: String, enum: ["auto", "manual"], default: "auto" },
     telephonyMode: { type: String, enum: ["auto", "manual"], default: "auto" },
     adminReviewMode: { type: String, enum: ["auto", "manual"], default: "manual" },
-    brollSource:  { type: String, default: "pexels" },
+    brollSource:  { type: String, default: "google_flow" },
     whatsAppSendMode: { type: String, enum: ["auto", "manual"], default: "manual" },
     whatsAppClientId: { type: String, trim: true },
     whatsAppPhoneId:  { type: String, trim: true },
